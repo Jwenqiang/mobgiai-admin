@@ -29,19 +29,20 @@
           :collapse-transition="false"
           router
         >
-          <el-menu-item index="/dashboard/assets">
+          <!-- <el-menu-item index="/dashboard/assets">
             <el-icon><Wallet /></el-icon>
             <template #title>资产</template>
-          </el-menu-item>
+          </el-menu-item> -->
           
-          <el-menu-item index="/dashboard/video-generate">
+          <!-- <el-menu-item index="/dashboard/video-generate">
             <el-icon><VideoCamera /></el-icon>
             <template #title>视频生成</template>
-          </el-menu-item>
+          </el-menu-item> -->
           
           <el-menu-item index="/dashboard/image-generate">
-            <el-icon><Picture /></el-icon>
-            <template #title>图片生成</template>
+            <!-- <el-icon><Picture /></el-icon> -->
+            <el-icon><Opportunity /></el-icon>
+            <template #title>MobgiAI创作</template>
           </el-menu-item>
         </el-menu>
       </div>
@@ -103,7 +104,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Avatar, Expand, Fold, Wallet, VideoCamera, Picture, User, 
-  More, SwitchButton
+  More, SwitchButton,Opportunity
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { authAPI } from '../services/api'
@@ -120,7 +121,7 @@ const currentPageTitle = computed(() => {
   const titleMap: Record<string, string> = {
     '/dashboard/assets': '资产管理',
     '/dashboard/video-generate': '视频生成',
-    '/dashboard/image-generate': '图片生成'
+    '/dashboard/image-generate': 'MobgiAI创作'
   }
   return titleMap[route.path] || '首页'
 })

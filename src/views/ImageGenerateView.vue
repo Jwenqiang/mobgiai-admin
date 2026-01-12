@@ -3,14 +3,14 @@
     <!-- 主要内容区域 -->
     <div class="main-content">
       <!-- 无内容时的居中输入区域 -->
-      <div v-if="currentImages.length === 0 && !generating" class="centered-input-section">
+      <div v-if="currentImages.length === 0 && generationTasks.length === 0" class="centered-input-section">
         <!-- 主标题 -->
         <div class="page-header">
           <div class="header-content">
-            <div class="header-icon">
+            <!-- <div class="header-icon">
               <el-icon class="main-icon"><Picture /></el-icon>
-            </div>
-            <h1 class="header-title">图片生成</h1>
+            </div> -->
+            <h1 class="header-title">开启属于你的MobgiAI创作</h1>
           </div>
         </div>
         
@@ -87,6 +87,50 @@
           <div class="input-bottom-section">
             <!-- 参数选择按钮组 -->
             <div class="params-section">
+              <!-- 生成方式选择 -->
+              <el-popover
+                ref="generateModePopoverRef"
+                placement="top"
+                :width="200"
+                trigger="click"
+                popper-class="generate-mode-popover"
+                :teleported="true"
+              >
+                <template #reference>
+                  <div class="param-btn generate-mode-btn">
+                    <div class="btn-icon">
+                      <el-icon><VideoCamera v-if="currentGenerateMode?.value === 'video'" /><Picture v-else /></el-icon>
+                    </div>
+                    <span>{{ currentGenerateMode?.label || '图片生成' }}</span>
+                    <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                  </div>
+                </template>
+                <div class="generate-mode-selector">
+                  <div class="selector-header">选择生成方式</div>
+                  <div class="mode-list">
+                    <div 
+                      v-for="mode in generateModes" 
+                      :key="mode.value"
+                      class="mode-item"
+                      :class="{ active: currentGenerateMode?.value === mode.value }"
+                      @click="selectGenerateMode(mode)"
+                    >
+                      <div class="mode-info">
+                        <div class="mode-icon">
+                          <el-icon><VideoCamera v-if="mode.value === 'video'" /><Picture v-else /></el-icon>
+                        </div>
+                        <div class="mode-details">
+                          <div class="mode-name">{{ mode.label }}</div>
+                        </div>
+                      </div>
+                      <div v-if="currentGenerateMode?.value === mode.value" class="check-icon">
+                        <el-icon><Check /></el-icon>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </el-popover>
+
               <!-- 模型选择 -->
               <el-popover
                 ref="modelPopoverRef"
@@ -221,12 +265,12 @@
             <div class="generate-section">
               <el-button 
                 type="primary" 
-                :loading="generating"
-                :disabled="!prompt.trim()"
+                :loading="generationTasks.length >= maxConcurrentTasks"
+                :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks"
                 @click="handleGenerate"
                 class="generate-btn"
               >
-                <span>{{ generating ? '生成中...' : '生成' }}</span>
+                <span>{{ generationTasks.length >= maxConcurrentTasks ? '生成中...' : '生成' }}</span>
               </el-button>
             </div>
           </div>
@@ -235,44 +279,61 @@
 
       <!-- 结果展示区域 -->
       <div class="results-section">
-        <!-- 生成中状态 - 即梦风格 -->
-        <div v-if="generating" class="generating-state">
-          <div class="generating-container">
-            <div class="generating-visual">
-              <div class="progress-ring">
-                <el-progress 
-                  type="circle" 
-                  :percentage="generateProgress"
-                  :width="120"
-                  :stroke-width="8"
-                  color="#667eea"
-                />
+        <!-- 多任务生成中状态 -->
+        <div v-if="generationTasks.length > 0" class="generating-tasks">
+          <div 
+            v-for="task in generationTasks" 
+            :key="task.id"
+            class="generating-state"
+          >
+            <div class="generation-card generating">
+              <!-- 上部分：缩略图和制作中状态 -->
+              <div class="generation-header">
+                <div class="generation-thumbnail generating-thumb">
+                  <div class="generating-placeholder">
+                    <el-icon class="placeholder-icon"><Picture /></el-icon>
+                  </div>
+                </div>
+                <div class="generation-info">
+                  <div class="generation-status">
+                    <span class="status-text">制作中...</span>
+                    <div class="status-progress">
+                      <div class="progress-bar" :style="{ width: task.progress + '%' }"></div>
+                    </div>
+                  </div>
+                  <div class="generation-prompt">{{ task.prompt || '正在生成您描述的图片内容...' }}</div>
+                </div>
               </div>
-              <div class="generating-animation">
-                <div class="spark spark-1"></div>
-                <div class="spark spark-2"></div>
-                <div class="spark spark-3"></div>
+              
+              <!-- 中部分：模型标签等信息 -->
+              <div class="generation-meta">
+                <div class="meta-tags">
+                  <span class="meta-tag model-tag">{{ task.model?.name || 'Seedance 1.5' }}</span>
+                  <span class="meta-tag size-tag">{{ task.size?.label || '9:16' }}</span>
+                  <span class="meta-tag status-tag">{{ task.progressText }}</span>
+                </div>
               </div>
-            </div>
-            <div class="generating-content">
-              <h3 class="generating-title">{{ progressText }}</h3>
-              <p class="generating-desc">AI 正在为您精心创作，请稍候...</p>
-              <div class="progress-steps">
-                <div class="step" :class="{ active: generateProgress >= 25, completed: generateProgress > 25 }">
-                  <div class="step-dot"></div>
-                  <span>分析描述</span>
-                </div>
-                <div class="step" :class="{ active: generateProgress >= 50, completed: generateProgress > 50 }">
-                  <div class="step-dot"></div>
-                  <span>构建画面</span>
-                </div>
-                <div class="step" :class="{ active: generateProgress >= 75, completed: generateProgress > 75 }">
-                  <div class="step-dot"></div>
-                  <span>优化细节</span>
-                </div>
-                <div class="step" :class="{ active: generateProgress >= 100, completed: generateProgress >= 100 }">
-                  <div class="step-dot"></div>
-                  <span>完成创作</span>
+              
+              <!-- 下部分：待生成的模型图缺省图 -->
+              <div class="generation-images generating-preview" :class="`count-${task.imageCount?.value || 4}`">
+                <div 
+                  v-for="index in (task.imageCount?.value || 4)" 
+                  :key="index"
+                  class="generation-image-item generating-item"
+                >
+                  <div class="image-wrapper">
+                    <div class="generating-placeholder-image">
+                      <div class="placeholder-content">
+                        <el-icon class="placeholder-icon"><Picture /></el-icon>
+                        <div class="placeholder-text">生成中</div>
+                        <div class="generating-dots">
+                          <span class="dot"></span>
+                          <span class="dot"></span>
+                          <span class="dot"></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -358,7 +419,7 @@
     </div>
 
     <!-- 有内容时的底部悬浮输入面板 -->
-    <div v-if="currentImages.length > 0 || generating" class="floating-input-panel" :class="getPanelClass()">
+    <div v-if="currentImages.length > 0 || generationTasks.length > 0" class="floating-input-panel" :class="getPanelClass()">
       <div class="panel-container">
         <!-- 上半部分：上传和文本输入 -->
         <div class="panel-top-section">
@@ -431,6 +492,50 @@
         <div class="panel-bottom-section">
           <!-- 参数选择按钮组 -->
           <div class="params-section">
+            <!-- 生成方式选择 -->
+            <el-popover
+              ref="panelGenerateModePopoverRef"
+              placement="top"
+              :width="200"
+              trigger="click"
+              popper-class="generate-mode-popover"
+              :teleported="true"
+            >
+              <template #reference>
+                <div class="param-btn generate-mode-btn">
+                  <div class="btn-icon">
+                    <el-icon><VideoCamera v-if="currentGenerateMode?.value === 'video'" /><Picture v-else /></el-icon>
+                  </div>
+                  <span>{{ currentGenerateMode?.label || '图片生成' }}</span>
+                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                </div>
+              </template>
+              <div class="generate-mode-selector">
+                <div class="selector-header">选择生成方式</div>
+                <div class="mode-list">
+                  <div 
+                    v-for="mode in generateModes" 
+                    :key="mode.value"
+                    class="mode-item"
+                    :class="{ active: currentGenerateMode?.value === mode.value }"
+                    @click="selectGenerateMode(mode)"
+                  >
+                    <div class="mode-info">
+                      <div class="mode-icon">
+                        <el-icon><VideoCamera v-if="mode.value === 'video'" /><Picture v-else /></el-icon>
+                      </div>
+                      <div class="mode-details">
+                        <div class="mode-name">{{ mode.label }}</div>
+                      </div>
+                    </div>
+                    <div v-if="currentGenerateMode?.value === mode.value" class="check-icon">
+                      <el-icon><Check /></el-icon>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-popover>
+
             <!-- 模型选择 -->
             <el-popover
               ref="panelModelPopoverRef"
@@ -565,12 +670,12 @@
           <div class="generate-section">
             <el-button 
               type="primary" 
-              :loading="generating"
-              :disabled="!prompt.trim()"
+              :loading="generationTasks.length >= maxConcurrentTasks"
+              :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks"
               @click="handleGenerate"
               class="generate-btn compact"
             >
-              <span>{{ generating ? '生成中...' : '生成' }}</span>
+              <span>{{ generationTasks.length >= maxConcurrentTasks ? '生成中...' : '生成' }}</span>
             </el-button>
           </div>
         </div>
@@ -653,7 +758,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Picture, Plus, Download, FolderAdd, Clock, Close,
-  ArrowDown, FullScreen, Check, Refresh, Edit, Delete
+  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
@@ -706,11 +811,23 @@ interface ImageCount {
   label: string
 }
 
+interface GenerationTask {
+  id: string
+  prompt: string
+  model: Model
+  size: Size
+  resolution: Resolution
+  imageCount: ImageCount
+  referenceImages: UploadFile[]
+  status: 'generating' | 'completed' | 'failed'
+  progress: number
+  progressText: string
+  images: ImageResult[]
+  createdAt: number
+}
+
 const prompt = ref('')
 const referenceImages = ref<UploadFile[]>([])
-const generating = ref(false)
-const generateProgress = ref(0)
-const progressText = ref('')
 const currentImages = ref<ImageResult[]>([])
 const showHistory = ref(false)
 const previewVisible = ref(false)
@@ -718,6 +835,11 @@ const previewImageUrl = ref('')
 const previewImageData = ref<ImageResult | null>(null)
 const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
+
+// 新增：多任务生成相关状态
+const generationTasks = ref<GenerationTask[]>([])
+const maxConcurrentTasks = ref(5)
+const generationCooldown = ref(60000) // 1分钟冷却时间
 
 // 滚动相关状态
 const isScrolling = ref(false)
@@ -730,6 +852,8 @@ const modelPopoverRef = ref()
 const imageParamsPopoverRef = ref()
 const panelModelPopoverRef = ref()
 const panelImageParamsPopoverRef = ref()
+const generateModePopoverRef = ref()
+const panelGenerateModePopoverRef = ref()
 
 // 模型选项
 const models = ref<Model[]>([
@@ -793,6 +917,14 @@ const imageCounts = ref<ImageCount[]>([
 
 const currentImageCount = ref(imageCounts.value[3]) // 默认选择4张
 
+// 生成方式选项
+const generateModes = ref([
+  { value: 'image', label: '图片生成' },
+  { value: 'video', label: '视频生成' }
+])
+
+const currentGenerateMode = ref(generateModes.value[0]) // 默认选择图片生成
+
 // 历史记录
 const imageHistory = ref<ImageHistoryItem[]>([
   {
@@ -837,6 +969,13 @@ const selectResolution = (resolution: Resolution) => {
 const selectImageCount = (count: ImageCount) => {
   currentImageCount.value = count
   // 不关闭 Popover，允许继续选择其他参数
+}
+
+const selectGenerateMode = (mode: { value: string; label: string }) => {
+  currentGenerateMode.value = mode
+  // 关闭 Popover
+  generateModePopoverRef.value?.hide()
+  panelGenerateModePopoverRef.value?.hide()
 }
 
 const handleImageUpload = (file: { uid: string; name: string; raw: File }) => {
@@ -891,9 +1030,54 @@ const handleGenerate = async () => {
     return
   }
 
-  generating.value = true
-  generateProgress.value = 0
-  currentImages.value = []
+  // 检查是否超过最大并发数
+  if (generationTasks.value.length >= maxConcurrentTasks.value) {
+    ElMessage.warning(`最多只能同时生成${maxConcurrentTasks.value}个任务`)
+    return
+  }
+
+  // 检查冷却时间（1分钟内最多5次）
+  const now = Date.now()
+  const recentTasks = generationTasks.value.filter(task => 
+    now - task.createdAt < generationCooldown.value
+  )
+  
+  if (recentTasks.length >= maxConcurrentTasks.value) {
+    const remainingTime = Math.ceil((generationCooldown.value - (now - recentTasks[0].createdAt)) / 1000)
+    ElMessage.warning(`请等待${remainingTime}秒后再次生成`)
+    return
+  }
+
+  // 创建新的生成任务
+  const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const newTask: GenerationTask = {
+    id: taskId,
+    prompt: prompt.value,
+    model: currentModel.value,
+    size: currentSize.value,
+    resolution: currentResolution.value,
+    imageCount: currentImageCount.value,
+    referenceImages: [...referenceImages.value],
+    status: 'generating',
+    progress: 0,
+    progressText: '正在分析您的描述...',
+    images: [],
+    createdAt: now
+  }
+
+  // 添加到任务列表
+  generationTasks.value.push(newTask)
+  
+  // 开始生成过程
+  generateTask(taskId)
+  
+  ElMessage.success('已添加到生成队列')
+}
+
+// 新增：单个任务生成函数
+const generateTask = async (taskId: string) => {
+  const task = generationTasks.value.find(t => t.id === taskId)
+  if (!task) return
 
   // 模拟生成过程
   const steps = [
@@ -903,37 +1087,68 @@ const handleGenerate = async () => {
     { progress: 100, text: '生成完成！' }
   ]
 
-  for (const step of steps) {
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    generateProgress.value = step.progress
-    progressText.value = step.text
-  }
+  try {
+    for (const step of steps) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      task.progress = step.progress
+      task.progressText = step.text
+    }
 
-  // 生成完成
-  const newImages: ImageResult[] = []
-  const imageCount = currentImageCount.value?.value || 4
-  for (let i = 0; i < imageCount; i++) {
-    newImages.push({
-      id: `${Date.now()}-${i}`,
-      url: `https://picsum.photos/400/400?random=${Date.now() + i}`,
-      thumbnail: `https://picsum.photos/200/200?random=${Date.now() + i}`
-    })
-  }
+    // 生成完成
+    const newImages: ImageResult[] = []
+    const imageCount = task.imageCount?.value || 4
+    for (let i = 0; i < imageCount; i++) {
+      newImages.push({
+        id: `${taskId}-${i}`,
+        url: `https://picsum.photos/400/400?random=${Date.now() + i}`,
+        thumbnail: `https://picsum.photos/200/200?random=${Date.now() + i}`
+      })
+    }
 
-  const historyItem: ImageHistoryItem = {
-    id: Date.now().toString(),
-    prompt: prompt.value,
-    images: newImages,
-    model: currentModel.value?.name || '',
-    size: currentSize.value?.label || '',
-    createdAt: Date.now()
-  }
+    task.images = newImages
+    task.status = 'completed'
 
-  currentImages.value = newImages
-  imageHistory.value.unshift(historyItem)
-  generating.value = false
-  
-  ElMessage.success('图片生成成功！')
+    // 添加到历史记录
+    const historyItem: ImageHistoryItem = {
+      id: taskId,
+      prompt: task.prompt,
+      images: newImages,
+      model: task.model?.name || '',
+      size: task.size?.label || '',
+      createdAt: task.createdAt
+    }
+
+    imageHistory.value.unshift(historyItem)
+    
+    // 如果是第一个完成的任务，设置为当前显示的图片
+    if (currentImages.value.length === 0) {
+      currentImages.value = newImages
+    }
+
+    ElMessage.success('图片生成成功！')
+    
+    // 3秒后从任务列表中移除已完成的任务
+    setTimeout(() => {
+      const index = generationTasks.value.findIndex(t => t.id === taskId)
+      if (index > -1) {
+        generationTasks.value.splice(index, 1)
+      }
+    }, 3000)
+
+  } catch (err) {
+    console.error('生成失败:', err)
+    task.status = 'failed'
+    task.progressText = '生成失败'
+    ElMessage.error('图片生成失败，请重试')
+    
+    // 失败的任务也在3秒后移除
+    setTimeout(() => {
+      const index = generationTasks.value.findIndex(t => t.id === taskId)
+      if (index > -1) {
+        generationTasks.value.splice(index, 1)
+      }
+    }, 3000)
+  }
 }
 
 const previewImage = (image: ImageResult) => {
@@ -1019,7 +1234,7 @@ const handleScroll = () => {
 
 // 计算面板状态
 const getPanelClass = () => {
-  if (!currentImages.value.length) return ''
+  if (!currentImages.value.length && !generationTasks.value.length) return ''
   
   if (isScrolling.value && scrollDirection.value === 'up') {
     return 'collapsed'
@@ -1311,7 +1526,7 @@ onUnmounted(() => {
 .param-btn {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 6px 12px;
   color: #ffffff;
   cursor: pointer;
@@ -1353,6 +1568,157 @@ onUnmounted(() => {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.6);
   margin-left: 2px;
+}
+
+/* 生成方式选择弹窗样式 */
+:deep(.generate-mode-popover) {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+  z-index: 2000 !important;
+}
+
+/* 强制覆盖 Element Plus 弹窗内容的白色背景 */
+:deep(.generate-mode-popover .el-popover__content) {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+/* 全局样式覆盖 */
+:global(.el-popper.generate-mode-popover) {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+:global(.el-popper.generate-mode-popover .el-popover__content) {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.generate-mode-selector {
+  padding: 10px;
+  min-width: 180px;
+  background: rgba(26, 26, 46, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 8px;
+}
+
+.generate-mode-selector .selector-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mode-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.mode-item:hover::before {
+  left: 100%;
+}
+
+.mode-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.mode-item.active {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: #667eea;
+  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
+}
+
+.mode-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mode-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.mode-item.active .mode-icon {
+  color: #667eea;
+}
+
+.mode-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.mode-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mode-item.active .mode-name {
+  color: #ffffff;
+}
+
+.mode-item .check-icon {
+  color: #667eea;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 /* 生成按钮 */
@@ -1786,169 +2152,262 @@ onUnmounted(() => {
   z-index: 1;
 }
 
-/* 生成中状态 - 即梦风格 */
-.generating-state {
+/* 多任务生成中状态 */
+.generating-tasks {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  padding: 40px;
-}
-
-.generating-container {
-  text-align: center;
-  max-width: 500px;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 40px 60px 40px;
   width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
-.generating-visual {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  margin-bottom: 32px;
+/* 生成中状态 - 生成结果列表样式 */
+.generating-state {
+  width: 100%;
+  opacity: 1;
+  animation: slideInFromTop 0.3s ease-out;
 }
 
-.progress-ring {
-  position: relative;
-  z-index: 2;
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.generating-animation {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 200px;
-  height: 200px;
-  pointer-events: none;
-}
-
-.spark {
-  position: absolute;
-  width: 4px;
-  height: 4px;
-  background: #ffffff;
-  border-radius: 50%;
-  opacity: 0;
-  animation: sparkle 2s infinite;
-}
-
-.spark-1 {
-  top: 20%;
-  left: 30%;
-  animation-delay: 0s;
-}
-
-.spark-2 {
-  top: 60%;
-  right: 25%;
-  animation-delay: 0.7s;
-}
-
-.spark-3 {
-  bottom: 30%;
-  left: 40%;
-  animation-delay: 1.4s;
-}
-
-@keyframes sparkle {
-  0%, 100% { opacity: 0; transform: scale(0); }
-  50% { opacity: 1; transform: scale(1); }
-}
-
-.generating-content {
+.generation-card.generating {
+  background: transparent;
+  backdrop-filter: none;
+  border-radius: 0;
+  padding: 16px 0;
+  border: none;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 24px;
+  opacity: 0.9;
 }
 
-.generating-title {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ffffff, rgba(255, 255, 255, 0.8));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.generating-desc {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.7);
-  margin: 0;
-  line-height: 1.5;
-}
-
-.progress-steps {
+/* 生成中的缩略图 */
+.generation-thumbnail.generating-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
   display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 24px;
-  padding: 0 20px;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
 }
 
-.step {
+.generation-thumbnail.generating-thumb::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+}
+
+.generating-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  z-index: 1;
+}
+
+.generating-placeholder .placeholder-icon {
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+/* 生成状态信息 */
+.generation-status {
+  margin-bottom: 8px;
+}
+
+.status-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4A90E2;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.status-progress {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4A90E2, #667eea);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: progressShine 1.5s infinite;
+}
+
+@keyframes progressShine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* 状态标签 */
+.status-tag {
+  background: rgba(74, 144, 226, 0.2);
+  border-color: rgba(74, 144, 226, 0.4);
+  color: #4A90E2;
+  animation: statusPulse 2s infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 0.8; }
+  50% { opacity: 1; }
+}
+
+/* 生成中的图片预览区域 */
+.generation-images.generating-preview {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+}
+
+.generation-image-item.generating-item {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  position: relative;
+}
+
+.generating-placeholder-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
+  position: relative;
+  overflow: hidden;
+}
+
+.generating-placeholder-image::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  animation: shimmer 3s infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+.generation-image-item.generating-item:nth-child(1) .generating-placeholder-image::before {
+  --delay: 0s;
+}
+
+.generation-image-item.generating-item:nth-child(2) .generating-placeholder-image::before {
+  --delay: 0.5s;
+}
+
+.generation-image-item.generating-item:nth-child(3) .generating-placeholder-image::before {
+  --delay: 1s;
+}
+
+.generation-image-item.generating-item:nth-child(4) .generating-placeholder-image::before {
+  --delay: 1.5s;
+}
+
+.placeholder-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  flex: 1;
-  min-width: 0;
   position: relative;
+  z-index: 1;
 }
 
-.step-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  transition: all 0.3s ease;
-  position: relative;
+.placeholder-content .placeholder-icon {
+  font-size: 32px;
+  color: rgba(255, 255, 255, 0.3);
+  animation: pulse 2s infinite;
 }
 
-.step.active .step-dot {
-  background: #ffffff;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
-}
-
-.step.completed .step-dot {
-  background: #667eea;
-  box-shadow: 0 0 12px rgba(102, 126, 234, 0.6);
-}
-
-.step span {
+.placeholder-text {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  text-align: center;
-  line-height: 1.2;
-  transition: color 0.3s ease;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
 }
 
-.step.active span {
-  color: #ffffff;
-  font-weight: 600;
+.generating-dots {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
 }
 
-.step.completed span {
-  color: #667eea;
-  font-weight: 600;
+.generating-dots .dot {
+  width: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  animation: dotPulse 1.5s infinite;
 }
 
-/* 连接线 */
-.step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 6px;
-  right: -50%;
-  width: calc(100% - 12px);
-  height: 2px;
-  background: rgba(255, 255, 255, 0.2);
-  transition: background 0.3s ease;
+.generating-dots .dot:nth-child(1) {
+  animation-delay: 0s;
 }
 
-.step.completed:not(:last-child)::after {
-  background: #667eea;
+.generating-dots .dot:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.generating-dots .dot:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 /* 生成结果展示 - 扁平布局 */
@@ -3129,6 +3588,8 @@ onUnmounted(() => {
 <style>
 /* 全局样式 - 用于 Element Plus Popover 组件 */
 .model-popover,
+.image-params-popover,
+.generate-mode-popover,
 .size-popover,
 .style-popover,
 .resolution-popover,
@@ -3142,6 +3603,8 @@ onUnmounted(() => {
 }
 
 .model-popover .el-popover__content,
+.image-params-popover .el-popover__content,
+.generate-mode-popover .el-popover__content,
 .size-popover .el-popover__content,
 .style-popover .el-popover__content,
 .resolution-popover .el-popover__content,
@@ -3163,5 +3626,43 @@ onUnmounted(() => {
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+}
+</style>
+
+<style>
+/* 全局样式 - 强制覆盖生成方式弹窗的白色背景 */
+.generate-mode-popover,
+.el-popper.generate-mode-popover {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+.generate-mode-popover .el-popover__content,
+.el-popper.generate-mode-popover .el-popover__content {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+}
+
+/* 确保弹窗箭头也是透明的 */
+.generate-mode-popover .el-popper__arrow::before,
+.el-popper.generate-mode-popover .el-popper__arrow::before {
+  background: rgba(26, 26, 46, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 更强的覆盖规则 */
+.el-popover.generate-mode-popover[data-popper-placement] {
+  background: rgba(26, 26, 46, 0.95) !important;
+}
+
+.el-popover.generate-mode-popover[data-popper-placement] .el-popover__content {
+  background: transparent !important;
 }
 </style>
