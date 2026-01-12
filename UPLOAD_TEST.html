@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片上传功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.implemented {
+            background: #d4edda;
+            color: #155724;
+        }
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>图片生成器上传功能测试</h1>
+    
+    <div class="test-section">
+        <h2>✅ 已实现功能</h2>
+        <ul class="feature-list">
+            <li>
+                <span class="status implemented">已完成</span>
+                <strong>多图片上传限制</strong> - 最多支持上传5张图片
+            </li>
+            <li>
+                <span class="status implemented">已完成</span>
+                <strong>缩略图预览列表</strong> - 显示已上传图片的缩略图
+            </li>
+            <li>
+                <span class="status implemented">已完成</span>
+                <strong>删除功能</strong> - 点击删除按钮移除图片
+            </li>
+            <li>
+                <span class="status implemented">已完成</span>
+                <strong>点击放大预览</strong> - 点击缩略图查看原图
+            </li>
+            <li>
+                <span class="status implemented">已完成</span>
+                <strong>文件验证</strong> - 类型和大小检查
+            </li>
+            <li>
+                <span class="status implemented">已完成</span>
+                <strong>响应式设计</strong> - 适配不同屏幕尺寸
+            </li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 核心代码实现</h2>
+        
+        <h3>1. 上传处理函数</h3>
+        <div class="code-block">
+const handleImageUpload = (file) => {
+  // 检查文件数量限制
+  if (referenceImages.value.length >= 5) {
+    ElMessage.warning('最多只能上传5张图片')
+    return false
+  }
+  
+  // 文件类型和大小验证
+  const isImage = file.raw.type.startsWith('image/')
+  const isLt10M = file.raw.size / 1024 / 1024 < 10
+  
+  if (!isImage || !isLt10M) {
+    // 显示错误信息
+    return false
+  }
+  
+  // 创建预览URL并添加到列表
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    referenceImages.value.push({
+      uid: file.uid,
+      name: file.name,
+      url: e.target?.result,
+      raw: file.raw
+    })
+  }
+  reader.readAsDataURL(file.raw)
+  
+  return false // 阻止自动上传
+}
+        </div>
+
+        <h3>2. 删除和预览功能</h3>
+        <div class="code-block">
+const removeImage = (index) => {
+  referenceImages.value.splice(index, 1)
+}
+
+const previewUploadImage = (imageUrl) => {
+  uploadPreviewUrl.value = imageUrl
+  uploadPreviewVisible.value = true
+}
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎨 样式特性</h2>
+        <ul class="feature-list">
+            <li><strong>缩略图网格布局</strong> - 自适应排列，支持换行</li>
+            <li><strong>悬浮效果</strong> - 鼠标悬浮时的视觉反馈</li>
+            <li><strong>禁用状态</strong> - 达到上传限制时的视觉提示</li>
+            <li><strong>删除按钮</strong> - 悬浮显示的删除操作</li>
+            <li><strong>预览对话框</strong> - 优化的图片预览体验</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📱 测试步骤</h2>
+        <ol>
+            <li>启动开发服务器: <code>npm run dev</code></li>
+            <li>访问图片生成器页面</li>
+            <li>点击上传区域的"+"按钮</li>
+            <li>选择多张图片文件（测试限制功能）</li>
+            <li>验证缩略图显示</li>
+            <li>测试删除功能</li>
+            <li>测试点击预览功能</li>
+            <li>验证响应式布局</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 部署说明</h2>
+        <p>功能已完全集成到现有的图片生成器中，无需额外配置。所有样式和逻辑都包含在 <code>ImageGenerateView.vue</code> 文件中。</p>
+    </div>
+</body>
+</html>
