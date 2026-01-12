@@ -4,119 +4,72 @@
     <div class="main-content">
       <!-- 无内容时的居中输入区域 -->
       <div v-if="currentImages.length === 0 && !generating" class="centered-input-section">
-        <!-- 主标题 - 即梦风格 -->
+        <!-- 主标题 -->
         <div class="page-header">
           <div class="header-content">
             <div class="header-icon">
-              <div class="icon-wrapper">
-                <el-icon class="main-icon"><Picture /></el-icon>
-              </div>
+              <el-icon class="main-icon"><Picture /></el-icon>
             </div>
-            <h1 class="header-title">AI 图片生成</h1>
-            <p class="header-subtitle">输入简单的文案，即可快速生成优质图片</p>
+            <h1 class="header-title">图片生成</h1>
           </div>
         </div>
-        <div class="prompt-container">
-          <!-- 创作区域 - 即梦风格 -->
-          <div class="creation-panel">
-            <div class="input-section">
-              <div class="upload-area">
-                <el-upload
-                  :file-list="[]"
-                  :auto-upload="false"
-                  :limit="5"
-                  accept="image/*"
-                  :show-file-list="false"
-                  class="image-uploader"
-                  @change="handleImageUpload"
-                  :disabled="referenceImages.length >= 5"
-                >
-                  <div class="upload-placeholder" :class="{ disabled: referenceImages.length >= 5 }">
-                    <el-icon size="24"><Plus /></el-icon>
-                    <span class="upload-text">添加参考图</span>
-                  </div>
-                </el-upload>
-              </div>
-              
-              <div class="prompt-input-wrapper">
-                <el-input
-                  v-model="prompt"
-                  type="textarea"
-                  :rows="4"
-                  :autosize="{ minRows: 4, maxRows: 6 }"
-                  placeholder="描述您想要生成的图片内容，例如：一只可爱的橘猫坐在窗台上，阳光透过窗户洒在它的毛发上，背景是温馨的家居环境..."
-                  class="prompt-input"
-                  @keydown.enter.exact="handleGenerate"
-                />
-                <div class="input-footer">
-                  <div class="input-tips">
-                    <span class="tip-text">💡 详细的描述能帮助生成更精准的图片</span>
-                  </div>
-                  <div class="char-count">{{ prompt.length }}/500</div>
+        
+        <!-- 输入区域 -->
+        <div class="input-container">
+          <!-- 上半部分：上传和文本输入 -->
+          <div class="input-top-section">
+            <!-- 上传按钮 -->
+            <div class="upload-section">
+              <el-upload
+                :file-list="[]"
+                :auto-upload="false"
+                :limit="5"
+                accept="image/*"
+                :show-file-list="false"
+                class="image-uploader"
+                @change="handleImageUpload"
+                :disabled="referenceImages.length >= 5"
+              >
+                <div class="upload-btn large" :class="{ disabled: referenceImages.length >= 5 }">
+                  <el-icon><Plus /></el-icon>
                 </div>
-              </div>
+              </el-upload>
             </div>
             
-            <!-- 上传图片预览列表 -->
-            <div v-if="referenceImages.length > 0" class="upload-preview-section">
-              <div class="preview-header">
-                <span class="preview-label">参考图片 ({{ referenceImages.length }}/5)</span>
-                <el-button size="small" text @click="clearAllImages">清空全部</el-button>
-              </div>
-              <div class="upload-preview-list">
-                <div 
-                  v-for="(image, index) in referenceImages" 
-                  :key="image.uid"
-                  class="upload-preview-item"
-                  @click="previewUploadImage(image.url)"
-                >
-                  <img 
-                    :src="image.url" 
-                    :alt="image.name"
-                    class="upload-preview-image"
-                  />
-                  <div class="image-overlay">
-                    <el-button 
-                      type="danger" 
-                      size="small" 
-                      circle
-                      @click.stop="removeImage(index)"
-                      class="remove-btn"
-                    >
-                      <el-icon><Close /></el-icon>
-                    </el-button>
-                  </div>
-                </div>
-              </div>
+            <!-- 文本输入 -->
+            <div class="text-input-section">
+              <el-input
+                v-model="prompt"
+                type="textarea"
+                :rows="1"
+                :autosize="{ minRows: 1, maxRows: 4 }"
+                placeholder="请描述您想要生成的图片内容..."
+                class="main-input"
+                @keydown.enter.exact="handleGenerate"
+              />
             </div>
           </div>
-        </div>
-
-        <!-- 参数选择区域 - 即梦风格 -->
-        <div class="creation-controls">
-          <div class="controls-row">
-            <!-- 模型选择 -->
-            <div class="control-group">
+          
+          <!-- 下半部分：参数选择和生成按钮 -->
+          <div class="input-bottom-section">
+            <!-- 参数选择按钮组 -->
+            <div class="params-section">
+              <!-- 模型选择 -->
               <el-popover
                 ref="modelPopoverRef"
                 placement="top"
-                :width="360"
+                :width="400"
                 trigger="click"
                 popper-class="model-popover"
                 :teleported="false"
               >
                 <template #reference>
-                  <div class="control-button model-control">
-                    <div class="control-icon">
-                      <div class="model-avatar" :style="{ background: currentModel?.color || '#667eea' }">
-                        <span class="model-initial">{{ currentModel?.name?.charAt(0) || 'M' }}</span>
-                      </div>
+                  <div class="param-btn model-btn">
+                    <div class="btn-icon">
+                      <div class="model-dot" :style="{ background: currentModel?.color || '#4A90E2' }"></div>
                     </div>
-                    <div class="control-content">
-                      <div class="control-label">模型</div>
-                      <div class="control-value">{{ currentModel?.name || '选择模型' }}</div>
-                    </div>
-                    <el-icon class="control-arrow"><ArrowDown /></el-icon>
+                    <span>{{ currentModel?.name || 'Seedance 1.5 Pro' }}</span>
+                    <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
                 <div class="model-selector">
@@ -145,28 +98,23 @@
                   </div>
                 </div>
               </el-popover>
-            </div>
 
-            <!-- 尺寸选择 -->
-            <div class="control-group">
+              <!-- 尺寸选择 -->
               <el-popover
                 ref="sizePopoverRef"
                 placement="top"
-                :width="400"
+                :width="450"
                 trigger="click"
                 popper-class="size-popover"
                 :teleported="false"
               >
                 <template #reference>
-                  <div class="control-button">
-                    <div class="control-icon">
+                  <div class="param-btn">
+                    <div class="btn-icon">
                       <el-icon><FullScreen /></el-icon>
                     </div>
-                    <div class="control-content">
-                      <div class="control-label">尺寸</div>
-                      <div class="control-value">{{ currentSize?.label || '选择尺寸' }}</div>
-                    </div>
-                    <el-icon class="control-arrow"><ArrowDown /></el-icon>
+                    <span>{{ currentSize?.label || '1:1' }}</span>
+                    <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
                 <div class="size-selector">
@@ -188,28 +136,23 @@
                   </div>
                 </div>
               </el-popover>
-            </div>
 
-            <!-- 风格选择 -->
-            <div class="control-group">
+              <!-- 风格选择 -->
               <el-popover
                 ref="stylePopoverRef"
                 placement="top"
-                :width="360"
+                :width="400"
                 trigger="click"
                 popper-class="style-popover"
                 :teleported="false"
               >
                 <template #reference>
-                  <div class="control-button">
-                    <div class="control-icon">
-                      <div class="style-emoji">{{ currentStyle?.icon || '🎨' }}</div>
+                  <div class="param-btn">
+                    <div class="btn-icon">
+                      <span class="style-emoji">{{ currentStyle?.icon || '📷' }}</span>
                     </div>
-                    <div class="control-content">
-                      <div class="control-label">风格</div>
-                      <div class="control-value">{{ currentStyle?.label || '选择风格' }}</div>
-                    </div>
-                    <el-icon class="control-arrow"><ArrowDown /></el-icon>
+                    <span>{{ currentStyle?.label || '真实' }}</span>
+                    <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
                 <div class="style-selector">
@@ -237,22 +180,52 @@
                 </div>
               </el-popover>
             </div>
+            
+            <!-- 生成按钮 -->
+            <div class="generate-section">
+              <el-button 
+                type="primary" 
+                :loading="generating"
+                :disabled="!prompt.trim()"
+                @click="handleGenerate"
+                class="generate-btn"
+              >
+                <span>{{ generating ? '生成中...' : '生成' }}</span>
+              </el-button>
+            </div>
           </div>
-
-          <!-- 生成按钮 -->
-          <div class="generate-section">
-            <el-button 
-              type="primary" 
-              size="large"
-              :loading="generating"
-              :disabled="!prompt.trim()"
-              @click="handleGenerate"
-              class="generate-btn"
-            >
-              <el-icon v-if="!generating"><Picture /></el-icon>
-              <span>{{ generating ? '生成中...' : '立即创作' }}</span>
-              <div class="btn-glow"></div>
-            </el-button>
+          
+          <!-- 上传图片预览列表 -->
+          <div v-if="referenceImages.length > 0" class="upload-preview-section">
+            <div class="preview-header">
+              <span class="preview-label">参考图片 ({{ referenceImages.length }}/5)</span>
+              <el-button size="small" text @click="clearAllImages">清空全部</el-button>
+            </div>
+            <div class="upload-preview-list">
+              <div 
+                v-for="(image, index) in referenceImages" 
+                :key="image.uid"
+                class="upload-preview-item"
+                @click="previewUploadImage(image.url)"
+              >
+                <img 
+                  :src="image.url" 
+                  :alt="image.name"
+                  class="upload-preview-image"
+                />
+                <div class="image-overlay">
+                  <el-button 
+                    type="danger" 
+                    size="small" 
+                    circle
+                    @click.stop="removeImage(index)"
+                    class="remove-btn"
+                  >
+                    <el-icon><Close /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -369,8 +342,10 @@
     <!-- 有内容时的底部悬浮输入面板 -->
     <div v-if="currentImages.length > 0 || generating" class="floating-input-panel">
       <div class="panel-container">
-        <div class="panel-content">
-          <div class="upload-area">
+        <!-- 上半部分：上传和文本输入 -->
+        <div class="panel-top-section">
+          <!-- 上传按钮 -->
+          <div class="upload-section">
             <el-upload
               :file-list="[]"
               :auto-upload="false"
@@ -381,194 +356,194 @@
               @change="handleImageUpload"
               :disabled="referenceImages.length >= 5"
             >
-              <div class="upload-placeholder" :class="{ disabled: referenceImages.length >= 5 }">
-                <el-icon size="20"><Plus /></el-icon>
+              <div class="upload-btn small" :class="{ disabled: referenceImages.length >= 5 }">
+                <el-icon><Plus /></el-icon>
               </div>
             </el-upload>
           </div>
           
-          <div class="prompt-input-wrapper">
+          <!-- 文本输入 -->
+          <div class="text-input-section">
             <el-input
               v-model="prompt"
               type="textarea"
               :rows="1"
               :autosize="{ minRows: 1, maxRows: 3 }"
               placeholder="请描述您想要生成的图片内容..."
-              class="prompt-input"
+              class="main-input compact"
               @keydown.enter.exact="handleGenerate"
             />
-            
-            <!-- 悬浮面板中的上传图片预览列表 -->
-            <div v-if="referenceImages.length > 0" class="upload-preview-section compact">
-              <div class="preview-label">参考图片 ({{ referenceImages.length }}/5)</div>
-              <div class="upload-preview-list">
-                <div 
-                  v-for="(image, index) in referenceImages" 
-                  :key="image.uid"
-                  class="upload-preview-item"
-                  @click="previewUploadImage(image.url)"
-                >
-                  <img 
-                    :src="image.url" 
-                    :alt="image.name"
-                    class="upload-preview-image"
-                  />
-                  <el-button 
-                    type="danger" 
-                    size="small" 
-                    circle
-                    @click.stop="removeImage(index)"
-                    class="remove-btn-corner"
-                  >
-                    <el-icon><Close /></el-icon>
-                  </el-button>
-                </div>
-              </div>
+          </div>
+        </div>
+
+        <!-- 悬浮面板中的上传图片预览列表 -->
+        <div v-if="referenceImages.length > 0" class="upload-preview-section compact">
+          <div class="preview-label">参考图片 ({{ referenceImages.length }}/5)</div>
+          <div class="upload-preview-list">
+            <div 
+              v-for="(image, index) in referenceImages" 
+              :key="image.uid"
+              class="upload-preview-item"
+              @click="previewUploadImage(image.url)"
+            >
+              <img 
+                :src="image.url" 
+                :alt="image.name"
+                class="upload-preview-image"
+              />
+              <el-button 
+                type="danger" 
+                size="small" 
+                circle
+                @click.stop="removeImage(index)"
+                class="remove-btn-corner"
+              >
+                <el-icon><Close /></el-icon>
+              </el-button>
             </div>
           </div>
+        </div>
 
-          <div class="panel-controls">
-            <!-- 参数选择 -->
-            <div class="params-section">
-              <!-- 图像生成 -->
-              <el-button class="param-btn">
-                <el-icon><Picture /></el-icon>
-                图像生成
-                <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-              </el-button>
-
-              <!-- 模型选择 -->
-              <el-popover
-                ref="panelModelPopoverRef"
-                placement="top"
-                :width="320"
-                trigger="click"
-                popper-class="model-popover"
-                :teleported="false"
-              >
-                <template #reference>
-                  <el-button class="param-btn model-btn">
-                    <div class="model-icon">
-                      <div class="icon-circle" :style="{ background: currentModel?.color || '#667eea' }"></div>
+        <!-- 下半部分：参数选择和生成按钮 -->
+        <div class="panel-bottom-section">
+          <!-- 参数选择按钮组 -->
+          <div class="params-section">
+            <!-- 模型选择 -->
+            <el-popover
+              ref="panelModelPopoverRef"
+              placement="top"
+              :width="400"
+              trigger="click"
+              popper-class="model-popover"
+              :teleported="false"
+            >
+              <template #reference>
+                <div class="param-btn model-btn">
+                  <div class="btn-icon">
+                    <div class="model-dot" :style="{ background: currentModel?.color || '#4A90E2' }"></div>
+                  </div>
+                  <span>{{ currentModel?.name || 'Seedance 1.5 Pro' }}</span>
+                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                </div>
+              </template>
+              <div class="model-selector">
+                <div class="selector-header">选择模型</div>
+                <div class="model-list">
+                  <div 
+                    v-for="model in models" 
+                    :key="model.id"
+                    class="model-item"
+                    :class="{ active: currentModel?.id === model.id }"
+                    @click="selectModel(model)"
+                  >
+                    <div class="model-info">
+                      <div class="model-icon">
+                        <div class="icon-circle" :style="{ background: model.color }"></div>
+                      </div>
+                      <div class="model-details">
+                        <div class="model-name">{{ model.name }}</div>
+                        <div class="model-desc">{{ model.description }}</div>
+                      </div>
                     </div>
-                    {{ currentModel?.name || '选择模型' }}
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                  </el-button>
-                </template>
-                <div class="model-selector">
-                  <div class="selector-header">选择模型</div>
-                  <div class="model-list">
-                    <div 
-                      v-for="model in models" 
-                      :key="model.id"
-                      class="model-item"
-                      :class="{ active: currentModel?.id === model.id }"
-                      @click="selectModel(model)"
-                    >
-                      <div class="model-info">
-                        <div class="model-icon">
-                          <div class="icon-circle" :style="{ background: model.color }"></div>
-                        </div>
-                        <div class="model-details">
-                          <div class="model-name">{{ model.name }}</div>
-                          <div class="model-desc">{{ model.description }}</div>
-                        </div>
-                      </div>
-                      <div v-if="currentModel?.id === model.id" class="check-icon">
-                        <el-icon><Check /></el-icon>
-                      </div>
+                    <div v-if="currentModel?.id === model.id" class="check-icon">
+                      <el-icon><Check /></el-icon>
                     </div>
                   </div>
                 </div>
-              </el-popover>
+              </div>
+            </el-popover>
 
-              <!-- 尺寸和风格 -->
-              <el-popover
-                ref="panelSizePopoverRef"
-                placement="top"
-                :width="360"
-                trigger="click"
-                popper-class="size-popover"
-                :teleported="false"
-              >
-                <template #reference>
-                  <el-button class="param-btn">
+            <!-- 尺寸选择 -->
+            <el-popover
+              ref="panelSizePopoverRef"
+              placement="top"
+              :width="450"
+              trigger="click"
+              popper-class="size-popover"
+              :teleported="false"
+            >
+              <template #reference>
+                <div class="param-btn">
+                  <div class="btn-icon">
                     <el-icon><FullScreen /></el-icon>
-                    {{ currentSize?.label || '选择尺寸' }}
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                  </el-button>
-                </template>
-                <div class="size-selector">
-                  <div class="selector-header">选择尺寸</div>
-                  <div class="size-grid">
-                    <div 
-                      v-for="size in imageSizes" 
-                      :key="size.value"
-                      class="size-item"
-                      :class="{ active: currentSize?.value === size.value }"
-                      @click="selectSize(size)"
-                    >
-                      <div class="size-preview" :style="{ aspectRatio: size.aspect }"></div>
-                      <div class="size-label">{{ size.label }}</div>
-                      <div class="size-resolution">{{ size.width }}×{{ size.height }}</div>
+                  </div>
+                  <span>{{ currentSize?.label || '1:1' }}</span>
+                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                </div>
+              </template>
+              <div class="size-selector">
+                <div class="selector-header">选择尺寸</div>
+                <div class="size-grid">
+                  <div 
+                    v-for="size in imageSizes" 
+                    :key="size.value"
+                    class="size-item"
+                    :class="{ active: currentSize?.value === size.value }"
+                    @click="selectSize(size)"
+                  >
+                    <div class="size-preview" :style="{ aspectRatio: size.aspect }"></div>
+                    <div class="size-label">{{ size.label }}</div>
+                    <div class="size-resolution">{{ size.width }}×{{ size.height }}</div>
+                  </div>
+                </div>
+              </div>
+            </el-popover>
+
+            <!-- 风格选择 -->
+            <el-popover
+              ref="panelStylePopoverRef"
+              placement="top"
+              :width="400"
+              trigger="click"
+              popper-class="style-popover"
+              :teleported="false"
+            >
+              <template #reference>
+                <div class="param-btn">
+                  <div class="btn-icon">
+                    <span class="style-emoji">{{ currentStyle?.icon || '📷' }}</span>
+                  </div>
+                  <span>{{ currentStyle?.label || '真实' }}</span>
+                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                </div>
+              </template>
+              <div class="style-selector">
+                <div class="selector-header">选择风格</div>
+                <div class="style-list">
+                  <div 
+                    v-for="style in artStyles" 
+                    :key="style.value"
+                    class="style-item"
+                    :class="{ active: currentStyle?.value === style.value }"
+                    @click="selectStyle(style)"
+                  >
+                    <div class="style-info">
+                      <div class="style-icon-large">{{ style.icon }}</div>
+                      <div class="style-details">
+                        <div class="style-name">{{ style.label }}</div>
+                        <div class="style-desc">{{ style.description }}</div>
+                      </div>
+                    </div>
+                    <div v-if="currentStyle?.value === style.value" class="check-icon">
+                      <el-icon><Check /></el-icon>
                     </div>
                   </div>
                 </div>
-              </el-popover>
+              </div>
+            </el-popover>
+          </div>
 
-              <el-popover
-                ref="panelStylePopoverRef"
-                placement="top"
-                :width="320"
-                trigger="click"
-                popper-class="style-popover"
-                :teleported="false"
-              >
-                <template #reference>
-                  <el-button class="param-btn">
-                    <div class="style-icon">{{ currentStyle?.icon || '🎨' }}</div>
-                    {{ currentStyle?.label || '选择风格' }}
-                    <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                  </el-button>
-                </template>
-                <div class="style-selector">
-                  <div class="selector-header">选择风格</div>
-                  <div class="style-list">
-                    <div 
-                      v-for="style in artStyles" 
-                      :key="style.value"
-                      class="style-item"
-                      :class="{ active: currentStyle?.value === style.value }"
-                      @click="selectStyle(style)"
-                    >
-                      <div class="style-info">
-                        <div class="style-icon-large">{{ style.icon }}</div>
-                        <div class="style-details">
-                          <div class="style-name">{{ style.label }}</div>
-                          <div class="style-desc">{{ style.description }}</div>
-                        </div>
-                      </div>
-                      <div v-if="currentStyle?.value === style.value" class="check-icon">
-                        <el-icon><Check /></el-icon>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </el-popover>
-            </div>
-
-            <!-- 生成按钮 -->
-            <div class="generate-section">
-              <el-button 
-                type="primary" 
-                :loading="generating"
-                :disabled="!prompt.trim()"
-                @click="handleGenerate"
-                class="generate-btn"
-              >
-                {{ generating ? '生成中...' : '生成' }}
-              </el-button>
-            </div>
+          <!-- 生成按钮 -->
+          <div class="generate-section">
+            <el-button 
+              type="primary" 
+              :loading="generating"
+              :disabled="!prompt.trim()"
+              @click="handleGenerate"
+              class="generate-btn compact"
+            >
+              <span>{{ generating ? '生成中...' : '生成' }}</span>
+            </el-button>
           </div>
         </div>
       </div>
@@ -977,7 +952,7 @@ const regenerateSingle = (index: number) => {
 <style scoped>
 .image-generate-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #1a1a2e;
   color: #ffffff;
   position: relative;
   overflow: hidden;
@@ -991,13 +966,12 @@ const regenerateSingle = (index: number) => {
   right: 0;
   bottom: 0;
   background: 
-    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+    radial-gradient(circle at 20% 80%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.1) 0%, transparent 50%);
   pointer-events: none;
 }
 
-/* 页面头部 - 即梦风格 */
+/* 页面头部 - 简洁风格 */
 .page-header {
   text-align: center;
   margin-bottom: 40px;
@@ -1013,63 +987,228 @@ const regenerateSingle = (index: number) => {
 }
 
 .header-icon {
-  position: relative;
-}
-
-.icon-wrapper {
-  width: 80px;
-  height: 80px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
-  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  background: rgba(74, 144, 226, 0.15);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.icon-wrapper::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  animation: shimmer 3s infinite;
-}
-
-@keyframes shimmer {
-  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-  100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+  border: 1px solid rgba(74, 144, 226, 0.25);
 }
 
 .main-icon {
-  font-size: 36px;
-  color: #ffffff;
-  z-index: 1;
+  font-size: 24px;
+  color: #4A90E2;
 }
 
 .header-title {
-  font-size: 36px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 500;
   margin: 0;
-  background: linear-gradient(135deg, #ffffff, rgba(255, 255, 255, 0.8));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ffffff;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.header-subtitle {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.8);
-  margin: 0;
-  font-weight: 400;
-  line-height: 1.5;
+/* 输入容器 */
+.input-container {
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 输入区域上半部分 */
+.input-top-section {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+}
+
+/* 输入区域下半部分 */
+.input-bottom-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* 上传按钮 */
+.upload-section {
+  flex-shrink: 0;
+}
+
+.upload-btn {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.upload-btn.large {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+}
+
+.upload-btn:hover {
+  border-color: #4A90E2;
+  background: rgba(74, 144, 226, 0.1);
+  color: #4A90E2;
+}
+
+.upload-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.upload-btn.disabled:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.upload-btn.small {
+  width: 28px;
+  height: 28px;
+}
+
+/* 文本输入区域 */
+.text-input-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.main-input :deep(.el-textarea__inner) {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.4;
+  resize: none;
+  padding: 0;
+  box-shadow: none;
+}
+
+.main-input :deep(.el-textarea__inner)::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.main-input :deep(.el-textarea__inner):focus {
+  box-shadow: none;
+}
+
+.main-input.compact :deep(.el-textarea__inner) {
+  font-size: 13px;
+}
+
+/* 参数选择区域 */
+.params-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.param-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 6px 12px;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  height: 32px;
+  white-space: nowrap;
+}
+
+.param-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-icon {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.model-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4A90E2;
+}
+
+.style-emoji {
+  font-size: 14px;
+}
+
+.arrow-icon {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-left: 2px;
+}
+
+/* 生成按钮 */
+.generate-section {
+  flex-shrink: 0;
+}
+
+.generate-btn {
+  background: linear-gradient(135deg, #4A90E2, #357ABD);
+  border: none;
+  color: #ffffff;
+  height: 36px;
+  padding: 0 20px;
+  border-radius: 18px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  min-width: 70px;
+}
+
+.generate-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(74, 144, 226, 0.4);
+}
+
+.generate-btn:disabled {
+  opacity: 0.5;
+  transform: none;
+  box-shadow: none;
+}
+
+.generate-btn.compact {
+  height: 32px;
+  padding: 0 16px;
+  font-size: 12px;
 }
 
 /* 主要内容区域 */
@@ -1084,7 +1223,7 @@ const regenerateSingle = (index: number) => {
   flex-direction: column;
 }
 
-/* 无内容时的居中输入区域 - 即梦风格 */
+/* 无内容时的居中输入区域 */
 .centered-input-section {
   display: flex;
   flex-direction: column;
@@ -1095,85 +1234,37 @@ const regenerateSingle = (index: number) => {
   position: relative;
   z-index: 1;
 }
-
-.centered-input-section .prompt-container {
-  width: 100%;
-  max-width: 900px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-.upload-area {
-  flex-shrink: 0;
-}
-
-.image-uploader {
-  width: 60px;
-  height: 60px;
-}
-
-.upload-placeholder {
-  width: 60px;
-  height: 60px;
-  border: 2px dashed rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.upload-placeholder:hover {
-  border-color: #4A90E2;
-  color: #4A90E2;
-  background: rgba(74, 144, 226, 0.1);
-}
-
-.upload-placeholder.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.upload-placeholder.disabled:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.3);
-  background: transparent;
-}
-
-/* 上传图片预览区域 - 即梦风格 */
+/* 上传图片预览区域 */
 .upload-preview-section {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  padding-top: 20px;
+  padding-top: 12px;
+  margin-top: 12px;
 }
 
 .preview-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .preview-label {
-  font-size: 14px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.8);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .upload-preview-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
 }
 
 .upload-preview-item {
   position: relative;
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -1216,9 +1307,9 @@ const regenerateSingle = (index: number) => {
   background: rgba(255, 77, 79, 0.9) !important;
   border: none !important;
   color: #ffffff !important;
-  width: 24px !important;
-  height: 24px !important;
-  min-height: 24px !important;
+  width: 20px !important;
+  height: 20px !important;
+  min-height: 20px !important;
   padding: 0 !important;
   border-radius: 50% !important;
   transition: all 0.3s ease;
@@ -1229,478 +1320,59 @@ const regenerateSingle = (index: number) => {
   transform: scale(1.1);
 }
 
-.prompt-input-wrapper {
-  flex: 1;
+/* 悬浮面板中的上传图片预览 */
+.upload-preview-section.compact {
+  margin-top: 6px;
+  border-top: none;
+  padding-top: 6px;
 }
 
-.prompt-input {
-  background: transparent;
-  border: none;
-}
-
-.prompt-input :deep(.el-textarea__inner) {
-  background: transparent;
-  border: none;
-  color: #ffffff;
-  font-size: 16px;
-  line-height: 1.6;
-  resize: none;
-  padding: 0;
-  box-shadow: none;
-}
-
-.prompt-input :deep(.el-textarea__inner)::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.prompt-input :deep(.el-textarea__inner):focus {
-  box-shadow: none;
-}
-
-/* 创作控制区域 - 即梦风格 */
-.creation-controls {
-  margin-top: 32px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.controls-row {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.control-group {
-  flex-shrink: 0;
-}
-
-.control-button {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
-  padding: 16px 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 140px;
-  position: relative;
-  overflow: hidden;
-}
-
-.control-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.5s ease;
-}
-
-.control-button:hover::before {
-  left: 100%;
-}
-
-.control-button:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
-
-.control-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.1);
-  flex-shrink: 0;
-}
-
-.model-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.model-initial {
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.style-emoji {
-  font-size: 18px;
-}
-
-.control-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.control-label {
-  font-size: 12px;
+.upload-preview-section.compact .preview-label {
+  font-size: 10px;
   color: rgba(255, 255, 255, 0.6);
-  font-weight: 500;
+  margin-bottom: 4px;
 }
 
-.control-value {
-  font-size: 14px;
-  color: #ffffff;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.control-arrow {
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 16px;
-  flex-shrink: 0;
-  transition: transform 0.3s ease;
-}
-
-.control-button:hover .control-arrow {
-  transform: translateY(2px);
-}
-
-.generate-section {
-  display: flex;
-  justify-content: center;
-}
-
-.generate-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  color: #ffffff;
-  height: 56px;
-  padding: 0 40px;
-  border-radius: 28px;
-  font-size: 18px;
-  font-weight: 700;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 200px;
-  justify-content: center;
-}
-
-.generate-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s ease;
-}
-
-.generate-btn:hover::before {
-  left: 100%;
-}
-
-.generate-btn:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 12px 32px rgba(102, 126, 234, 0.4);
-}
-
-.generate-btn:disabled {
-  opacity: 0.6;
-  transform: none;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-  cursor: not-allowed;
-}
-
-.btn-glow {
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  border-radius: 30px;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.generate-btn:hover .btn-glow {
-  opacity: 0.3;
-}
-
-/* 创作面板 - 即梦风格 */
-.creation-panel {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border-radius: 24px;
-  padding: 32px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.creation-panel::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-}
-
-.input-section {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-  margin-bottom: 24px;
-}
-
-.upload-area {
-  flex-shrink: 0;
-}
-
-.image-uploader {
-  width: 120px;
-  height: 120px;
-}
-
-.upload-placeholder {
-  width: 120px;
-  height: 120px;
-  border: 2px dashed rgba(255, 255, 255, 0.4);
-  border-radius: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.05);
-  gap: 8px;
-}
-
-.upload-placeholder:hover {
-  border-color: rgba(255, 255, 255, 0.8);
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-}
-
-.upload-text {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.upload-placeholder.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.upload-placeholder.disabled:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  transform: none;
-  box-shadow: none;
-}
-
-.prompt-input-wrapper {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.prompt-input :deep(.el-textarea__inner) {
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-size: 16px;
-  line-height: 1.6;
-  resize: none;
-  padding: 20px;
-  border-radius: 16px;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(10px);
-}
-
-.prompt-input :deep(.el-textarea__inner)::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 15px;
-}
-
-.prompt-input :deep(.el-textarea__inner):focus {
-  border-color: rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
-}
-
-.input-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0 4px;
-}
-
-.input-tips {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tip-text {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.char-count {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 500;
-}
-
-/* 有内容时的底部悬浮输入面板 */
-.floating-input-panel {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  width: calc(100% - 80px);
-  max-width: 900px;
-}
-
-.panel-container {
-  background: rgba(26, 26, 46, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 16px;
-  padding: 16px 20px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-.panel-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.panel-content .upload-area {
-  flex-shrink: 0;
-}
-
-.panel-content .image-uploader {
-  width: 50px;
-  height: 50px;
-}
-
-.panel-content .upload-placeholder {
-  width: 50px;
-  height: 50px;
-  border: 2px dashed rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.panel-content .upload-placeholder:hover {
-  border-color: #4A90E2;
-  color: #4A90E2;
-  background: rgba(74, 144, 226, 0.1);
-}
-
-.panel-content .upload-placeholder.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.3);
-}
-
-.panel-content .upload-placeholder.disabled:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.3);
-  background: transparent;
-}
-
-.panel-content .upload-preview-section {
-  margin-top: 8px;
-}
-
-.panel-content .preview-label {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 6px;
-}
-
-.panel-content .upload-preview-list {
+.upload-preview-section.compact .upload-preview-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px; /* 为删除按钮留出空间 */
+  gap: 6px;
+  padding: 6px;
 }
 
-.panel-content .upload-preview-item {
+.upload-preview-section.compact .upload-preview-item {
   position: relative;
-  width: 50px;
-  height: 50px;
-  border-radius: 6px;
-  overflow: visible; /* 改为 visible 让删除按钮完全显示 */
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  overflow: visible;
   cursor: pointer;
   transition: all 0.3s ease;
   border: 2px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.05);
 }
 
-.panel-content .upload-preview-item:hover {
+.upload-preview-section.compact .upload-preview-item:hover {
   transform: scale(1.05);
   border-color: #4A90E2;
   box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
 }
 
-.panel-content .upload-preview-image {
+.upload-preview-section.compact .upload-preview-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  border-radius: 4px; /* 稍微小一点的圆角 */
+  border-radius: 2px;
 }
 
-.panel-content .remove-btn-corner {
+.remove-btn-corner {
   position: absolute;
-  top: -4px; /* 调整位置 */
-  right: -4px;
-  width: 18px !important; /* 稍微增大尺寸 */
-  height: 18px !important;
-  min-height: 18px !important;
+  top: -3px;
+  right: -3px;
+  width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
   padding: 0 !important;
   background: rgba(255, 77, 79, 0.95) !important;
   border: 1px solid #ffffff !important;
@@ -1708,96 +1380,84 @@ const regenerateSingle = (index: number) => {
   z-index: 10;
   opacity: 0;
   transition: all 0.3s ease;
-  border-radius: 50% !important; /* 确保是圆形 */
+  border-radius: 50% !important;
 }
 
-.panel-content .upload-preview-item:hover .remove-btn-corner {
+.upload-preview-section.compact .upload-preview-item:hover .remove-btn-corner {
   opacity: 1;
 }
 
-.panel-content .remove-btn-corner:hover {
+.remove-btn-corner:hover {
   background: #ff4d4f !important;
   transform: scale(1.1);
 }
 
-.panel-content .remove-btn-corner .el-icon {
-  font-size: 10px;
+.remove-btn-corner .el-icon {
+  font-size: 8px;
   color: #ffffff;
 }
 
-.panel-content .prompt-input-wrapper {
-  flex: 1;
+
+
+
+
+/* 有内容时的底部悬浮输入面板 */
+.floating-input-panel {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: calc(100% - 80px);
+  max-width: 600px;
 }
 
-.panel-content .prompt-input :deep(.el-textarea__inner) {
-  background: rgba(255, 255, 255, 0.08);
+.panel-container {
+  background: rgba(26, 26, 46, 0.95);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #ffffff;
-  font-size: 14px;
-  line-height: 1.5;
-  resize: none;
-  border-radius: 8px;
+  border-radius: 16px;
+  padding: 12px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.panel-content .prompt-input :deep(.el-textarea__inner)::placeholder {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.panel-content .prompt-input :deep(.el-textarea__inner):focus {
-  border-color: #4A90E2;
-  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
-}
-
-.panel-controls {
+/* 悬浮面板上半部分 */
+.panel-top-section {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+}
+
+/* 悬浮面板下半部分 */
+.panel-bottom-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.panel-top-section .upload-section {
   flex-shrink: 0;
 }
 
-.panel-controls .params-section {
+.panel-top-section .text-input-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+.panel-bottom-section .params-section {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
-.panel-controls .param-btn {
-  background: rgba(80, 80, 80, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 16px;
-  font-size: 12px;
-  transition: all 0.3s ease;
-}
-
-.panel-controls .param-btn:hover {
-  background: rgba(74, 144, 226, 0.3);
-  border-color: #4A90E2;
-}
-
-.panel-controls .generate-btn {
-  background: linear-gradient(135deg, #4A90E2, #357ABD);
-  border: none;
-  color: #ffffff;
-  height: 32px;
-  padding: 0 20px;
-  border-radius: 16px;
-  font-weight: 600;
-  font-size: 12px;
-  transition: all 0.3s ease;
-}
-
-.panel-controls .generate-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(74, 144, 226, 0.4);
-}
-
-.panel-controls .generate-btn:disabled {
-  opacity: 0.5;
-  transform: none;
-  box-shadow: none;
+.panel-bottom-section .generate-section {
+  flex-shrink: 0;
 }
 
 
@@ -2345,19 +2005,22 @@ const regenerateSingle = (index: number) => {
 :deep(.model-popover),
 :deep(.size-popover),
 :deep(.style-popover) {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 16px !important;
   padding: 0 !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
 }
 
 .model-selector,
 .size-selector,
 .style-selector {
   padding: 24px;
-  min-width: 360px;
+  min-width: 400px;
+  background: rgba(26, 26, 46, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
 }
 
 .selector-header {
@@ -2384,7 +2047,7 @@ const regenerateSingle = (index: number) => {
   justify-content: space-between;
   padding: 16px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition: all 0.3s ease;
   border: 1px solid transparent;
@@ -2411,14 +2074,14 @@ const regenerateSingle = (index: number) => {
 
 .model-item:hover,
 .style-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
 }
 
 .model-item.active,
 .style-item.active {
-  background: rgba(102, 126, 234, 0.2);
+  background: rgba(102, 126, 234, 0.3);
   border-color: #667eea;
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
 }
@@ -2470,9 +2133,8 @@ const regenerateSingle = (index: number) => {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.7);
   line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .check-icon {
@@ -2505,7 +2167,7 @@ const regenerateSingle = (index: number) => {
   gap: 8px;
   padding: 16px 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition: all 0.3s ease;
   border: 1px solid transparent;
@@ -2530,13 +2192,13 @@ const regenerateSingle = (index: number) => {
 }
 
 .size-item:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-2px);
 }
 
 .size-item.active {
-  background: rgba(102, 126, 234, 0.2);
+  background: rgba(102, 126, 234, 0.3);
   border-color: #667eea;
   box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
 }
@@ -2572,25 +2234,7 @@ const regenerateSingle = (index: number) => {
   text-align: center;
 }
 
-/* 参数按钮样式更新 */
-.param-btn {
-  background: rgba(80, 80, 80, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  height: 40px;
-  padding: 0 16px;
-  border-radius: 20px;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-}
 
-.param-btn:hover {
-  background: rgba(74, 144, 226, 0.3);
-  border-color: #4A90E2;
-}
 
 .cost-badge {
   background: rgba(255, 255, 255, 0.2);
@@ -2621,77 +2265,86 @@ const regenerateSingle = (index: number) => {
   }
   
   .page-title {
-    font-size: 24px;
-    padding: 20px 0 16px 0;
+    font-size: 20px;
+    padding: 20px 0 12px 0;
   }
   
-  .centered-input-section .prompt-container {
+  .centered-input-section .input-container {
     max-width: 100%;
   }
   
-  .centered-input-section .input-row {
+  .input-top-section {
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .input-bottom-section {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
   }
   
   .upload-preview-list {
-    gap: 8px;
-    padding: 8px; /* 移动端也需要padding */
+    gap: 6px;
+    padding: 6px;
   }
   
   .upload-preview-item {
-    width: 60px;
-    height: 60px;
+    width: 50px;
+    height: 50px;
   }
   
   .remove-btn-corner {
-    top: -4px !important;
-    right: -4px !important;
-    width: 18px !important;
-    height: 18px !important;
-    min-height: 18px !important;
+    top: -3px !important;
+    right: -3px !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-height: 16px !important;
   }
   
   .remove-btn-corner .el-icon {
-    font-size: 10px !important;
+    font-size: 8px !important;
   }
   
-  .centered-input-section .params-section {
+  .params-section {
     justify-content: flex-start;
-    gap: 8px;
+    gap: 6px;
     flex-wrap: wrap;
   }
   
   .floating-input-panel {
     bottom: 10px;
     width: calc(100% - 20px);
+    max-width: 500px;
   }
   
-  .panel-content {
+  .panel-top-section {
     flex-direction: column;
-    gap: 12px;
-  }
-  
-  .panel-controls {
-    flex-direction: column;
-    gap: 12px;
+    gap: 8px;
     align-items: stretch;
   }
   
-  .panel-controls .params-section {
+  .panel-bottom-section {
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+  }
+  
+  .panel-bottom-section .params-section {
     justify-content: center;
     flex-wrap: wrap;
   }
   
   .param-btn {
-    font-size: 14px;
-    height: 36px;
-    padding: 0 12px;
+    font-size: 12px;
+    height: 28px;
+    padding: 0 10px;
   }
   
   .results-grid {
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
   }
   
   .history-sidebar {
@@ -2701,8 +2354,8 @@ const regenerateSingle = (index: number) => {
   
   .history-toggle {
     right: 16px;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
   }
 }
 
@@ -2713,11 +2366,11 @@ const regenerateSingle = (index: number) => {
   
   .floating-input-panel {
     width: calc(100% - 60px);
-    max-width: 800px;
+    max-width: 600px;
   }
   
   .results-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   }
 }
 
@@ -2727,11 +2380,11 @@ const regenerateSingle = (index: number) => {
   }
   
   .floating-input-panel {
-    max-width: 1000px;
+    max-width: 700px;
   }
   
   .results-grid {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   }
 }
 
@@ -2759,29 +2412,33 @@ const regenerateSingle = (index: number) => {
 .model-popover,
 .size-popover,
 .style-popover {
-  background: #323233 !important;
+  background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 12px !important;
   padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
 }
 
 .model-popover .el-popover__content,
 .size-popover .el-popover__content,
 .style-popover .el-popover__content {
   padding: 0 !important;
+  background: transparent !important;
 }
 
 /* 其他下拉框样式 */
 .el-dropdown-menu {
-  background: #323233 !important;
+  background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
 }
 
 .el-select-dropdown {
-  background: #323233 !important;
+  background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
 }
 </style>
