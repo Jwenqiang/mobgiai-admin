@@ -276,32 +276,39 @@
           </div>
         </div>
 
-        <!-- 生成结果 - 即梦风格 -->
+        <!-- 生成结果 - 新布局 -->
         <div v-else-if="currentImages.length > 0" class="results-display">
-          <div class="results-header">
-            <h3 class="results-title">生成完成</h3>
-            <div class="results-actions">
-              <el-button size="small" @click="regenerateAll">
-                <el-icon><Refresh /></el-icon>
-                重新生成
-              </el-button>
-              <el-button size="small" @click="downloadAll">
-                <el-icon><Download /></el-icon>
-                全部下载
-              </el-button>
+          <!-- 生成内容卡片 -->
+          <div class="generation-card">
+            <!-- 上部分：缩略图和描述 -->
+            <div class="generation-header">
+              <div class="generation-thumbnail">
+                <img :src="currentImages[0]?.url" alt="生成缩略图" class="thumbnail-image" />
+              </div>
+              <div class="generation-info">
+                <div class="generation-prompt">{{ prompt || '这是一段生成于千年前的成图的内容示例，它的主要作用是向用户展示出图像生成的强大功能，让用户能够直观地感受到AI生成图像的魅力和实用性。在实际使用时，这段文字会被替换为用户输入的具体描述内容，从而生成符合用户需求的个性化图像。' }}</div>
+              </div>
             </div>
-          </div>
-          <div class="results-grid">
-            <div 
-              v-for="(image, index) in currentImages" 
-              :key="index"
-              class="result-card"
-              @click="previewImage(image)"
-            >
-              <div class="image-container">
-                <img :src="image.url" :alt="`生成的图片 ${index + 1}`" class="result-image" />
-                <div class="image-overlay">
-                  <div class="overlay-content">
+            
+            <!-- 中部分：模型标签等信息 -->
+            <div class="generation-meta">
+              <div class="meta-tags">
+                <span class="meta-tag model-tag">{{ currentModel?.name || 'Seedance 1.5' }}</span>
+                <span class="meta-tag size-tag">{{ currentSize?.label || '9:16' }}</span>
+              </div>
+            </div>
+            
+            <!-- 下部分：4张生成图 -->
+            <div class="generation-images">
+              <div 
+                v-for="(image, index) in currentImages" 
+                :key="index"
+                class="generation-image-item"
+                @click="previewImage(image)"
+              >
+                <div class="image-wrapper">
+                  <img :src="image.url" :alt="`生成的图片 ${index + 1}`" class="generated-image" />
+                  <div class="image-overlay">
                     <div class="overlay-actions">
                       <el-button 
                         type="primary" 
@@ -325,14 +332,22 @@
                   </div>
                 </div>
               </div>
-              <div class="result-info">
-                <div class="result-index">#{{ index + 1 }}</div>
-                <div class="result-actions">
-                  <el-button size="small" text @click.stop="regenerateSingle(index)">
-                    <el-icon><Refresh /></el-icon>
-                  </el-button>
-                </div>
-              </div>
+            </div>
+            
+            <!-- 底部：操作按钮 -->
+            <div class="generation-actions">
+              <el-button class="action-button edit-button" @click="editGeneration">
+                <el-icon class="button-icon"><Edit /></el-icon>
+                <span>重新编辑</span>
+              </el-button>
+              <el-button class="action-button regenerate-button" @click="regenerateAll">
+                <el-icon class="button-icon"><Refresh /></el-icon>
+                <span>再次生成</span>
+              </el-button>
+              <el-button class="action-button delete-button" @click="deleteGeneration">
+                <el-icon class="button-icon"><Delete /></el-icon>
+                <span>删除</span>
+              </el-button>
             </div>
           </div>
         </div>
@@ -340,7 +355,7 @@
     </div>
 
     <!-- 有内容时的底部悬浮输入面板 -->
-    <div v-if="currentImages.length > 0 || generating" class="floating-input-panel">
+    <div v-if="currentImages.length > 0 || generating" class="floating-input-panel" :class="getPanelClass()">
       <div class="panel-container">
         <!-- 上半部分：上传和文本输入 -->
         <div class="panel-top-section">
@@ -621,11 +636,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Picture, Plus, Download, FolderAdd, Clock, Close,
-  ArrowDown, FullScreen, Check
+  ArrowDown, FullScreen, Check, Refresh, Edit, Delete
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 
@@ -686,6 +701,12 @@ const previewImageUrl = ref('')
 const previewImageData = ref<ImageResult | null>(null)
 const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
+
+// 滚动相关状态
+const isScrolling = ref(false)
+const scrollDirection = ref<'up' | 'down' | 'none'>('none')
+const lastScrollTop = ref(0)
+const scrollTimer = ref<number | null>(null)
 
 // Popover 引用
 const modelPopoverRef = ref()
@@ -934,28 +955,90 @@ const regenerateAll = () => {
   handleGenerate()
 }
 
-const downloadAll = () => {
-  currentImages.value.forEach((image, index) => {
-    setTimeout(() => {
-      downloadImage(image)
-    }, index * 200)
-  })
-  ElMessage.success('开始批量下载图片')
+const editGeneration = () => {
+  // 重新编辑：清空当前结果，回到编辑状态
+  // 保持当前的 prompt 和参数设置
+  ElMessage.info('返回编辑模式')
 }
 
-const regenerateSingle = (index: number) => {
-  ElMessage.info(`重新生成第 ${index + 1} 张图片`)
-  // 这里可以实现单张图片重新生成的逻辑
+const deleteGeneration = () => {
+  // 删除当前生成结果
+  currentImages.value = []
+  ElMessage.success('已删除生成结果')
 }
+
+// 滚动监听函数
+const handleScroll = () => {
+  const mainContent = document.querySelector('.main-content')
+  if (!mainContent) return
+
+  const currentScrollTop = mainContent.scrollTop
+  
+  // 判断滚动方向
+  if (currentScrollTop > lastScrollTop.value) {
+    scrollDirection.value = 'down'
+  } else if (currentScrollTop < lastScrollTop.value) {
+    scrollDirection.value = 'up'
+  }
+  
+  lastScrollTop.value = currentScrollTop
+  isScrolling.value = true
+  
+  // 清除之前的定时器
+  if (scrollTimer.value) {
+    clearTimeout(scrollTimer.value)
+  }
+  
+  // 设置新的定时器，滚动停止后展开面板
+  scrollTimer.value = setTimeout(() => {
+    isScrolling.value = false
+    scrollDirection.value = 'none'
+  }, 150) as unknown as number
+}
+
+// 计算面板状态
+const getPanelClass = () => {
+  if (!currentImages.value.length) return ''
+  
+  if (isScrolling.value && scrollDirection.value === 'up') {
+    return 'collapsed'
+  } else if (!isScrolling.value || scrollDirection.value === 'down') {
+    return 'expanded'
+  }
+  
+  return 'expanded'
+}
+
+// 组件挂载时添加滚动监听
+onMounted(() => {
+  const mainContent = document.querySelector('.main-content')
+  if (mainContent) {
+    mainContent.addEventListener('scroll', handleScroll, { passive: true })
+  }
+})
+
+// 组件卸载时移除滚动监听
+onUnmounted(() => {
+  const mainContent = document.querySelector('.main-content')
+  if (mainContent) {
+    mainContent.removeEventListener('scroll', handleScroll)
+  }
+  
+  if (scrollTimer.value) {
+    clearTimeout(scrollTimer.value)
+  }
+})
 </script>
 
 <style scoped>
 .image-generate-container {
-  min-height: 100vh;
+  height: 100vh;
   background: #1a1a2e;
   color: #ffffff;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .image-generate-container::before {
@@ -1214,13 +1297,13 @@ const regenerateSingle = (index: number) => {
 /* 主要内容区域 */
 .main-content {
   width: 100%;
-  min-width: 768px;
-  max-width: 100%;
+  height: 100%;
   margin: 0 auto;
   padding: 0 40px;
-  height: calc(100vh - 120px);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* 无内容时的居中输入区域 */
@@ -1229,10 +1312,11 @@ const regenerateSingle = (index: number) => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  min-height: calc(100vh - 80px);
   padding: 40px;
   position: relative;
   z-index: 1;
+  flex-shrink: 0;
 }
 /* 上传图片预览区域 */
 .upload-preview-section {
@@ -1403,13 +1487,27 @@ const regenerateSingle = (index: number) => {
 
 /* 有内容时的底部悬浮输入面板 */
 .floating-input-panel {
-  position: fixed;
-  bottom: 24px;
+  position: absolute;
+  bottom: 16px; /* 增加距离底部的间距 */
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
   width: calc(100% - 80px);
   max-width: 600px;
+  pointer-events: auto;
+  transition: all 0.3s ease;
+}
+
+/* 收起状态 */
+.floating-input-panel.collapsed {
+  transform: translateX(-50%) scale(0.85);
+  opacity: 0.8;
+}
+
+/* 展开状态 */
+.floating-input-panel.expanded {
+  transform: translateX(-50%) scale(1);
+  opacity: 1;
 }
 
 .panel-container {
@@ -1464,8 +1562,8 @@ const regenerateSingle = (index: number) => {
 /* 结果展示区域 */
 .results-section {
   flex: 1;
-  overflow-y: auto;
-  padding-bottom: 120px; /* 为悬浮面板留出空间 */
+  overflow: visible;
+  padding-bottom: 200px; /* 增加底部间距，确保生成器不遮挡内容 */
 }
 
 /* 生成中状态 - 即梦风格 */
@@ -1633,112 +1731,145 @@ const regenerateSingle = (index: number) => {
   background: #667eea;
 }
 
-/* 生成结果展示 - 即梦风格 */
+/* 生成结果展示 - 扁平布局 */
 .results-display {
-  padding: 40px;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 32px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.results-title {
-  font-size: 24px;
-  font-weight: 700;
+  padding: 20px 40px 60px 40px; /* 增加底部内边距 */
+  width: 100%;
+  max-width: none;
   margin: 0;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ffffff, rgba(255, 255, 255, 0.8));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
-.results-actions {
+.generation-card {
+  background: transparent;
+  backdrop-filter: none;
+  border-radius: 0;
+  padding: 16px 0;
+  border: none;
   display: flex;
-  gap: 12px;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 24px;
 }
 
-.results-actions .el-button {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
+.generation-card:last-child {
+  border-bottom: none;
+  margin-bottom: 60px; /* 增加最后一个卡片的底部间距 */
+}
+
+/* 上部分：缩略图和描述 */
+.generation-header {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 2px;
+}
+
+.generation-thumbnail {
+  width: 80px;
+  height: 80px;
   border-radius: 12px;
-  padding: 8px 16px;
-  font-size: 14px;
-  transition: all 0.3s ease;
-}
-
-.results-actions .el-button:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-1px);
-}
-
-.results-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
-}
-
-.result-card {
+  overflow: hidden;
+  flex-shrink: 0;
   background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border-radius: 20px;
-  padding: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
 }
 
-.result-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.result-card:hover::before {
-  opacity: 1;
-}
-
-.result-card:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.4);
-  transform: translateY(-4px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
-}
-
-.image-container {
-  position: relative;
-  border-radius: 16px;
-  overflow: hidden;
-  margin-bottom: 12px;
-  aspect-ratio: 1;
-}
-
-.result-image {
+.thumbnail-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
+}
+
+.generation-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.generation-prompt {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* 中部分：模型标签等信息 */
+.generation-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 6px 0;
+}
+
+.meta-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meta-tag {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.model-tag {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: #ffffff;
+}
+
+.size-tag {
+  background: rgba(74, 144, 226, 0.3);
+  border-color: rgba(74, 144, 226, 0.5);
+  color: #ffffff;
+}
+
+/* 下部分：4张生成图 */
+.generation-images {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.generation-image-item {
+  aspect-ratio: 1;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.generation-image-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  background: transparent;
+}
+
+.generated-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   transition: transform 0.3s ease;
 }
 
-.result-card:hover .result-image {
+.generation-image-item:hover .generated-image {
   transform: scale(1.05);
 }
 
@@ -1756,15 +1887,8 @@ const regenerateSingle = (index: number) => {
   transition: opacity 0.3s ease;
 }
 
-.result-card:hover .image-overlay {
+.generation-image-item:hover .image-overlay {
   opacity: 1;
-}
-
-.overlay-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
 }
 
 .overlay-actions {
@@ -1773,13 +1897,13 @@ const regenerateSingle = (index: number) => {
 }
 
 .action-btn {
-  width: 44px !important;
-  height: 44px !important;
+  width: 36px !important;
+  height: 36px !important;
   border-radius: 50% !important;
   background: rgba(255, 255, 255, 0.9) !important;
   border: none !important;
   color: #333 !important;
-  font-size: 18px !important;
+  font-size: 16px !important;
   transition: all 0.3s ease !important;
   backdrop-filter: blur(10px) !important;
 }
@@ -1790,39 +1914,102 @@ const regenerateSingle = (index: number) => {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2) !important;
 }
 
-.result-info {
+/* 底部：操作按钮 */
+.generation-actions {
   display: flex;
-  justify-content: space-between;
+  gap: 12px;
+  justify-content: flex-start;
+  padding-top: 12px;
+  border-top: none;
+}
+
+.action-button {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  flex: none;
+  display: flex;
   align-items: center;
-  padding: 0 4px;
+  gap: 6px;
+  min-width: auto;
+  justify-content: center;
 }
 
-.result-index {
+.action-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.button-icon {
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-  font-weight: 600;
+  flex-shrink: 0;
 }
 
-.result-actions {
-  display: flex;
-  gap: 4px;
+.edit-button {
+  border-color: rgba(255, 193, 7, 0.3);
+  background: rgba(255, 193, 7, 0.08);
 }
 
-.result-actions .el-button {
-  background: transparent !important;
-  border: none !important;
-  color: rgba(255, 255, 255, 0.6) !important;
-  padding: 4px !important;
-  width: 28px !important;
-  height: 28px !important;
-  border-radius: 50% !important;
-  transition: all 0.3s ease !important;
+.edit-button:hover {
+  background: rgba(255, 193, 7, 0.15);
+  border-color: rgba(255, 193, 7, 0.5);
+  color: #ffc107;
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.2);
 }
 
-.result-actions .el-button:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  color: #ffffff !important;
-  transform: scale(1.1) !important;
+.edit-button .button-icon {
+  color: rgba(255, 193, 7, 0.8);
+}
+
+.edit-button:hover .button-icon {
+  color: #ffc107;
+}
+
+.regenerate-button {
+  border-color: rgba(74, 144, 226, 0.3);
+  background: rgba(74, 144, 226, 0.08);
+}
+
+.regenerate-button:hover {
+  background: rgba(74, 144, 226, 0.15);
+  border-color: rgba(74, 144, 226, 0.5);
+  color: #4A90E2;
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
+}
+
+.regenerate-button .button-icon {
+  color: rgba(74, 144, 226, 0.8);
+}
+
+.regenerate-button:hover .button-icon {
+  color: #4A90E2;
+}
+
+.delete-button {
+  border-color: rgba(255, 77, 79, 0.3);
+  background: rgba(255, 77, 79, 0.08);
+}
+
+.delete-button:hover {
+  background: rgba(255, 77, 79, 0.15);
+  border-color: rgba(255, 77, 79, 0.5);
+  color: #ff4d4f;
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.2);
+}
+
+.delete-button .button-icon {
+  color: rgba(255, 77, 79, 0.8);
+}
+
+.delete-button:hover .button-icon {
+  color: #ff4d4f;
 }
 
 /* 空状态 */
@@ -2259,9 +2446,9 @@ const regenerateSingle = (index: number) => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .main-content {
-    min-width: 768px;
     padding: 0 20px;
-    overflow-x: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   
   .page-title {
@@ -2314,9 +2501,19 @@ const regenerateSingle = (index: number) => {
   }
   
   .floating-input-panel {
-    bottom: 10px;
+    bottom: 12px;
     width: calc(100% - 20px);
     max-width: 500px;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .floating-input-panel.collapsed {
+    transform: translateX(-50%) scale(0.9);
+  }
+  
+  .floating-input-panel.expanded {
+    transform: translateX(-50%) scale(1);
   }
   
   .panel-top-section {
@@ -2342,9 +2539,65 @@ const regenerateSingle = (index: number) => {
     padding: 0 10px;
   }
   
-  .results-grid {
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  /* 新布局响应式 */
+  .results-display {
+    padding: 16px 20px 50px 20px;
+  }
+  
+  .generation-card {
+    padding: 14px 0;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  
+  .generation-card:last-child {
+    margin-bottom: 50px;
+  }
+  
+  .generation-header {
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 0;
+  }
+  
+  .generation-thumbnail {
+    width: 60px;
+    height: 60px;
+    align-self: flex-start;
+  }
+  
+  .generation-meta {
+    margin: 4px 0;
+  }
+  
+  .generation-images {
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
+  }
+  
+  .generation-actions {
+    flex-direction: row;
+    gap: 10px;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    padding-top: 10px;
+  }
+  
+  .action-button {
+    height: 28px;
+    font-size: 12px;
+    padding: 0 12px;
+    flex: none;
+    min-width: auto;
+    border-radius: 14px;
+  }
+  
+  .button-icon {
+    font-size: 12px;
+  }
+  
+  .results-section {
+    padding-bottom: 180px;
   }
   
   .history-sidebar {
@@ -2367,10 +2620,39 @@ const regenerateSingle = (index: number) => {
   .floating-input-panel {
     width: calc(100% - 60px);
     max-width: 600px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 14px;
   }
   
-  .results-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  .floating-input-panel.collapsed {
+    transform: translateX(-50%) scale(0.88);
+  }
+  
+  .floating-input-panel.expanded {
+    transform: translateX(-50%) scale(1);
+  }
+  
+  .results-display {
+    padding: 18px 30px 55px 30px;
+  }
+  
+  .generation-card {
+    padding: 18px 0;
+    margin-bottom: 22px;
+  }
+  
+  .generation-card:last-child {
+    margin-bottom: 55px;
+  }
+  
+  .generation-images {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  
+  .results-section {
+    padding-bottom: 190px;
   }
 }
 
@@ -2381,10 +2663,35 @@ const regenerateSingle = (index: number) => {
   
   .floating-input-panel {
     max-width: 700px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 100px;
   }
   
-  .results-grid {
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  .floating-input-panel.collapsed {
+    transform: translateX(-50%) scale(0.85);
+  }
+  
+  .floating-input-panel.expanded {
+    transform: translateX(-50%) scale(1);
+  }
+  
+  .results-display {
+    padding: 20px 40px 60px 40px;
+  }
+  
+  .generation-card {
+    padding: 16px 0;
+    margin-bottom: 24px;
+  }
+  
+  .generation-card:last-child {
+    margin-bottom: 60px;
+  }
+  
+  .generation-images {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
   }
 }
 
@@ -2404,6 +2711,25 @@ const regenerateSingle = (index: number) => {
 
 .sidebar-content::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* 主内容区滚动条样式 */
+.main-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.main-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.main-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.main-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
 }
 </style>
 
