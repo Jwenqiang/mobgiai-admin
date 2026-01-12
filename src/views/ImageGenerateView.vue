@@ -14,6 +14,37 @@
           </div>
         </div>
         
+        <!-- 上传图片预览列表 - 放在页面头部下方 -->
+        <div v-if="referenceImages.length > 0" class="upload-preview-section header-below">
+          <div class="preview-header">
+            <span class="preview-label">参考图片 ({{ referenceImages.length }}/5)</span>
+            <el-button size="small" text @click="clearAllImages">清空全部</el-button>
+          </div>
+          <div class="upload-preview-list">
+            <div 
+              v-for="(image, index) in referenceImages" 
+              :key="image.uid"
+              class="upload-preview-item"
+              @click="previewUploadImage(image.url)"
+            >
+              <img 
+                :src="image.url" 
+                :alt="image.name"
+                class="upload-preview-image"
+              />
+              <el-button 
+                type="danger" 
+                size="small" 
+                circle
+                @click.stop="removeImage(index)"
+                class="remove-btn-corner"
+              >
+                <el-icon><Close /></el-icon>
+              </el-button>
+            </div>
+          </div>
+        </div>
+        
         <!-- 输入区域 -->
         <div class="input-container">
           <!-- 上半部分：上传和文本输入 -->
@@ -45,6 +76,8 @@
                 :autosize="{ minRows: 1, maxRows: 4 }"
                 placeholder="请描述您想要生成的图片内容..."
                 class="main-input"
+                :maxlength="300"
+                show-word-limit
                 @keydown.enter.exact="handleGenerate"
               />
             </div>
@@ -58,10 +91,10 @@
               <el-popover
                 ref="modelPopoverRef"
                 placement="top"
-                :width="400"
+                :width="240"
                 trigger="click"
                 popper-class="model-popover"
-                :teleported="false"
+                :teleported="true"
               >
                 <template #reference>
                   <div class="param-btn model-btn">
@@ -99,83 +132,86 @@
                 </div>
               </el-popover>
 
-              <!-- 尺寸选择 -->
+              <!-- 图片参数选择 -->
               <el-popover
-                ref="sizePopoverRef"
+                ref="imageParamsPopoverRef"
                 placement="top"
-                :width="450"
+                :width="280"
                 trigger="click"
-                popper-class="size-popover"
-                :teleported="false"
+                popper-class="image-params-popover"
+                :teleported="true"
               >
                 <template #reference>
                   <div class="param-btn">
                     <div class="btn-icon">
                       <el-icon><FullScreen /></el-icon>
                     </div>
-                    <span>{{ currentSize?.label || '1:1' }}</span>
+                    <span>{{ currentSize?.label || '9:16' }} | {{ currentResolution?.label || '4K' }} | {{ currentImageCount?.label || '4' }}张</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
-                <div class="size-selector">
-                  <div class="selector-header">选择图片尺寸</div>
-                  <div class="size-grid">
+                <div class="image-params-selector">
+                  <div class="selector-header">选择比例</div>
+                  <div class="ratio-grid">
                     <div 
                       v-for="size in imageSizes" 
                       :key="size.value"
-                      class="size-item"
+                      class="ratio-item"
                       :class="{ active: currentSize?.value === size.value }"
                       @click="selectSize(size)"
                     >
-                      <div class="size-preview" :style="{ aspectRatio: size.aspect }"></div>
-                      <div class="size-info">
-                        <div class="size-label">{{ size.label }}</div>
-                        <div class="size-resolution">{{ size.width }}×{{ size.height }}</div>
-                      </div>
+                      <div class="ratio-preview" :style="{ aspectRatio: size.aspect }"></div>
+                      <div class="ratio-label">{{ size.label }}</div>
                     </div>
                   </div>
-                </div>
-              </el-popover>
-
-              <!-- 风格选择 -->
-              <el-popover
-                ref="stylePopoverRef"
-                placement="top"
-                :width="400"
-                trigger="click"
-                popper-class="style-popover"
-                :teleported="false"
-              >
-                <template #reference>
-                  <div class="param-btn">
-                    <div class="btn-icon">
-                      <span class="style-emoji">{{ currentStyle?.icon || '📷' }}</span>
-                    </div>
-                    <span>{{ currentStyle?.label || '真实' }}</span>
-                    <el-icon class="arrow-icon"><ArrowDown /></el-icon>
-                  </div>
-                </template>
-                <div class="style-selector">
-                  <div class="selector-header">选择艺术风格</div>
-                  <div class="style-list">
+                  
+                  <div class="selector-header">选择分辨率</div>
+                  <div class="resolution-options">
                     <div 
-                      v-for="style in artStyles" 
-                      :key="style.value"
-                      class="style-item"
-                      :class="{ active: currentStyle?.value === style.value }"
-                      @click="selectStyle(style)"
+                      v-for="resolution in resolutions" 
+                      :key="resolution.value"
+                      class="resolution-option"
+                      :class="{ active: currentResolution?.value === resolution.value }"
+                      @click="selectResolution(resolution)"
                     >
-                      <div class="style-info">
-                        <div class="style-icon-large">{{ style.icon }}</div>
-                        <div class="style-details">
-                          <div class="style-name">{{ style.label }}</div>
-                          <div class="style-desc">{{ style.description }}</div>
-                        </div>
-                      </div>
-                      <div v-if="currentStyle?.value === style.value" class="check-icon">
-                        <el-icon><Check /></el-icon>
-                      </div>
+                      <span>{{ resolution.label }}</span>
                     </div>
+                  </div>
+                  
+                  <div class="selector-header">尺寸</div>
+                  <div class="size-display">
+                    <div class="size-input-group">
+                      <span class="size-label">W</span>
+                      <div class="size-value">{{ currentSize?.width || 1440 }}</div>
+                      <span class="size-connector">⟷</span>
+                      <span class="size-label">H</span>
+                      <div class="size-value">{{ currentSize?.height || 2560 }}</div>
+                      <span class="size-unit">PX</span>
+                    </div>
+                  </div>
+                  
+                  <div class="selector-header">图片张数</div>
+                  <div class="count-options">
+                    <div 
+                      v-for="count in imageCounts" 
+                      :key="count.value"
+                      class="count-option"
+                      :class="{ active: currentImageCount?.value === count.value }"
+                      @click="selectImageCount(count)"
+                    >
+                      <span>{{ count.label }}</span>
+                    </div>
+                  </div>
+                  
+                  <div class="selector-footer">
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      @click="imageParamsPopoverRef?.hide()"
+                      class="done-btn"
+                    >
+                      完成
+                    </el-button>
                   </div>
                 </div>
               </el-popover>
@@ -192,39 +228,6 @@
               >
                 <span>{{ generating ? '生成中...' : '生成' }}</span>
               </el-button>
-            </div>
-          </div>
-          
-          <!-- 上传图片预览列表 -->
-          <div v-if="referenceImages.length > 0" class="upload-preview-section">
-            <div class="preview-header">
-              <span class="preview-label">参考图片 ({{ referenceImages.length }}/5)</span>
-              <el-button size="small" text @click="clearAllImages">清空全部</el-button>
-            </div>
-            <div class="upload-preview-list">
-              <div 
-                v-for="(image, index) in referenceImages" 
-                :key="image.uid"
-                class="upload-preview-item"
-                @click="previewUploadImage(image.url)"
-              >
-                <img 
-                  :src="image.url" 
-                  :alt="image.name"
-                  class="upload-preview-image"
-                />
-                <div class="image-overlay">
-                  <el-button 
-                    type="danger" 
-                    size="small" 
-                    circle
-                    @click.stop="removeImage(index)"
-                    class="remove-btn"
-                  >
-                    <el-icon><Close /></el-icon>
-                  </el-button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -298,8 +301,8 @@
               </div>
             </div>
             
-            <!-- 下部分：4张生成图 -->
-            <div class="generation-images">
+            <!-- 下部分：生成图 -->
+            <div class="generation-images" :class="`count-${currentImages.length}`">
               <div 
                 v-for="(image, index) in currentImages" 
                 :key="index"
@@ -319,7 +322,7 @@
                       >
                         <el-icon><Download /></el-icon>
                       </el-button>
-                      <el-button 
+                      <!-- <el-button 
                         type="success" 
                         size="small" 
                         circle
@@ -327,7 +330,7 @@
                         class="action-btn"
                       >
                         <el-icon><FolderAdd /></el-icon>
-                      </el-button>
+                      </el-button> -->
                     </div>
                   </div>
                 </div>
@@ -375,6 +378,9 @@
                 <el-icon><Plus /></el-icon>
               </div>
             </el-upload>
+            <div class="upload-hint" v-if="referenceImages.length === 0">
+              <span>添加参考图</span>
+            </div>
           </div>
           
           <!-- 文本输入 -->
@@ -386,6 +392,8 @@
               :autosize="{ minRows: 1, maxRows: 3 }"
               placeholder="请描述您想要生成的图片内容..."
               class="main-input compact"
+              :maxlength="300"
+              show-word-limit
               @keydown.enter.exact="handleGenerate"
             />
           </div>
@@ -427,10 +435,10 @@
             <el-popover
               ref="panelModelPopoverRef"
               placement="top"
-              :width="400"
+              :width="240"
               trigger="click"
               popper-class="model-popover"
-              :teleported="false"
+              :teleported="true"
             >
               <template #reference>
                 <div class="param-btn model-btn">
@@ -468,81 +476,86 @@
               </div>
             </el-popover>
 
-            <!-- 尺寸选择 -->
+            <!-- 图片参数选择 -->
             <el-popover
-              ref="panelSizePopoverRef"
+              ref="panelImageParamsPopoverRef"
               placement="top"
-              :width="450"
+              :width="280"
               trigger="click"
-              popper-class="size-popover"
-              :teleported="false"
+              popper-class="image-params-popover"
+              :teleported="true"
             >
               <template #reference>
                 <div class="param-btn">
                   <div class="btn-icon">
                     <el-icon><FullScreen /></el-icon>
                   </div>
-                  <span>{{ currentSize?.label || '1:1' }}</span>
+                  <span>{{ currentSize?.label || '9:16' }} | {{ currentResolution?.label || '4K' }} | {{ currentImageCount?.label || '4' }}张</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
-              <div class="size-selector">
-                <div class="selector-header">选择尺寸</div>
-                <div class="size-grid">
+              <div class="image-params-selector">
+                <div class="selector-header">选择比例</div>
+                <div class="ratio-grid">
                   <div 
                     v-for="size in imageSizes" 
                     :key="size.value"
-                    class="size-item"
+                    class="ratio-item"
                     :class="{ active: currentSize?.value === size.value }"
                     @click="selectSize(size)"
                   >
-                    <div class="size-preview" :style="{ aspectRatio: size.aspect }"></div>
-                    <div class="size-label">{{ size.label }}</div>
-                    <div class="size-resolution">{{ size.width }}×{{ size.height }}</div>
+                    <div class="ratio-preview" :style="{ aspectRatio: size.aspect }"></div>
+                    <div class="ratio-label">{{ size.label }}</div>
                   </div>
                 </div>
-              </div>
-            </el-popover>
-
-            <!-- 风格选择 -->
-            <el-popover
-              ref="panelStylePopoverRef"
-              placement="top"
-              :width="400"
-              trigger="click"
-              popper-class="style-popover"
-              :teleported="false"
-            >
-              <template #reference>
-                <div class="param-btn">
-                  <div class="btn-icon">
-                    <span class="style-emoji">{{ currentStyle?.icon || '📷' }}</span>
-                  </div>
-                  <span>{{ currentStyle?.label || '真实' }}</span>
-                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
-                </div>
-              </template>
-              <div class="style-selector">
-                <div class="selector-header">选择风格</div>
-                <div class="style-list">
+                
+                <div class="selector-header">选择分辨率</div>
+                <div class="resolution-options">
                   <div 
-                    v-for="style in artStyles" 
-                    :key="style.value"
-                    class="style-item"
-                    :class="{ active: currentStyle?.value === style.value }"
-                    @click="selectStyle(style)"
+                    v-for="resolution in resolutions" 
+                    :key="resolution.value"
+                    class="resolution-option"
+                    :class="{ active: currentResolution?.value === resolution.value }"
+                    @click="selectResolution(resolution)"
                   >
-                    <div class="style-info">
-                      <div class="style-icon-large">{{ style.icon }}</div>
-                      <div class="style-details">
-                        <div class="style-name">{{ style.label }}</div>
-                        <div class="style-desc">{{ style.description }}</div>
-                      </div>
-                    </div>
-                    <div v-if="currentStyle?.value === style.value" class="check-icon">
-                      <el-icon><Check /></el-icon>
-                    </div>
+                    <span>{{ resolution.label }}</span>
                   </div>
+                </div>
+                
+                <div class="selector-header">尺寸</div>
+                <div class="size-display">
+                  <div class="size-input-group">
+                    <span class="size-label">W</span>
+                    <div class="size-value">{{ currentSize?.width || 1440 }}</div>
+                    <span class="size-connector">⟷</span>
+                    <span class="size-label">H</span>
+                    <div class="size-value">{{ currentSize?.height || 2560 }}</div>
+                    <span class="size-unit">PX</span>
+                  </div>
+                </div>
+                
+                <div class="selector-header">图片张数</div>
+                <div class="count-options">
+                  <div 
+                    v-for="count in imageCounts" 
+                    :key="count.value"
+                    class="count-option"
+                    :class="{ active: currentImageCount?.value === count.value }"
+                    @click="selectImageCount(count)"
+                  >
+                    <span>{{ count.label }}</span>
+                  </div>
+                </div>
+                
+                <div class="selector-footer">
+                  <el-button 
+                    type="primary" 
+                    size="small" 
+                    @click="panelImageParamsPopoverRef?.hide()"
+                    class="done-btn"
+                  >
+                    完成
+                  </el-button>
                 </div>
               </div>
             </el-popover>
@@ -664,7 +677,6 @@ interface ImageHistoryItem {
   images: ImageResult[]
   model: string
   size: string
-  style: string
   createdAt: number
 }
 
@@ -683,11 +695,15 @@ interface Size {
   aspect: string
 }
 
-interface Style {
+interface Resolution {
   value: string
   label: string
-  description: string
-  icon: string
+  quality: string
+}
+
+interface ImageCount {
+  value: number
+  label: string
 }
 
 const prompt = ref('')
@@ -711,11 +727,9 @@ const scrollTimer = ref<number | null>(null)
 
 // Popover 引用
 const modelPopoverRef = ref()
-const sizePopoverRef = ref()
-const stylePopoverRef = ref()
+const imageParamsPopoverRef = ref()
 const panelModelPopoverRef = ref()
-const panelSizePopoverRef = ref()
-const panelStylePopoverRef = ref()
+const panelImageParamsPopoverRef = ref()
 
 // 模型选项
 const models = ref<Model[]>([
@@ -747,33 +761,37 @@ const models = ref<Model[]>([
 
 const currentModel = ref(models.value[0])
 
-// 尺寸选项
+// 尺寸选项 - 按图片显示的顺序排列
 const imageSizes = ref<Size[]>([
-  { value: '1:1', label: '1:1', width: 1024, height: 1024, aspect: '1' },
-  { value: '16:9', label: '16:9', width: 1920, height: 1080, aspect: '16/9' },
-  { value: '9:16', label: '9:16', width: 1080, height: 1920, aspect: '9/16' },
-  { value: '4:3', label: '4:3', width: 1440, height: 1080, aspect: '4/3' },
-  { value: '3:4', label: '3:4', width: 1080, height: 1440, aspect: '3/4' },
   { value: '21:9', label: '21:9', width: 2560, height: 1080, aspect: '21/9' },
+  { value: '16:9', label: '16:9', width: 1920, height: 1080, aspect: '16/9' },
+  { value: '3:2', label: '3:2', width: 1536, height: 1024, aspect: '3/2' },
+  { value: '4:3', label: '4:3', width: 1440, height: 1080, aspect: '4/3' },
+  { value: '1:1', label: '1:1', width: 1024, height: 1024, aspect: '1' },
+  { value: '3:4', label: '3:4', width: 1080, height: 1440, aspect: '3/4' },
   { value: '2:3', label: '2:3', width: 1024, height: 1536, aspect: '2/3' },
-  { value: '3:2', label: '3:2', width: 1536, height: 1024, aspect: '3/2' }
+  { value: '9:16', label: '9:16', width: 1080, height: 1920, aspect: '9/16' }
 ])
 
-const currentSize = ref(imageSizes.value[0])
+const currentSize = ref(imageSizes.value[7]) // 默认选择9:16
 
-// 风格选项
-const artStyles = ref<Style[]>([
-  { value: 'realistic', label: '真实', description: '照片级真实效果，细节丰富', icon: '📷' },
-  { value: 'anime', label: '动漫', description: '日式动漫风格，色彩鲜艳', icon: '🎨' },
-  { value: 'oil-painting', label: '油画', description: '古典油画风格，质感厚重', icon: '🖼️' },
-  { value: 'watercolor', label: '水彩', description: '水彩画风格，柔和透明', icon: '🎭' },
-  { value: 'sketch', label: '素描', description: '铅笔素描风格，线条清晰', icon: '✏️' },
-  { value: 'digital-art', label: '数字艺术', description: '现代数字艺术，创意无限', icon: '💻' },
-  { value: 'cyberpunk', label: '赛博朋克', description: '未来科技风格，霓虹色彩', icon: '🌃' },
-  { value: 'fantasy', label: '奇幻', description: '魔幻风格，想象力丰富', icon: '🧙‍♂️' }
+// 分辨率选项
+const resolutions = ref<Resolution[]>([
+  { value: '2k', label: '高清 2K', quality: '2K' },
+  { value: '4k', label: '超清 4K', quality: '4K' }
 ])
 
-const currentStyle = ref(artStyles.value[0])
+const currentResolution = ref(resolutions.value[0])
+
+// 图片张数选项
+const imageCounts = ref<ImageCount[]>([
+  { value: 1, label: '1' },
+  { value: 2, label: '2' },
+  { value: 3, label: '3' },
+  { value: 4, label: '4' }
+])
+
+const currentImageCount = ref(imageCounts.value[3]) // 默认选择4张
 
 // 历史记录
 const imageHistory = ref<ImageHistoryItem[]>([
@@ -794,7 +812,6 @@ const imageHistory = ref<ImageHistoryItem[]>([
     ],
     model: 'Stable Diffusion',
     size: '1:1',
-    style: '真实',
     createdAt: Date.now() - 1000 * 60 * 30
   }
 ])
@@ -809,16 +826,17 @@ const selectModel = (model: Model) => {
 
 const selectSize = (size: Size) => {
   currentSize.value = size
-  // 关闭 Popover
-  sizePopoverRef.value?.hide()
-  panelSizePopoverRef.value?.hide()
+  // 不关闭 Popover，允许继续选择其他参数
 }
 
-const selectStyle = (style: Style) => {
-  currentStyle.value = style
-  // 关闭 Popover
-  stylePopoverRef.value?.hide()
-  panelStylePopoverRef.value?.hide()
+const selectResolution = (resolution: Resolution) => {
+  currentResolution.value = resolution
+  // 不关闭 Popover，允许继续选择其他参数
+}
+
+const selectImageCount = (count: ImageCount) => {
+  currentImageCount.value = count
+  // 不关闭 Popover，允许继续选择其他参数
 }
 
 const handleImageUpload = (file: { uid: string; name: string; raw: File }) => {
@@ -893,7 +911,8 @@ const handleGenerate = async () => {
 
   // 生成完成
   const newImages: ImageResult[] = []
-  for (let i = 0; i < 4; i++) {
+  const imageCount = currentImageCount.value?.value || 4
+  for (let i = 0; i < imageCount; i++) {
     newImages.push({
       id: `${Date.now()}-${i}`,
       url: `https://picsum.photos/400/400?random=${Date.now() + i}`,
@@ -907,7 +926,6 @@ const handleGenerate = async () => {
     images: newImages,
     model: currentModel.value?.name || '',
     size: currentSize.value?.label || '',
-    style: currentStyle.value?.label || '',
     createdAt: Date.now()
   }
 
@@ -1060,7 +1078,7 @@ onUnmounted(() => {
 /* 页面头部 - 简洁风格 */
 .page-header {
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
   position: relative;
   z-index: 1;
 }
@@ -1172,8 +1190,66 @@ onUnmounted(() => {
 }
 
 .upload-btn.small {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: rgba(255, 255, 255, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-btn.small::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.upload-btn.small:hover::before {
+  left: 100%;
+}
+
+.upload-btn.small:hover {
+  border-color: #4A90E2;
+  background: rgba(74, 144, 226, 0.15);
+  color: #4A90E2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
+}
+
+.upload-btn.small.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upload-btn.small.disabled:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.4);
+  transform: none;
+  box-shadow: none;
+}
+
+.upload-btn.small.disabled::before {
+  display: none;
+}
+
+.upload-btn.small .el-icon {
+  font-size: 14px;
 }
 
 /* 文本输入区域 */
@@ -1182,6 +1258,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
+  padding-bottom: 20px; /* 为字符计数器留出空间 */
 }
 
 .main-input :deep(.el-textarea__inner) {
@@ -1203,8 +1281,23 @@ onUnmounted(() => {
   box-shadow: none;
 }
 
+.main-input :deep(.el-input__count) {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  line-height: 1;
+  right: 0;
+  bottom: -18px;
+  position: absolute;
+}
+
 .main-input.compact :deep(.el-textarea__inner) {
   font-size: 13px;
+}
+
+.main-input.compact :deep(.el-input__count) {
+  font-size: 10px;
+  bottom: -16px;
 }
 
 /* 参数选择区域 */
@@ -1326,6 +1419,90 @@ onUnmounted(() => {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 12px;
   margin-top: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+/* 页面头部下方的参考图片区域 */
+.upload-preview-section.header-below {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 16px auto;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 0;
+  border-top: none;
+}
+
+.upload-preview-section.header-below .preview-header {
+  margin-bottom: 8px;
+}
+
+.upload-preview-section.header-below .preview-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+}
+
+.upload-preview-section.header-below .upload-preview-list {
+  gap: 8px;
+}
+
+.upload-preview-section.header-below .upload-preview-item {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: visible;
+}
+
+.upload-preview-section.header-below .upload-preview-item:hover {
+  transform: scale(1.02);
+  border-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.upload-preview-section.header-below .upload-preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.upload-preview-section.header-below .remove-btn-corner {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  padding: 0 !important;
+  background: rgba(255, 77, 79, 0.95) !important;
+  border: 1px solid #ffffff !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  z-index: 10;
+  opacity: 0;
+  transition: all 0.3s ease;
+  border-radius: 50% !important;
+}
+
+.upload-preview-section.header-below .upload-preview-item:hover .remove-btn-corner {
+  opacity: 1;
+}
+
+.upload-preview-section.header-below .remove-btn-corner:hover {
+  background: #ff4d4f !important;
+  transform: scale(1.1);
+}
+
+.upload-preview-section.header-below .remove-btn-corner .el-icon {
+  font-size: 8px;
+  color: #ffffff;
 }
 
 .preview-header {
@@ -1409,34 +1586,39 @@ onUnmounted(() => {
 
 /* 悬浮面板中的上传图片预览 */
 .upload-preview-section.compact {
-  margin-top: 6px;
-  border-top: none;
-  padding-top: 6px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  padding: 8px;
 }
 
 .upload-preview-section.compact .preview-label {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 6px;
+  font-weight: 500;
 }
 
 .upload-preview-section.compact .upload-preview-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 6px;
+  padding: 0;
 }
 
 .upload-preview-section.compact .upload-preview-item {
   position: relative;
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
   overflow: visible;
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(4px);
 }
 
 .upload-preview-section.compact .upload-preview-item:hover {
@@ -1450,13 +1632,13 @@ onUnmounted(() => {
   height: 100%;
   object-fit: cover;
   display: block;
-  border-radius: 2px;
+  border-radius: 5px;
 }
 
 .remove-btn-corner {
   position: absolute;
-  top: -3px;
-  right: -3px;
+  top: -4px;
+  right: -4px;
   width: 16px !important;
   height: 16px !important;
   min-height: 16px !important;
@@ -1468,6 +1650,7 @@ onUnmounted(() => {
   opacity: 0;
   transition: all 0.3s ease;
   border-radius: 50% !important;
+  backdrop-filter: blur(4px);
 }
 
 .upload-preview-section.compact .upload-preview-item:hover .remove-btn-corner {
@@ -1494,7 +1677,7 @@ onUnmounted(() => {
   bottom: 16px; /* 增加距离底部的间距 */
   left: 50%;
   transform: translateX(-50%);
-  z-index: 1000;
+  z-index: 1500;
   width: calc(100% - 80px);
   max-width: 600px;
   pointer-events: auto;
@@ -1514,22 +1697,35 @@ onUnmounted(() => {
 }
 
 .panel-container {
-  background: rgba(26, 26, 46, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(26, 26, 46, 0.96);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 16px;
-  padding: 12px 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  padding: 14px 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+.panel-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
 }
 
 /* 悬浮面板上半部分 */
 .panel-top-section {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+  padding-bottom: 2px;
 }
 
 /* 悬浮面板下半部分 */
@@ -1543,11 +1739,30 @@ onUnmounted(() => {
 
 .panel-top-section .upload-section {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 8px;
+}
+
+.upload-hint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.upload-section:hover .upload-hint {
+  opacity: 1;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .panel-top-section .text-input-section {
   flex: 1;
   min-width: 200px;
+  position: relative;
+  padding-bottom: 18px; /* 为字符计数器留出空间 */
 }
 
 .panel-bottom-section .params-section {
@@ -1567,6 +1782,8 @@ onUnmounted(() => {
   flex: 1;
   overflow: visible;
   padding-bottom: 200px; /* 增加底部间距，确保生成器不遮挡内容 */
+  position: relative;
+  z-index: 1;
 }
 
 /* 生成中状态 - 即梦风格 */
@@ -1834,12 +2051,29 @@ onUnmounted(() => {
   color: #ffffff;
 }
 
-/* 下部分：4张生成图 */
+/* 下部分：生成图 */
 .generation-images {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
   width: 100%;
+}
+
+.generation-images.count-1 {
+  grid-template-columns: 1fr;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.generation-images.count-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.generation-images.count-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.generation-images.count-4 {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .generation-image-item {
@@ -2193,8 +2427,30 @@ onUnmounted(() => {
 
 /* 选择器样式 - 即梦风格 */
 :deep(.model-popover),
-:deep(.size-popover),
-:deep(.style-popover) {
+:deep(.image-params-popover) {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+  z-index: 2000 !important;
+}
+
+/* 确保Element Plus弹窗层级足够高 */
+:deep(.el-popper) {
+  z-index: 2000 !important;
+}
+
+:deep(.el-popper.model-popover),
+:deep(.el-popper.image-params-popover) {
+  z-index: 2000 !important;
+}
+
+/* 全局弹窗样式覆盖 */
+:global(.el-popper.model-popover),
+:global(.el-popper.image-params-popover) {
+  z-index: 2000 !important;
   background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -2204,39 +2460,65 @@ onUnmounted(() => {
 }
 
 .model-selector,
-.size-selector,
-.style-selector {
-  padding: 24px;
-  min-width: 400px;
+.image-params-selector {
+  padding: 10px;
+  min-width: 220px;
   background: rgba(26, 26, 46, 0.98);
   backdrop-filter: blur(20px);
-  border-radius: 16px;
+  border-radius: 8px;
+}
+
+.image-params-selector {
+  min-width: 260px;
 }
 
 .selector-header {
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   color: #ffffff;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   text-align: center;
 }
 
-.model-list,
-.style-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.selector-footer {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
 }
 
-.model-item,
-.style-item {
+.done-btn {
+  background: linear-gradient(135deg, #4A90E2, #357ABD) !important;
+  border: none !important;
+  color: #ffffff !important;
+  height: 28px !important;
+  padding: 0 16px !important;
+  border-radius: 14px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+  min-width: 60px !important;
+}
+
+.done-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.4) !important;
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.model-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  border-radius: 12px;
+  padding: 8px;
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -2245,8 +2527,7 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.model-item::before,
-.style-item::before {
+.model-item::before {
   content: '';
   position: absolute;
   top: 0;
@@ -2257,60 +2538,54 @@ onUnmounted(() => {
   transition: left 0.5s ease;
 }
 
-.model-item:hover::before,
-.style-item:hover::before {
+.model-item:hover::before {
   left: 100%;
 }
 
-.model-item:hover,
-.style-item:hover {
+.model-item:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
-.model-item.active,
-.style-item.active {
+.model-item.active {
   background: rgba(102, 126, 234, 0.3);
   border-color: #667eea;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
 }
 
-.model-info,
-.style-info {
+.model-info {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 8px;
   flex: 1;
   min-width: 0;
 }
 
 .model-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #ffffff;
   font-weight: 700;
-  font-size: 16px;
+  font-size: 10px;
   flex-shrink: 0;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.model-details,
-.style-details {
+.model-details {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
   flex: 1;
   min-width: 0;
 }
 
-.model-name,
-.style-name {
-  font-size: 16px;
+.model-name {
+  font-size: 12px;
   font-weight: 600;
   color: #ffffff;
   white-space: nowrap;
@@ -2318,110 +2593,186 @@ onUnmounted(() => {
   text-overflow: ellipsis;
 }
 
-.model-desc,
-.style-desc {
-  font-size: 13px;
+.model-desc {
+  font-size: 9px;
   color: rgba(255, 255, 255, 0.7);
-  line-height: 1.3;
+  line-height: 1.2;
   word-wrap: break-word;
   overflow-wrap: break-word;
 }
 
 .check-icon {
   color: #667eea;
-  font-size: 20px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
-.style-icon-large {
-  font-size: 32px;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+/* 风格选择器样式 */
 
-/* 尺寸选择器 */
-.size-grid {
+/* 比例选择网格 */
+.ratio-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  margin-bottom: 10px;
 }
 
-.size-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid transparent;
-  min-width: 80px;
-  position: relative;
-  overflow: hidden;
-}
-
-.size-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.5s ease;
-}
-
-.size-item:hover::before {
-  left: 100%;
-}
-
-.size-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-2px);
-}
-
-.size-item.active {
-  background: rgba(102, 126, 234, 0.3);
-  border-color: #667eea;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
-}
-
-.size-preview {
-  width: 40px;
-  height: 30px;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.size-info {
+.ratio-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
+  padding: 4px 2px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
 }
 
-.size-label {
-  font-size: 14px;
+.ratio-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.ratio-item.active {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: #667eea;
+  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
+}
+
+.ratio-preview {
+  width: 14px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 1px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.ratio-label {
+  font-size: 8px;
   font-weight: 600;
   color: #ffffff;
   white-space: nowrap;
 }
 
-.size-resolution {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
-  white-space: nowrap;
+/* 分辨率选项 */
+.resolution-options {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.resolution-option {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
   text-align: center;
+}
+
+.resolution-option:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.resolution-option.active {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: #667eea;
+  color: #ffffff;
+}
+
+.resolution-option span {
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* 尺寸显示 */
+.size-display {
+  margin-bottom: 10px;
+}
+
+.size-input-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.size-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  min-width: 10px;
+}
+
+.size-value {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  padding: 4px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff;
+  min-width: 35px;
+  text-align: center;
+}
+
+.size-connector {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.size-unit {
+  font-size: 8px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 张数选项 */
+.count-options {
+  display: flex;
+  gap: 6px;
+}
+
+.count-option {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  text-align: center;
+}
+
+.count-option:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.count-option.active {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: #667eea;
+  color: #ffffff;
+}
+
+.count-option span {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 
@@ -2574,8 +2925,18 @@ onUnmounted(() => {
   }
   
   .generation-images {
-    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
+  }
+  
+  .generation-images.count-1 {
+    grid-template-columns: 1fr;
+    max-width: 300px;
+  }
+  
+  .generation-images.count-2,
+  .generation-images.count-3,
+  .generation-images.count-4 {
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .generation-actions {
@@ -2650,8 +3011,21 @@ onUnmounted(() => {
   }
   
   .generation-images {
-    grid-template-columns: repeat(4, 1fr);
     gap: 12px;
+  }
+  
+  .generation-images.count-1 {
+    grid-template-columns: 1fr;
+    max-width: 350px;
+  }
+  
+  .generation-images.count-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .generation-images.count-3,
+  .generation-images.count-4 {
+    grid-template-columns: repeat(4, 1fr);
   }
   
   .results-section {
@@ -2693,8 +3067,24 @@ onUnmounted(() => {
   }
   
   .generation-images {
-    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
+  }
+  
+  .generation-images.count-1 {
+    grid-template-columns: 1fr;
+    max-width: 400px;
+  }
+  
+  .generation-images.count-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .generation-images.count-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .generation-images.count-4 {
+    grid-template-columns: repeat(4, 1fr);
   }
 }
 
@@ -2740,7 +3130,9 @@ onUnmounted(() => {
 /* 全局样式 - 用于 Element Plus Popover 组件 */
 .model-popover,
 .size-popover,
-.style-popover {
+.style-popover,
+.resolution-popover,
+.image-count-popover {
   background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -2751,7 +3143,9 @@ onUnmounted(() => {
 
 .model-popover .el-popover__content,
 .size-popover .el-popover__content,
-.style-popover .el-popover__content {
+.style-popover .el-popover__content,
+.resolution-popover .el-popover__content,
+.image-count-popover .el-popover__content {
   padding: 0 !important;
   background: transparent !important;
 }
