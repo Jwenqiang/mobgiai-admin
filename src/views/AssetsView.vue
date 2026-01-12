@@ -211,6 +211,7 @@
 import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, VideoPlay, Download, Delete, Close } from '@element-plus/icons-vue'
+import { downloadFile, downloadFiles } from '../utils'
 
 interface Asset {
   id: string
@@ -475,13 +476,15 @@ const previewAsset = (asset: Asset) => {
 }
 
 // 下载当前预览的资产
-const downloadCurrentAsset = () => {
+const downloadCurrentAsset = async () => {
   if (currentAsset.value) {
-    const link = document.createElement('a')
-    link.href = currentAsset.value.url
-    link.download = currentAsset.value.name
-    link.click()
-    ElMessage.success('开始下载')
+    try {
+      await downloadFile(currentAsset.value.url, currentAsset.value.name)
+      ElMessage.success('开始下载')
+    } catch (error) {
+      console.error('下载失败:', error)
+      ElMessage.error('下载失败，请重试')
+    }
   }
 }
 
@@ -546,7 +549,7 @@ const batchDelete = async () => {
 }
 
 // 批量下载
-const batchDownload = () => {
+const batchDownload = async () => {
   const selectedAssets = assets.value.filter(asset => asset.selected && asset.type === activeTab.value)
   
   if (selectedAssets.length === 0) {
@@ -554,17 +557,30 @@ const batchDownload = () => {
     return
   }
 
-  // 模拟批量下载
-  selectedAssets.forEach((asset, index) => {
-    setTimeout(() => {
-      const link = document.createElement('a')
-      link.href = asset.url
-      link.download = asset.name
-      link.click()
-    }, index * 500) // 每个文件间隔500ms下载
-  })
-  
-  ElMessage.success(`开始下载 ${selectedAssets.length} 个文件`)
+  try {
+    // 准备下载文件列表
+    const files = selectedAssets.map(asset => ({
+      url: asset.url,
+      filename: asset.name
+    }))
+
+    // 使用批量下载工具函数
+    await downloadFiles(files, {
+      delay: 500, // 每个文件间隔500ms
+      onProgress: (current, total) => {
+        ElMessage.info(`正在下载 ${current}/${total} 个文件`)
+      },
+      onError: (error, file) => {
+        console.error(`下载文件 ${file.filename} 失败:`, error)
+        ElMessage.error(`下载文件 ${file.filename} 失败`)
+      }
+    })
+    
+    ElMessage.success(`成功下载 ${selectedAssets.length} 个文件`)
+  } catch (error) {
+    console.error('批量下载失败:', error)
+    ElMessage.error('批量下载失败，请重试')
+  }
 }
 
 // 日期范围变化处理

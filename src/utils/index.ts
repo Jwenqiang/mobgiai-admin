@@ -137,3 +137,132 @@ export const copyToClipboard = async (text: string): Promise<boolean> => {
     return success
   }
 }
+
+/**
+ * 通用下载函数 - 支持多种下载方式，确保浏览器兼容性
+ */
+export const downloadFile = async (
+  url: string, 
+  filename?: string,
+  options?: {
+    method?: 'GET' | 'POST'
+    headers?: Record<string, string>
+    body?: any
+  }
+): Promise<void> => {
+  try {
+    // 方法1: 尝试使用fetch + blob方式下载（推荐）
+    const response = await fetch(url, {
+      method: options?.method || 'GET',
+      headers: options?.headers || {},
+      body: options?.body
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const blob = await response.blob()
+    const downloadUrl = URL.createObjectURL(blob)
+    
+    // 从响应头或URL中获取文件名
+    const finalFilename = filename || 
+      response.headers.get('content-disposition')?.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)?.[1]?.replace(/['"]/g, '') ||
+      url.split('/').pop()?.split('?')[0] ||
+      'download'
+    
+    // 创建下载链接
+    const link = document.createElement('a')
+    link.href = downloadUrl
+    link.download = finalFilename
+    link.style.display = 'none'
+    
+    // 添加到DOM并触发下载
+    document.body.appendChild(link)
+    link.click()
+    
+    // 清理
+    document.body.removeChild(link)
+    URL.revokeObjectURL(downloadUrl)
+    
+  } catch (error) {
+    console.warn('Fetch download failed, trying fallback method:', error)
+    
+    // 方法2: 降级到传统的a标签下载方式
+    const link = document.createElement('a')
+    link.href = url
+    if (filename) {
+      link.download = filename
+    }
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    link.style.display = 'none'
+    
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+}
+
+/**
+ * 批量下载文件
+ */
+export const downloadFiles = async (
+  files: Array<{ url: string; filename?: string }>,
+  options?: {
+    delay?: number // 下载间隔时间（毫秒）
+    onProgress?: (current: number, total: number) => void
+    onError?: (error: Error, file: { url: string; filename?: string }) => void
+  }
+): Promise<void> => {
+  const { delay = 500, onProgress, onError } = options || {}
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    
+    try {
+      await downloadFile(file.url, file.filename)
+      onProgress?.(i + 1, files.length)
+      
+      // 添加延迟避免浏览器阻止多个下载
+      if (i < files.length - 1 && delay > 0) {
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    } catch (error) {
+      onError?.(error as Error, file)
+    }
+  }
+}
+
+/**
+ * 从Blob创建下载
+ */
+export const downloadBlob = (blob: Blob, filename: string): void => {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.style.display = 'none'
+  
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  
+  URL.revokeObjectURL(url)
+}
+
+/**
+ * 下载文本内容为文件
+ */
+export const downloadText = (content: string, filename: string, mimeType: string = 'text/plain'): void => {
+  const blob = new Blob([content], { type: mimeType })
+  downloadBlob(blob, filename)
+}
+
+/**
+ * 下载JSON数据为文件
+ */
+export const downloadJSON = (data: any, filename: string): void => {
+  const content = JSON.stringify(data, null, 2)
+  downloadText(content, filename, 'application/json')
+}

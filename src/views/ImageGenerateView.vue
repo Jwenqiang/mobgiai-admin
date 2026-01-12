@@ -643,6 +643,7 @@ import {
   ArrowDown, FullScreen, Check, Refresh, Edit, Delete
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
+import { downloadFile } from '../utils'
 
 interface UploadFile {
   uid: string
@@ -923,12 +924,14 @@ const previewImage = (image: ImageResult) => {
   previewVisible.value = true
 }
 
-const downloadImage = (image: ImageResult) => {
-  const link = document.createElement('a')
-  link.href = image.url
-  link.download = `generated_image_${image.id}.jpg`
-  link.click()
-  ElMessage.success('开始下载图片')
+const downloadImage = async (image: ImageResult) => {
+  try {
+    await downloadFile(image.url, `generated_image_${image.id}.jpg`)
+    ElMessage.success('开始下载图片')
+  } catch (error) {
+    console.error('下载图片失败:', error)
+    ElMessage.error('下载图片失败，请重试')
+  }
 }
 
 const saveToAssets = (image: ImageResult) => {

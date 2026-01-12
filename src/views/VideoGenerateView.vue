@@ -32,51 +32,121 @@
           <div class="generator-panel">
             <!-- 上半部分：左右布局 - 上传区域和提示词 -->
             <div class="generator-top-section">
-              <!-- 左侧：首帧图和尾帧图上传区域 -->
+              <!-- 左侧：上传区域 - 根据选择的可灵选项显示不同内容 -->
               <div class="generator-upload-section">
-                <div class="upload-item">
-                  <label class="upload-label">首帧图</label>
-                  <el-upload
-                    :show-file-list="false"
-                    :before-upload="handleFirstFrameUpload"
-                    accept="image/*"
-                    class="frame-uploader"
-                  >
-                    <div class="upload-area" :class="{ 'has-image': firstFrameImage }">
-                      <img v-if="firstFrameImage" :src="firstFrameImage" class="uploaded-image" />
-                      <div v-else class="upload-placeholder">
-                        <el-icon size="20"><Plus /></el-icon>
+                <!-- 首尾帧模式 -->
+                <template v-if="selectedModel !== '可灵' || selectedKeLingOption === '首尾帧'">
+                  <div class="upload-item">
+                    <label class="upload-label">首帧图</label>
+                    <el-upload
+                      :show-file-list="false"
+                      :before-upload="handleFirstFrameUpload"
+                      accept="image/*"
+                      class="frame-uploader"
+                    >
+                      <div class="upload-area" :class="{ 'has-image': firstFrameImage }">
+                        <img v-if="firstFrameImage" :src="firstFrameImage" class="uploaded-image" />
+                        <div v-else class="upload-placeholder">
+                          <el-icon size="20"><Plus /></el-icon>
+                        </div>
+                      </div>
+                    </el-upload>
+                  </div>
+                  
+                  <div class="arrow-section">
+                    <el-button 
+                      class="swap-button" 
+                      @click="swapFrameImages"
+                      :disabled="!firstFrameImage && !lastFrameImage"
+                    >
+                      <el-icon><Switch /></el-icon>
+                    </el-button>
+                  </div>
+                  
+                  <div class="upload-item">
+                    <label class="upload-label">尾帧图</label>
+                    <el-upload
+                      :show-file-list="false"
+                      :before-upload="handleLastFrameUpload"
+                      accept="image/*"
+                      class="frame-uploader"
+                    >
+                      <div class="upload-area" :class="{ 'has-image': lastFrameImage }">
+                        <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
+                        <div v-else class="upload-placeholder">
+                          <el-icon size="20"><Plus /></el-icon>
+                        </div>
+                      </div>
+                    </el-upload>
+                  </div>
+                </template>
+
+                <!-- 多模态参考模式和视频编辑模式 -->
+                <template v-else-if="selectedModel === '可灵' && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')">
+                  <!-- 传视频区域 -->
+                  <div class="upload-item">
+                    <label class="upload-label">传视频</label>
+                    <el-upload
+                      :show-file-list="false"
+                      :before-upload="handleVideoUpload"
+                      accept="video/*"
+                      class="frame-uploader"
+                    >
+                      <div class="upload-area" :class="{ 'has-video': referenceVideo }">
+                        <video v-if="referenceVideo" :src="referenceVideo" class="uploaded-video" muted />
+                        <div v-else class="upload-placeholder">
+                          <el-icon size="20"><VideoCamera /></el-icon>
+                        </div>
+                      </div>
+                    </el-upload>
+                  </div>
+
+                  <!-- 传图片区域 - 单个上传框，预览图往右排列 -->
+                  <div class="images-upload-section">
+                    <label class="upload-label">传图片</label>
+                    <div class="images-container">
+                      <!-- 上传框 -->
+                      <el-upload
+                        :show-file-list="false"
+                        :before-upload="handleReferenceImageUpload"
+                        accept="image/*"
+                        class="frame-uploader"
+                        :disabled="referenceImages.filter(img => img).length >= 4"
+                      >
+                        <div class="upload-area" :class="{ 'disabled': referenceImages.filter(img => img).length >= 4 }">
+                          <div class="upload-placeholder">
+                            <el-icon size="20"><Plus /></el-icon>
+                            <span class="upload-text">{{ referenceImages.filter(img => img).length }}/4</span>
+                          </div>
+                        </div>
+                      </el-upload>
+                      
+                      <!-- 预览缩略图 -->
+                      <div class="preview-thumbnails">
+                        <div 
+                          v-for="(image, index) in referenceImages.filter(img => img)" 
+                          :key="index"
+                          class="thumbnail-item"
+                        >
+                          <div class="thumbnail-wrapper" @click="previewImage(image)">
+                            <img :src="image" class="thumbnail-image" />
+                            <div class="thumbnail-overlay">
+                              <el-icon class="preview-icon"><View /></el-icon>
+                            </div>
+                          </div>
+                          <el-button 
+                            class="remove-thumbnail-btn"
+                            size="small"
+                            type="danger"
+                            @click="removeReferenceImage(referenceImages.indexOf(image))"
+                          >
+                            <el-icon><Close /></el-icon>
+                          </el-button>
+                        </div>
                       </div>
                     </div>
-                  </el-upload>
-                </div>
-                
-                <div class="arrow-section">
-                  <el-button 
-                    class="swap-button" 
-                    @click="swapFrameImages"
-                    :disabled="!firstFrameImage && !lastFrameImage"
-                  >
-                    <el-icon><Switch /></el-icon>
-                  </el-button>
-                </div>
-                
-                <div class="upload-item">
-                  <label class="upload-label">尾帧图</label>
-                  <el-upload
-                    :show-file-list="false"
-                    :before-upload="handleLastFrameUpload"
-                    accept="image/*"
-                    class="frame-uploader"
-                  >
-                    <div class="upload-area" :class="{ 'has-image': lastFrameImage }">
-                      <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
-                      <div v-else class="upload-placeholder">
-                        <el-icon size="20"><Plus /></el-icon>
-                      </div>
-                    </div>
-                  </el-upload>
-                </div>
+                  </div>
+                </template>
               </div>
 
               <!-- 右侧：提示词输入区域 -->
@@ -105,7 +175,7 @@
                 <el-popover
                   ref="modelPopoverRef"
                   placement="top"
-                  :width="380"
+                  :width="320"
                   trigger="click"
                   popper-class="model-popover"
                   :teleported="true"
@@ -139,6 +209,45 @@
                           </div>
                         </div>
                         <div v-if="selectedModel === model.value" class="check-icon">
+                          <el-icon><Check /></el-icon>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </el-popover>
+
+                <!-- 可灵模型的特殊选项 -->
+                <el-popover
+                  v-if="selectedModel === '可灵'"
+                  ref="keLingPopoverRef"
+                  placement="top"
+                  :width="240"
+                  trigger="click"
+                  popper-class="keling-popover"
+                  :teleported="true"
+                >
+                  <template #reference>
+                    <el-button class="config-btn keling-option-btn">
+                      <el-icon><Setting /></el-icon>
+                      {{ selectedKeLingOption }}
+                      <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                    </el-button>
+                  </template>
+                  <div class="keling-selector">
+                    <div class="selector-header">可灵选项</div>
+                    <div class="option-list">
+                      <div 
+                        v-for="option in keLingOptions" 
+                        :key="option.value"
+                        class="option-item"
+                        :class="{ active: selectedKeLingOption === option.value }"
+                        @click="selectKeLingOption(option)"
+                      >
+                        <div class="option-info">
+                          <div class="option-name">{{ option.label }}</div>
+                          <div class="option-desc">{{ option.description }}</div>
+                        </div>
+                        <div v-if="selectedKeLingOption === option.value" class="check-icon">
                           <el-icon><Check /></el-icon>
                         </div>
                       </div>
@@ -333,51 +442,121 @@
       <div class="generator-panel">
         <!-- 上半部分：左右布局 - 上传区域和提示词 -->
         <div class="generator-top-section">
-          <!-- 左侧：首帧图和尾帧图上传区域 -->
+          <!-- 左侧：上传区域 - 根据选择的可灵选项显示不同内容 -->
           <div class="generator-upload-section">
-            <div class="upload-item">
-              <label class="upload-label">首帧图</label>
-              <el-upload
-                :show-file-list="false"
-                :before-upload="handleFirstFrameUpload"
-                accept="image/*"
-                class="frame-uploader"
-              >
-                <div class="upload-area" :class="{ 'has-image': firstFrameImage }">
-                  <img v-if="firstFrameImage" :src="firstFrameImage" class="uploaded-image" />
-                  <div v-else class="upload-placeholder">
-                    <el-icon size="20"><Plus /></el-icon>
+            <!-- 首尾帧模式 -->
+            <template v-if="selectedModel !== '可灵' || selectedKeLingOption === '首尾帧'">
+              <div class="upload-item">
+                <label class="upload-label">首帧图</label>
+                <el-upload
+                  :show-file-list="false"
+                  :before-upload="handleFirstFrameUpload"
+                  accept="image/*"
+                  class="frame-uploader"
+                >
+                  <div class="upload-area" :class="{ 'has-image': firstFrameImage }">
+                    <img v-if="firstFrameImage" :src="firstFrameImage" class="uploaded-image" />
+                    <div v-else class="upload-placeholder">
+                      <el-icon size="20"><Plus /></el-icon>
+                    </div>
+                  </div>
+                </el-upload>
+              </div>
+              
+              <div class="arrow-section">
+                <el-button 
+                  class="swap-button" 
+                  @click="swapFrameImages"
+                  :disabled="!firstFrameImage && !lastFrameImage"
+                >
+                  <el-icon><Switch /></el-icon>
+                </el-button>
+              </div>
+              
+              <div class="upload-item">
+                <label class="upload-label">尾帧图</label>
+                <el-upload
+                  :show-file-list="false"
+                  :before-upload="handleLastFrameUpload"
+                  accept="image/*"
+                  class="frame-uploader"
+                >
+                  <div class="upload-area" :class="{ 'has-image': lastFrameImage }">
+                    <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
+                    <div v-else class="upload-placeholder">
+                      <el-icon size="20"><Plus /></el-icon>
+                    </div>
+                  </div>
+                </el-upload>
+              </div>
+            </template>
+
+            <!-- 多模态参考模式和视频编辑模式 -->
+            <template v-else-if="selectedModel === '可灵' && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')">
+              <!-- 传视频区域 -->
+              <div class="upload-item">
+                <label class="upload-label">传视频</label>
+                <el-upload
+                  :show-file-list="false"
+                  :before-upload="handleVideoUpload"
+                  accept="video/*"
+                  class="frame-uploader"
+                >
+                  <div class="upload-area" :class="{ 'has-video': referenceVideo }">
+                    <video v-if="referenceVideo" :src="referenceVideo" class="uploaded-video" muted />
+                    <div v-else class="upload-placeholder">
+                      <el-icon size="20"><VideoCamera /></el-icon>
+                    </div>
+                  </div>
+                </el-upload>
+              </div>
+
+              <!-- 传图片区域 - 单个上传框，预览图往右排列 -->
+              <div class="images-upload-section">
+                <label class="upload-label">传图片</label>
+                <div class="images-container">
+                  <!-- 上传框 -->
+                  <el-upload
+                    :show-file-list="false"
+                    :before-upload="handleReferenceImageUpload"
+                    accept="image/*"
+                    class="frame-uploader"
+                    :disabled="referenceImages.filter(img => img).length >= 4"
+                  >
+                    <div class="upload-area" :class="{ 'disabled': referenceImages.filter(img => img).length >= 4 }">
+                      <div class="upload-placeholder">
+                        <el-icon size="20"><Plus /></el-icon>
+                        <span class="upload-text">{{ referenceImages.filter(img => img).length }}/4</span>
+                      </div>
+                    </div>
+                  </el-upload>
+                  
+                  <!-- 预览缩略图 -->
+                  <div class="preview-thumbnails">
+                    <div 
+                      v-for="(image, index) in referenceImages.filter(img => img)" 
+                      :key="index"
+                      class="thumbnail-item"
+                    >
+                      <div class="thumbnail-wrapper" @click="previewImage(image)">
+                        <img :src="image" class="thumbnail-image" />
+                        <div class="thumbnail-overlay">
+                          <el-icon class="preview-icon"><View /></el-icon>
+                        </div>
+                      </div>
+                      <el-button 
+                        class="remove-thumbnail-btn"
+                        size="small"
+                        type="danger"
+                        @click="removeReferenceImage(referenceImages.indexOf(image))"
+                      >
+                        <el-icon><Close /></el-icon>
+                      </el-button>
+                    </div>
                   </div>
                 </div>
-              </el-upload>
-            </div>
-            
-            <div class="arrow-section">
-              <el-button 
-                class="swap-button" 
-                @click="swapFrameImages"
-                :disabled="!firstFrameImage && !lastFrameImage"
-              >
-                <el-icon><Switch /></el-icon>
-              </el-button>
-            </div>
-            
-            <div class="upload-item">
-              <label class="upload-label">尾帧图</label>
-              <el-upload
-                :show-file-list="false"
-                :before-upload="handleLastFrameUpload"
-                accept="image/*"
-                class="frame-uploader"
-              >
-                <div class="upload-area" :class="{ 'has-image': lastFrameImage }">
-                  <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
-                  <div v-else class="upload-placeholder">
-                    <el-icon size="20"><Plus /></el-icon>
-                  </div>
-                </div>
-              </el-upload>
-            </div>
+              </div>
+            </template>
           </div>
 
           <!-- 右侧：提示词输入区域 -->
@@ -406,7 +585,7 @@
             <el-popover
               ref="modelPopoverRef2"
               placement="top"
-              :width="380"
+              :width="320"
               trigger="click"
               popper-class="model-popover"
               :teleported="true"
@@ -440,6 +619,45 @@
                       </div>
                     </div>
                     <div v-if="selectedModel === model.value" class="check-icon">
+                      <el-icon><Check /></el-icon>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-popover>
+
+            <!-- 可灵模型的特殊选项 -->
+            <el-popover
+              v-if="selectedModel === '可灵'"
+              ref="keLingPopoverRef2"
+              placement="top"
+              :width="240"
+              trigger="click"
+              popper-class="keling-popover"
+              :teleported="true"
+            >
+              <template #reference>
+                <el-button class="config-btn keling-option-btn">
+                  <el-icon><Setting /></el-icon>
+                  {{ selectedKeLingOption }}
+                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                </el-button>
+              </template>
+              <div class="keling-selector">
+                <div class="selector-header">可灵选项</div>
+                <div class="option-list">
+                  <div 
+                    v-for="option in keLingOptions" 
+                    :key="option.value"
+                    class="option-item"
+                    :class="{ active: selectedKeLingOption === option.value }"
+                    @click="selectKeLingOption(option)"
+                  >
+                    <div class="option-info">
+                      <div class="option-name">{{ option.label }}</div>
+                      <div class="option-desc">{{ option.description }}</div>
+                    </div>
+                    <div v-if="selectedKeLingOption === option.value" class="check-icon">
                       <el-icon><Check /></el-icon>
                     </div>
                   </div>
@@ -602,8 +820,9 @@
 import { ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  VideoCamera, Download, FolderAdd, Refresh, Edit, More, Plus, Switch, Check, Setting, ArrowDown, ArrowUp
+  VideoCamera, Download, FolderAdd, Refresh, Edit, More, Plus, Switch, Check, Setting, ArrowDown, Close, View
 } from '@element-plus/icons-vue'
+import { downloadFile } from '../utils'
 
 interface VideoResult {
   id: string
@@ -635,13 +854,20 @@ const modelPopoverRef = ref()
 const configPopoverRef = ref()
 const modelPopoverRef2 = ref()
 const configPopoverRef2 = ref()
+const keLingPopoverRef = ref()
+const keLingPopoverRef2 = ref()
 
 // 上传的帧图片
 const firstFrameImage = ref('')
 const lastFrameImage = ref('')
 
+// 多模态参考模式的上传内容
+const referenceVideo = ref('')
+const referenceImages = ref(['', '', '', '']) // 4张参考图片
+
 // 配置选项
 const selectedModel = ref('seedance-1.5-pro')
+const selectedKeLingOption = ref('首尾帧') // 可灵模型的特殊选项
 const enableAudio = ref(false)
 const selectedQuality = ref('720p')
 const selectedDuration = ref('5')
@@ -672,6 +898,12 @@ const videoModels = ref<Option[]>([
     label: 'Pika 1.5',
     description: '创意视频生成',
     color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
+  },
+  { 
+    value: '可灵', 
+    label: '可灵01',
+    description: '创意视频生成',
+    color: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)'
   }
 ])
 
@@ -697,6 +929,13 @@ const videoDurations = ref<Option[]>([
   { value: '10', label: '10s', description: '中等时长，内容丰富' },
   { value: '15', label: '15s', description: '长视频，详细展现' },
   { value: '12', label: '12s', description: '自定义时长' }
+])
+
+// 可灵模型的特殊选项
+const keLingOptions = ref([
+  { value: '首尾帧', label: '首尾帧', description: '基于首尾帧生成视频' },
+  { value: '多模态参考', label: '多模态参考', description: '多模态内容参考生成' },
+  { value: '视频编辑', label: '视频编辑', description: '智能视频编辑功能' }
 ])
 
 // 测试控制变量 - 可以通过修改这个值来测试有无内容的状态
@@ -750,9 +989,20 @@ const getCurrentVideoModel = () => {
 
 const selectVideoModel = (model: Option) => {
   selectedModel.value = model.value
+  // 如果选择的不是可灵模型，重置可灵选项为默认值
+  if (model.value !== '可灵') {
+    selectedKeLingOption.value = '首尾帧'
+  }
   // 关闭 Popover
   modelPopoverRef.value?.hide()
   modelPopoverRef2.value?.hide()
+}
+
+const selectKeLingOption = (option: Option) => {
+  selectedKeLingOption.value = option.value
+  // 关闭 Popover
+  keLingPopoverRef.value?.hide()
+  keLingPopoverRef2.value?.hide()
 }
 
 const selectAudio = (enabled: boolean) => {
@@ -779,21 +1029,6 @@ const getConfigSummary = () => {
   const durationText = videoDurations.value.find(d => d.value === selectedDuration.value)?.label || '5s'
   
   return `${audioText} | ${ratioText} | ${qualityText} | ${durationText}`
-}
-
-// 获取比例标签
-const getRatioLabel = () => {
-  return videoRatios.value.find(r => r.value === selectedRatio.value)?.label || '智能比例'
-}
-
-// 获取分辨率标签
-const getQualityLabel = () => {
-  return videoQualities.value.find(q => q.value === selectedQuality.value)?.label || '720P'
-}
-
-// 获取时长标签
-const getDurationLabel = () => {
-  return videoDurations.value.find(d => d.value === selectedDuration.value)?.label || '5s'
 }
 
 const handleGenerate = async () => {
@@ -876,12 +1111,14 @@ const handleVideoAction = (command: string, video: VideoResult) => {
   }
 }
 
-const downloadVideo = (video: VideoResult) => {
-  const link = document.createElement('a')
-  link.href = video.url
-  link.download = `generated_video_${video.id}.mp4`
-  link.click()
-  ElMessage.success('开始下载视频')
+const downloadVideo = async (video: VideoResult) => {
+  try {
+    await downloadFile(video.url, `generated_video_${video.id}.mp4`)
+    ElMessage.success('开始下载视频')
+  } catch (error) {
+    console.error('下载视频失败:', error)
+    ElMessage.error('下载视频失败，请重试')
+  }
 }
 
 const saveToAssets = (video: VideoResult) => {
@@ -912,6 +1149,70 @@ const swapFrameImages = () => {
   firstFrameImage.value = lastFrameImage.value
   lastFrameImage.value = temp
   ElMessage.success('首帧图和尾帧图已交换')
+}
+
+// 处理视频上传
+const handleVideoUpload = (file: File) => {
+  const url = URL.createObjectURL(file)
+  referenceVideo.value = url
+  ElMessage.success('视频上传成功')
+  return false // 阻止自动上传
+}
+
+// 处理参考图片上传
+const handleReferenceImageUpload = (file: File) => {
+  // 找到第一个空位置
+  const emptyIndex = referenceImages.value.findIndex(img => !img)
+  if (emptyIndex !== -1) {
+    const url = URL.createObjectURL(file)
+    referenceImages.value[emptyIndex] = url
+    ElMessage.success(`第${emptyIndex + 1}张参考图片上传成功`)
+  } else {
+    ElMessage.warning('最多只能上传4张参考图片')
+  }
+  return false // 阻止自动上传
+}
+
+// 删除参考图片
+const removeReferenceImage = (index: number) => {
+  referenceImages.value[index] = ''
+  ElMessage.success(`第${index + 1}张参考图片已删除`)
+}
+
+// 预览图片
+const previewImage = (imageUrl: string) => {
+  // 创建预览弹窗
+  const previewDialog = document.createElement('div')
+  previewDialog.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    cursor: pointer;
+  `
+  
+  const img = document.createElement('img')
+  img.src = imageUrl
+  img.style.cssText = `
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 8px;
+  `
+  
+  previewDialog.appendChild(img)
+  document.body.appendChild(previewDialog)
+  
+  // 点击关闭预览
+  previewDialog.addEventListener('click', () => {
+    document.body.removeChild(previewDialog)
+  })
 }
 
 const formatTime = (timestamp: number) => {
@@ -1402,7 +1703,7 @@ const formatTime = (timestamp: number) => {
 /* 底部悬浮：新视频生成操作�?*/
 .floating-generation-panel {
   position: absolute;
-  bottom: 20px;
+  bottom: 76px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 100;
@@ -1556,7 +1857,18 @@ const formatTime = (timestamp: number) => {
   border-color: #4A90E2;
 }
 
+.upload-area.has-video {
+  border-style: solid;
+  border-color: #4A90E2;
+}
+
 .uploaded-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.uploaded-video {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -1564,6 +1876,120 @@ const formatTime = (timestamp: number) => {
 
 .upload-placeholder {
   color: rgba(255, 255, 255, 0.6);
+}
+
+/* 多模态参考模式样式 */
+.images-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.images-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.upload-area.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.upload-area.disabled:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upload-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+}
+
+.preview-thumbnails {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.thumbnail-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.thumbnail-wrapper {
+  position: relative;
+  width: 50px;
+  height: 50px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid #4A90E2;
+  transition: all 0.3s ease;
+}
+
+.thumbnail-wrapper:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.thumbnail-wrapper:hover .thumbnail-overlay {
+  opacity: 1;
+}
+
+.preview-icon {
+  color: white;
+  font-size: 16px;
+}
+
+.remove-thumbnail-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f56565;
+  border: none;
+  color: white;
+  font-size: 12px;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.remove-thumbnail-btn:hover {
+  background: #e53e3e;
+  transform: scale(1.1);
 }
 
 .arrow-section {
@@ -1637,7 +2063,8 @@ const formatTime = (timestamp: number) => {
 
 /* 选择器样�?- 即梦风格 */
 :deep(.model-popover),
-:deep(.config-popover) {
+:deep(.config-popover),
+:deep(.keling-popover) {
   background: rgba(255, 255, 255, 0.1) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -1648,9 +2075,15 @@ const formatTime = (timestamp: number) => {
 }
 
 .model-selector,
-.config-panel {
-  padding: 24px;
-  min-width: 400px;
+.config-panel,
+.keling-selector {
+  padding: 18px;
+  min-width: 320px;
+}
+
+.keling-selector {
+  min-width: 240px;
+  padding: 16px;
 }
 
 .selector-header {
@@ -1659,29 +2092,30 @@ const formatTime = (timestamp: number) => {
   color: #ffffff;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   text-align: center;
+  letter-spacing: 0.3px;
 }
 
 .model-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .model-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  border-radius: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
   transition: all 0.3s ease;
   border: 1px solid transparent;
   position: relative;
   overflow: hidden;
-  min-height: 70px;
+  min-height: 68px;
 }
 
 .model-item::before {
@@ -1714,9 +2148,27 @@ const formatTime = (timestamp: number) => {
 .model-info {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
   flex: 1;
   min-width: 0;
+}
+
+.model-info .model-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.model-info .icon-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .model-avatar {
@@ -1742,16 +2194,17 @@ const formatTime = (timestamp: number) => {
 }
 
 .model-name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .model-desc {
-  font-size: 13px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.7);
   line-height: 1.3;
   white-space: nowrap;
@@ -1761,8 +2214,96 @@ const formatTime = (timestamp: number) => {
 
 .check-icon {
   color: #667eea;
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
+}
+
+/* 可灵选项样式 */
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+  min-height: 50px;
+}
+
+.option-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.option-item:hover::before {
+  left: 100%;
+}
+
+.option-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.option-item.active {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+}
+
+.option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.option-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.option-desc {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 可灵选项按钮样式 */
+.keling-option-btn {
+  background: rgba(102, 126, 234, 0.15);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  color: #667eea;
+  font-weight: 600;
+}
+
+.keling-option-btn:hover {
+  background: rgba(102, 126, 234, 0.25);
+  border-color: #667eea;
 }
 
 /* 配置面板样式 */
@@ -2393,6 +2934,22 @@ const formatTime = (timestamp: number) => {
   .generator-upload-section {
     justify-content: center;
     gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .images-upload-section {
+    margin-left: 0;
+    margin-top: 12px;
+  }
+
+  .images-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .preview-thumbnails {
+    justify-content: center;
   }
   
   .generator-controls-section {
@@ -2412,7 +2969,7 @@ const formatTime = (timestamp: number) => {
   }
   
   .floating-generation-panel {
-    bottom: 10px;
+    bottom: 60px;
     width: calc(100% - 20px);
   }
   
@@ -2504,7 +3061,8 @@ const formatTime = (timestamp: number) => {
 <style>
 /* 全局样式 - 用于 Element Plus Popover 组件 */
 .model-popover,
-.config-popover {
+.config-popover,
+.keling-popover {
   background: #323233 !important;
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
@@ -2514,7 +3072,8 @@ const formatTime = (timestamp: number) => {
 }
 
 .model-popover .el-popover__content,
-.config-popover .el-popover__content {
+.config-popover .el-popover__content,
+.keling-popover .el-popover__content {
   padding: 0 !important;
 }
 
