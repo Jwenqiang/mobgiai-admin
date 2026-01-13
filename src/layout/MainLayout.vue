@@ -75,7 +75,7 @@
               <div class="user-role">{{ userRole }}</div>
             </div>
             <el-dropdown @command="handleUserCommand" class="user-dropdown">
-              <el-button type="text" class="user-menu-btn">
+              <el-button type="link" class="user-menu-btn">
                 <el-icon><More /></el-icon>
               </el-button>
               <template #dropdown>

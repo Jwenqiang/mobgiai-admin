@@ -18,7 +18,7 @@
         <div v-if="referenceImages.length > 0" class="upload-preview-section header-below">
           <div class="preview-header">
             <span class="preview-label">参考图片 ({{ referenceImages.length }}/5)</span>
-            <el-button size="small" text @click="clearAllImages">清空全部</el-button>
+            <el-button size="small" link @click="clearAllImages">清空全部</el-button>
           </div>
           <div class="upload-preview-list">
             <div 
@@ -604,7 +604,13 @@
             <!-- 上部分：缩略图和描述 -->
             <div class="generation-header">
               <div class="generation-thumbnail">
-                <img :src="currentImages[0]?.url" alt="生成缩略图" class="thumbnail-image" />
+                <img v-if="resultType === 'images'" :src="currentImages[0]?.url" alt="生成缩略图" class="thumbnail-image" />
+                <div v-else-if="resultType === 'video'" class="thumbnail-video-icon">
+                  <div class="video-icon-wrapper">
+                    <el-icon size="20"><VideoCamera /></el-icon>
+                  </div>
+                  <div class="video-icon-bg"></div>
+                </div>
               </div>
               <div class="generation-info">
                 <div class="generation-prompt">{{ prompt || '这是一段生成于千年前的成图的内容示例，它的主要作用是向用户展示出图像生成的强大功能，让用户能够直观地感受到AI生成图像的魅力和实用性。在实际使用时，这段文字会被替换为用户输入的具体描述内容，从而生成符合用户需求的个性化图像。' }}</div>
@@ -615,12 +621,14 @@
             <div class="generation-meta">
               <div class="meta-tags">
                 <span class="meta-tag model-tag">{{ currentModel?.name || 'Seedream 4.5' }}</span>
-                <span class="meta-tag size-tag">{{ currentSize?.label || '9:16' }}</span>
+                <span v-if="resultType === 'images'" class="meta-tag size-tag">{{ currentSize?.label || '9:16' }}</span>
+                <span v-else-if="resultType === 'video'" class="meta-tag size-tag">{{ getVideoConfigSummary() }}</span>
               </div>
             </div>
             
-            <!-- 下部分：生成图 -->
-            <div class="generation-images" :class="`count-${currentImages.length}`">
+            <!-- 下部分：生成内容 - 根据 resultType 显示不同内容 -->
+            <!-- 图片结果显示 -->
+            <div v-if="resultType === 'images'" class="generation-images" :class="`count-${currentImages.length}`">
               <div 
                 v-for="(image, index) in currentImages" 
                 :key="index"
@@ -640,15 +648,29 @@
                       >
                         <el-icon><Download /></el-icon>
                       </el-button>
-                      <!-- <el-button 
-                        type="success" 
-                        size="small" 
-                        circle
-                        @click.stop="saveToAssets(image)"
-                        class="action-btn"
-                      >
-                        <el-icon><FolderAdd /></el-icon>
-                      </el-button> -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 视频结果显示 - 与图片网格中单张图片相同大小 -->
+            <div v-else-if="resultType === 'video' && currentVideo" class="generation-images video-result-container">
+              <div class="generation-image-item video-result-item single-video" @click="previewVideo(currentVideo)">
+                <div class="image-wrapper video-wrapper">
+                  <video 
+                    :src="currentVideo.url" 
+                    class="generated-image generated-video"
+                    muted
+                    preload="metadata"
+                    @mouseenter="handleVideoHover"
+                    @mouseleave="handleVideoLeave"
+                    ref="videoThumbnailRef"
+                  >
+                  </video>
+                  <div class="image-overlay video-overlay">
+                    <div class="play-button">
+                      <el-icon size="24"><VideoPlay /></el-icon>
                     </div>
                   </div>
                 </div>
@@ -664,6 +686,10 @@
               <el-button class="action-button regenerate-button" @click="regenerateAll">
                 <el-icon class="button-icon"><Refresh /></el-icon>
                 <span>再次生成</span>
+              </el-button>
+              <el-button v-if="resultType === 'video' && currentVideo" class="action-button download-button" @click="downloadVideo(currentVideo)">
+                <el-icon class="button-icon"><Download /></el-icon>
+                <span>下载</span>
               </el-button>
               <el-button class="action-button delete-button" @click="deleteGeneration">
                 <el-icon class="button-icon"><Delete /></el-icon>
@@ -1202,7 +1228,7 @@
     <div class="history-sidebar" :class="{ open: showHistory }">
       <div class="sidebar-header">
         <h3>历史记录</h3>
-        <el-button type="text" @click="toggleHistory">
+        <el-button type="link" @click="toggleHistory">
           <el-icon><Close /></el-icon>
         </el-button>
       </div>
@@ -1266,6 +1292,22 @@
         </div>
       </div>
     </el-dialog>
+    <!-- 视频预览对话框 -->
+    <el-dialog v-model="videoPreviewVisible" title="" width="80%" center class="preview-dialog video-preview-dialog">
+      <div v-if="previewVideoData" class="preview-content">
+        <video :src="previewVideoUrl" class="preview-video" controls autoplay />
+        <div class="preview-actions">
+          <el-button type="primary" @click="downloadVideo(previewVideoData)">
+            <el-icon><Download /></el-icon>
+            下载
+          </el-button>
+          <el-button @click="saveVideoToAssets(previewVideoData)">
+            <el-icon><FolderAdd /></el-icon>
+            保存
+          </el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -1274,7 +1316,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Picture, Plus, Download, FolderAdd, Clock, Close,
-  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch
+  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
@@ -1287,6 +1329,12 @@ interface UploadFile {
 }
 
 interface ImageResult {
+  id: string
+  url: string
+  thumbnail: string
+}
+
+interface VideoResult {
   id: string
   url: string
   thumbnail: string
@@ -1345,12 +1393,19 @@ interface GenerationTask {
 const prompt = ref('')
 const referenceImages = ref<UploadFile[]>([])
 const currentImages = ref<ImageResult[]>([])
+const currentVideo = ref<VideoResult | null>(null)
+const resultType = ref<'images' | 'video'>('video')
 const showHistory = ref(false)
 const previewVisible = ref(false)
 const previewImageUrl = ref('')
 const previewImageData = ref<ImageResult | null>(null)
 const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
+
+// 视频预览相关状态
+const videoPreviewVisible = ref(false)
+const previewVideoUrl = ref('')
+const previewVideoData = ref<VideoResult | null>(null)
 
 // 新增：多任务生成相关状态
 const generationTasks = ref<GenerationTask[]>([])
@@ -1835,38 +1890,58 @@ const generateTask = async (taskId: string) => {
       task.progressText = step.text
     }
 
-    // 生成完成
-    const newImages: ImageResult[] = []
-    const imageCount = task.imageCount?.value || 4
-    for (let i = 0; i < imageCount; i++) {
-      newImages.push({
-        id: `${taskId}-${i}`,
-        url: `https://picsum.photos/400/400?random=${Date.now() + i}`,
-        thumbnail: `https://picsum.photos/200/200?random=${Date.now() + i}`
-      })
-    }
+    // 根据生成模式决定结果类型
+    if (currentGenerateMode.value?.value === 'video') {
+      // 生成视频结果
+      resultType.value = 'video'
+      const newVideo: VideoResult = {
+        id: taskId,
+        url: `https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4`,
+        thumbnail: `https://picsum.photos/400/300?random=${Date.now()}`
+      }
+      
+      currentVideo.value = newVideo
+      // 将视频作为单个"图片"项存储到 currentImages 中，保持现有逻辑
+      currentImages.value = [{
+        id: taskId,
+        url: newVideo.url,
+        thumbnail: newVideo.thumbnail
+      }]
+      
+      ElMessage.success('视频生成成功！')
+    } else {
+      // 生成图片结果
+      resultType.value = 'images'
+      const newImages: ImageResult[] = []
+      const imageCount = task.imageCount?.value || 4
+      for (let i = 0; i < imageCount; i++) {
+        newImages.push({
+          id: `${taskId}-${i}`,
+          url: `https://picsum.photos/400/400?random=${Date.now() + i}`,
+          thumbnail: `https://picsum.photos/200/200?random=${Date.now() + i}`
+        })
+      }
 
-    task.images = newImages
-    task.status = 'completed'
-
-    // 添加到历史记录
-    const historyItem: ImageHistoryItem = {
-      id: taskId,
-      prompt: task.prompt,
-      images: newImages,
-      model: task.model?.name || '',
-      size: task.size?.label || '',
-      createdAt: task.createdAt
-    }
-
-    imageHistory.value.unshift(historyItem)
-    
-    // 如果是第一个完成的任务，设置为当前显示的图片
-    if (currentImages.value.length === 0) {
+      task.images = newImages
       currentImages.value = newImages
+      currentVideo.value = null // 清空视频结果
+      
+      // 添加到历史记录
+      const historyItem: ImageHistoryItem = {
+        id: taskId,
+        prompt: task.prompt,
+        images: newImages,
+        model: task.model?.name || '',
+        size: task.size?.label || '',
+        createdAt: task.createdAt
+      }
+
+      imageHistory.value.unshift(historyItem)
+      
+      ElMessage.success('图片生成成功！')
     }
 
-    ElMessage.success('图片生成成功！')
+    task.status = 'completed'
     
     // 3秒后从任务列表中移除已完成的任务
     setTimeout(() => {
@@ -1880,7 +1955,7 @@ const generateTask = async (taskId: string) => {
     console.error('生成失败:', err)
     task.status = 'failed'
     task.progressText = '生成失败'
-    ElMessage.error('图片生成失败，请重试')
+    ElMessage.error('生成失败，请重试')
     
     // 失败的任务也在3秒后移除
     setTimeout(() => {
@@ -1896,6 +1971,46 @@ const previewImage = (image: ImageResult) => {
   previewImageUrl.value = image.url
   previewImageData.value = image
   previewVisible.value = true
+}
+
+const previewVideo = (video: VideoResult) => {
+  previewVideoUrl.value = video.url
+  previewVideoData.value = video
+  videoPreviewVisible.value = true
+}
+
+// 视频缩略图hover播放处理
+const videoThumbnailRef = ref<HTMLVideoElement>()
+
+const handleVideoHover = (event: Event) => {
+  const video = event.target as HTMLVideoElement
+  if (video) {
+    video.currentTime = 0
+    video.play().catch(console.error)
+  }
+}
+
+const handleVideoLeave = (event: Event) => {
+  const video = event.target as HTMLVideoElement
+  if (video) {
+    video.pause()
+    video.currentTime = 0
+  }
+}
+
+const downloadVideo = async (video: VideoResult) => {
+  try {
+    await downloadFile(video.url, `generated_video_${video.id}.mp4`)
+    ElMessage.success('开始下载视频')
+  } catch (error) {
+    console.error('下载视频失败:', error)
+    ElMessage.error('下载视频失败，请重试')
+  }
+}
+
+const saveVideoToAssets = (video: VideoResult) => {
+  console.log('Saving video to assets:', video.id)
+  ElMessage.success('视频已保存到资产库')
 }
 
 const downloadImage = async (image: ImageResult) => {
@@ -1941,6 +2056,8 @@ const editGeneration = () => {
 const deleteGeneration = () => {
   // 删除当前生成结果
   currentImages.value = []
+  currentVideo.value = null
+  resultType.value = 'images' // 重置为默认类型
   ElMessage.success('已删除生成结果')
 }
 
@@ -2073,7 +2190,7 @@ onUnmounted(() => {
 /* 输入容器 */
 .input-container {
   width: 100%;
-  max-width: 600px;
+  max-width: 662px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -4948,4 +5065,140 @@ onUnmounted(() => {
   padding: 0 !important;
   box-shadow: none !important;
 }
+/* 视频相关样式 */
+.thumbnail-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 美化的视频图标缩略图样式 */
+.thumbnail-video-icon {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.video-icon-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  color: #ffffff;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.video-icon-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+  z-index: 1;
+}
+
+/* 视频结果容器 - 靠左显示，单个视频项 */
+.video-result-container {
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  max-width:300px;
+}
+
+/* 单个视频项样式 - 与图片网格中单张图片相同尺寸 */
+.video-result-item.single-video {
+  /* 在4张图片网格中，单张图片的尺寸 */
+  width: calc(100% - 6px); /* 2x2网格中单张图片的宽度 */
+  max-width: 480px; /* 限制最大宽度，与图片项一致 */
+}
+
+.video-result-item .video-wrapper {
+  /* 保持1:1比例，与图片一致 */
+  aspect-ratio: 1;
+}
+
+.generated-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.video-result-item:hover .generated-video {
+  transform: scale(1.05);
+}
+
+.video-overlay {
+  /* 继承 image-overlay 的样式 */
+  position: relative;
+}
+
+.play-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  transition: all 0.3s ease;
+  z-index: 1;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.video-result-item:hover .play-button {
+  background: #ffffff;
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* 下载按钮样式 */
+.download-button:hover {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+/* 视频预览对话框样式 */
+.video-preview-dialog .preview-video {
+  width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #000;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .play-button {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .video-result-item .video-wrapper {
+    aspect-ratio: 16/9;
+  }
+}
 </style>
+

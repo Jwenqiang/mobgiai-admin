@@ -58,7 +58,12 @@ service.interceptors.response.use(
     pendingMap.delete(pendingKey);
 
     const { code, msg, data } = response.data;
-    if (code === 200) {
+    
+    // 添加调试日志
+    console.log('响应拦截器 - 接口返回:', { code, msg, data });
+    
+    // 根据你的后端接口规范调整成功状态码判断
+    if (code === 200 || code === 0) {  // 通常后端用0表示成功
       return data;
     } else {
       ElMessage.error(msg || '接口请求失败');
