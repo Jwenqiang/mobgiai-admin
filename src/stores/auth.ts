@@ -2,7 +2,7 @@
  * @Author: joven 632795201@qq.com
  * @Date: 2026-01-08 16:34:11
  * @LastEditors: joven 632795201@qq.com
- * @LastEditTime: 2026-01-13 20:59:23
+ * @LastEditTime: 2026-01-13 21:19:15
  * @FilePath: \workspace\mobgiai-admin\src\stores\auth.ts
  * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
  */
@@ -11,7 +11,7 @@ import { ref } from 'vue'
 
 interface UserInfo {
   uid: string | number // 允许string或number类型
-  expire?: number
+  expiredTime?: number
   username?: string
   email?: string
   avatar?: string
@@ -46,6 +46,11 @@ export const useAuthStore = defineStore('auth', () => {
     const savedUserInfo = localStorage.getItem('userInfo')
     if (savedUserInfo) {
       userInfo.value = JSON.parse(savedUserInfo)
+      const expireTime=new Date(JSON.parse(savedUserInfo)?.expiredTime).getTime();
+      const nowDate=new Date().getTime();
+      if(expireTime<nowDate){
+        clearAuth();
+      }
     }
   }
 

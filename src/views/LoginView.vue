@@ -89,7 +89,6 @@ import { Avatar } from '@element-plus/icons-vue'
 // import { authAPI } from '../services/api'
 import { login,getCode } from '../api/index'
 import { useAuthStore } from '../stores/auth'
-import { log } from 'console'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -174,11 +173,10 @@ const handleLogin = async () => {
     
     // 调用登录API
     const response= await login({mobile:loginForm.phone, code:loginForm.code});
-    console.log(response);
     if (response && typeof response === 'object' && 'token' in response) {
       // 保存登录信息到store
-      const data = response as { token: string; uid: string; expire: number }
-      authStore.setAuth(data.token, { uid: data.uid, expire: data.expire })
+      const data = response as { token: string; uid: string; expiredTime: number;username:string }
+      authStore.setAuth(data.token, { uid: data.uid, expiredTime: data.expiredTime,username:loginForm.phone})
       
       ElMessage.success('登录成功')
       

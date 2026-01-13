@@ -107,7 +107,8 @@ import {
   More, SwitchButton,Opportunity
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
-import { authAPI } from '../services/api'
+// import { authAPI } from '../services/api'
+import { logout } from '../api/index'
 
 const route = useRoute()
 const router = useRouter()
@@ -162,7 +163,7 @@ const handleLogout = async () => {
     
     try {
       // 调用退出登录API
-      await authAPI.logout()
+      await logout()
     } catch (error) {
       console.error('退出登录API调用失败:', error)
       // 即使API调用失败，也要清除本地状态

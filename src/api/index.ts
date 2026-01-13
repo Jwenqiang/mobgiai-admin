@@ -71,6 +71,10 @@ export const uploadVideo = (file: File, onProgress?: (e: AxiosProgressEvent) => 
 export const login = (data: { mobile: string; code: string }) => {
   return post('/api/v1/user/login', data);
 };
+// 登出接口
+export const logout = () => {
+  return get('/api/v1/user/logout');
+};
 // 验证码接口
 export const getCode = (data: { mobile: string }) => {
   return post('/api/v1/user/sendCode', data);
