@@ -34,10 +34,10 @@
             <template #title>资产</template>
           </el-menu-item> -->
           
-          <!-- <el-menu-item index="/dashboard/video-generate">
+          <el-menu-item index="/dashboard/video-generate">
             <el-icon><VideoCamera /></el-icon>
             <template #title>视频生成</template>
-          </el-menu-item> -->
+          </el-menu-item>
           
           <el-menu-item index="/dashboard/image-generate">
             <!-- <el-icon><Picture /></el-icon> -->

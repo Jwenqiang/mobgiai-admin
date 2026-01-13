@@ -2051,7 +2051,7 @@ const formatTime = (timestamp: number) => {
   box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
 }
 
-/* 控制区域：配置选项和生成按�?*/
+/* 控制区域：配置选项和生成按钮*/
 .controls-section {
   display: flex;
   align-items: center;
@@ -2061,7 +2061,7 @@ const formatTime = (timestamp: number) => {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* 选择器样�?- 即梦风格 */
+/* 选择器样式 */
 :deep(.model-popover),
 :deep(.config-popover),
 :deep(.keling-popover) {

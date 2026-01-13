@@ -26,7 +26,7 @@ const router = createRouter({
     {
       path: '/dashboard',
       component: MainLayout,
-      redirect: '/dashboard/assets',
+      redirect: '/dashboard/image-generate',
       meta: { requiresAuth: true },
       children: [
         {
@@ -71,7 +71,7 @@ router.beforeEach((to, _from, next) => {
     }
   } else if (to.path === '/login' && authStore.isLoggedIn) {
     // 已登录用户访问登录页，跳转到主页
-    next('/dashboard/assets')
+    next('/dashboard/image-generate')
     return
   }
   // 路由跳转前取消所有请求

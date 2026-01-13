@@ -145,7 +145,7 @@
                     <div class="btn-icon">
                       <div class="model-dot" :style="{ background: currentModel?.color || '#4A90E2' }"></div>
                     </div>
-                    <span>{{ currentModel?.name || 'Seedance 1.5 Pro' }}</span>
+                    <span>{{ currentModel?.name || 'Seedream 4.5' }}</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
@@ -308,7 +308,7 @@
               <!-- 中部分：模型标签等信息 -->
               <div class="generation-meta">
                 <div class="meta-tags">
-                  <span class="meta-tag model-tag">{{ task.model?.name || 'Seedance 1.5' }}</span>
+                  <span class="meta-tag model-tag">{{ task.model?.name || 'Seedream 4.5' }}</span>
                   <span class="meta-tag size-tag">{{ task.size?.label || '9:16' }}</span>
                   <span class="meta-tag status-tag">{{ task.progressText }}</span>
                 </div>
@@ -317,7 +317,7 @@
               <!-- 下部分：待生成的模型图缺省图 -->
               <div class="generation-images generating-preview" :class="`count-${task.imageCount?.value || 4}`">
                 <div 
-                  v-for="index in (task.imageCount?.value || 4)" 
+                  v-for="index in (task.imageCount?.value || 1)" 
                   :key="index"
                   class="generation-image-item generating-item"
                 >
@@ -357,7 +357,7 @@
             <!-- 中部分：模型标签等信息 -->
             <div class="generation-meta">
               <div class="meta-tags">
-                <span class="meta-tag model-tag">{{ currentModel?.name || 'Seedance 1.5' }}</span>
+                <span class="meta-tag model-tag">{{ currentModel?.name || 'Seedream 4.5' }}</span>
                 <span class="meta-tag size-tag">{{ currentSize?.label || '9:16' }}</span>
               </div>
             </div>
@@ -550,7 +550,7 @@
                   <div class="btn-icon">
                     <div class="model-dot" :style="{ background: currentModel?.color || '#4A90E2' }"></div>
                   </div>
-                  <span>{{ currentModel?.name || 'Seedance 1.5 Pro' }}</span>
+                  <span>{{ currentModel?.name || 'Seedream 4.5' }}</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
@@ -855,12 +855,40 @@ const panelImageParamsPopoverRef = ref()
 const generateModePopoverRef = ref()
 const panelGenerateModePopoverRef = ref()
 
-// 模型选项
-const models = ref<Model[]>([
+// 图片生成模型选项
+const imageModels = ref<Model[]>([
+  { 
+    id: 'seedream-45', 
+    name: 'Seedream 4.5', 
+    description: '最新版本，画质更佳',
+    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+  },
+  { 
+    id: 'seedream-40', 
+    name: 'Seedream 4.0', 
+    description: '稳定版本，效果出色',
+    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+  },
+  { 
+    id: 'keling-o1-image', 
+    name: '可灵 O1', 
+    description: '支持自然语言描述，图片生成专用',
+    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+  },
+  { 
+    id: 'keling-20', 
+    name: '可灵 2.0', 
+    description: '经典版本，稳定可靠',
+    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+  }
+])
+
+// 视频生成模型选项
+const videoModels = ref<Model[]>([
   { 
     id: 'seedance-15-pro', 
     name: 'Seedance 1.5 Pro', 
-    description: '高质量图像，全新体验',
+    description: '高质量视频，全新体验',
     color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
   },
   { 
@@ -870,8 +898,8 @@ const models = ref<Model[]>([
     color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
   },
   { 
-    id: 'keling-01', 
-    name: '可灵 01', 
+    id: 'keling-o1-video', 
+    name: '可灵 O1', 
     description: '支持自然语言描述，视频图片多模态',
     color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
   },
@@ -882,6 +910,9 @@ const models = ref<Model[]>([
     color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
   }
 ])
+
+// 当前可用的模型列表（根据生成方式动态变化）
+const models = ref<Model[]>(imageModels.value)
 
 const currentModel = ref(models.value[0])
 
@@ -942,7 +973,7 @@ const imageHistory = ref<ImageHistoryItem[]>([
         thumbnail: 'https://picsum.photos/200/200?random=2'
       }
     ],
-    model: 'Stable Diffusion',
+    model: 'Seedream 4.5',
     size: '1:1',
     createdAt: Date.now() - 1000 * 60 * 30
   }
@@ -973,6 +1004,24 @@ const selectImageCount = (count: ImageCount) => {
 
 const selectGenerateMode = (mode: { value: string; label: string }) => {
   currentGenerateMode.value = mode
+  
+  // 根据生成方式切换可用的模型列表
+  if (mode.value === 'image') {
+    models.value = imageModels.value
+    // 如果当前选择的模型不在图片模型列表中，则选择第一个图片模型
+    const currentModelExists = imageModels.value.find(model => model.id === currentModel.value.id)
+    if (!currentModelExists) {
+      currentModel.value = imageModels.value[0]
+    }
+  } else if (mode.value === 'video') {
+    models.value = videoModels.value
+    // 如果当前选择的模型不在视频模型列表中，则选择第一个视频模型
+    const currentModelExists = videoModels.value.find(model => model.id === currentModel.value.id)
+    if (!currentModelExists) {
+      currentModel.value = videoModels.value[0]
+    }
+  }
+  
   // 关闭 Popover
   generateModePopoverRef.value?.hide()
   panelGenerateModePopoverRef.value?.hide()
