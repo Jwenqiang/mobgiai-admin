@@ -23,13 +23,13 @@
           <div class="upload-preview-list">
             <div 
               v-for="(image, index) in referenceImages" 
-              :key="image.uid"
+              :key="index"
               class="upload-preview-item"
-              @click="previewUploadImage(image.url)"
+              @click="previewUploadImage(image)"
             >
               <img 
-                :src="image.url" 
-                :alt="image.name"
+                :src="image" 
+                :alt="image"
                 class="upload-preview-image"
               />
               <el-button 
@@ -90,38 +90,39 @@
                         </div>
                       </el-upload>
                     </div>
-                    
-                    <div class="arrow-section">
-                      <el-button 
-                        class="swap-button" 
-                        @click="swapFrameImages"
-                        :disabled="!firstFrameImage && !lastFrameImage"
-                      >
-                        <el-icon><Switch /></el-icon>
-                      </el-button>
-                    </div>
-                    
-                    <div class="upload-item">
-                      <label class="upload-label">尾帧图</label>
-                      <el-upload
-                        :show-file-list="false"
-                        :before-upload="handleLastFrameUpload"
-                        accept="image/*"
-                        class="frame-uploader"
-                      >
-                        <div class="upload-area" :class="{ 'has-image': lastFrameImage }">
-                          <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
-                          <div v-else class="upload-placeholder">
-                            <el-icon size="16"><Plus /></el-icon>
+                    <template v-if="currentModel?.name!='可灵2.6'">
+                      <div class="arrow-section">
+                        <el-button 
+                          class="swap-button" 
+                          @click="swapFrameImages"
+                          :disabled="!firstFrameImage && !lastFrameImage"
+                        >
+                          <el-icon><Switch /></el-icon>
+                        </el-button>
+                      </div>
+                      
+                      <div class="upload-item">
+                        <label class="upload-label">尾帧图</label>
+                        <el-upload
+                          :show-file-list="false"
+                          :before-upload="handleLastFrameUpload"
+                          accept="image/*"
+                          class="frame-uploader"
+                        >
+                          <div class="upload-area" :class="{ 'has-image': lastFrameImage }">
+                            <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
+                            <div v-else class="upload-placeholder">
+                              <el-icon size="16"><Plus /></el-icon>
+                            </div>
                           </div>
-                        </div>
-                      </el-upload>
-                    </div>
+                        </el-upload>
+                      </div>
+                    </template>
                   </div>
                 </template>
 
                 <!-- 多模态参考模式和视频编辑模式 -->
-                <template v-else-if="currentModel?.name?.includes('可灵') && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')">
+                <template v-else-if="currentModel?.name?.includes('可灵O1') && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')">
                   <div class="video-upload-multimodal">
                     <!-- 传视频区域 -->
                     <div class="upload-item">
@@ -302,7 +303,7 @@
 
               <!-- 可灵模型的特殊选项 (仅在视频生成且选择可灵模型时显示) -->
               <el-popover
-                v-if="currentGenerateMode?.value === 'video' && currentModel?.name?.includes('可灵')"
+                v-if="currentGenerateMode?.value === 'video' && currentModel?.name?.includes('可灵O1')"
                 ref="keLingPopoverRef"
                 placement="top"
                 :width="240"
@@ -318,7 +319,7 @@
                   </div>
                 </template>
                 <div class="keling-selector">
-                  <div class="selector-header">可灵选项</div>
+                  <div class="selector-header">可灵O1选项</div>
                   <div class="option-list">
                     <div 
                       v-for="option in keLingOptions" 
@@ -636,7 +637,7 @@
                 @click="previewImage(image)"
               >
                 <div class="image-wrapper">
-                  <img :src="image.url" :alt="`生成的图片 ${index + 1}`" class="generated-image" />
+                  <img :src="image" :alt="`生成的图片 ${index + 1}`" class="generated-image" />
                   <div class="image-overlay">
                     <div class="overlay-actions">
                       <el-button 
@@ -873,13 +874,13 @@
           <div class="upload-preview-list">
             <div 
               v-for="(image, index) in referenceImages" 
-              :key="image.uid"
+              :key="index"
               class="upload-preview-item"
-              @click="previewUploadImage(image.url)"
+              @click="previewUploadImage(image)"
             >
               <img 
-                :src="image.url" 
-                :alt="image.name"
+                :src="image" 
+                :alt="image"
                 class="upload-preview-image"
               />
               <el-button 
@@ -1313,6 +1314,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { uploadBigVideoToTOS, uploadImageToTOS } from '../services/tos.js'
+import { getTosToken } from '../api/index'
 import { ElMessage } from 'element-plus'
 import {
   Picture, Plus, Download, FolderAdd, Clock, Close,
@@ -1329,9 +1332,9 @@ interface UploadFile {
 }
 
 interface ImageResult {
-  id: string
-  url: string
-  thumbnail: string
+  // id: string
+  // url: string
+  // thumbnail: string
 }
 
 interface VideoResult {
@@ -1474,13 +1477,13 @@ const videoModels = ref<Model[]>([
   },
   { 
     id: 'keling-o1-video', 
-    name: '可灵 O1', 
+    name: '可灵O1', 
     description: '支持自然语言描述，视频图片多模态',
     color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
   },
   { 
     id: 'keling-26', 
-    name: '可灵 2.6', 
+    name: '可灵2.6', 
     description: '高质量生成，智能更新',
     color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
   }
@@ -1774,41 +1777,64 @@ const previewReferenceImage = (imageUrl: string) => {
   })
 }
 
-const handleImageUpload = (file: { uid: string; name: string; raw: File }) => {
+const handleImageUpload = async (e:Event) => {
   // 检查文件数量限制
   if (referenceImages.value.length >= 5) {
     ElMessage.warning('最多只能上传5张图片')
     return false
   }
 
-  // 检查文件类型
-  const isImage = file.raw.type.startsWith('image/')
-  if (!isImage) {
-    ElMessage.error('只能上传图片文件')
-    return false
-  }
+  // // 检查文件类型
+  // const isImage = file.raw.type.startsWith('image/')
+  // if (!isImage) {
+  //   ElMessage.error('只能上传图片文件')
+  //   return false
+  // }
 
-  // 检查文件大小 (10MB)
-  const isLt10M = file.raw.size / 1024 / 1024 < 10
-  if (!isLt10M) {
-    ElMessage.error('图片大小不能超过10MB')
-    return false
+  // // 检查文件大小 (10MB)
+  // const isLt10M = file.raw.size / 1024 / 1024 < 10
+  // if (!isLt10M) {
+  //   ElMessage.error('图片大小不能超过10MB')
+  //   return false
+  // }
+// 上传到火山引擎tos上
+  // const target = e.target as HTMLInputElement;
+  const file = e.raw;
+  console.log(e,"上传的图片")
+  if (!file) return;
+  if (!file.type.includes('image')) {
+    ElMessage.warning("请选择正确的图片文件");
+    return;
   }
-
-  // 创建预览URL
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    const imageData = {
-      uid: file.uid,
-      name: file.name,
-      url: e.target?.result as string,
-      raw: file.raw
+  try {
+    console.log('开始请求TOS配置...');
+    const tosConfig = await getTosToken();
+    
+    if (!tosConfig) {
+      throw new Error('未获取到TOS配置');
     }
-    referenceImages.value.push(imageData)
-  }
-  reader.readAsDataURL(file.raw)
+    // 调用图片上传方法
+    const imageUrl = await uploadImageToTOS(file, tosConfig);
+    
+    referenceImages.value.push(imageUrl);
+    console.log('图片上传成功！地址：', imageUrl);
+  } catch (error: unknown) {
+    console.error('图片上传失败：', error);
+  } 
+  // 创建预览URL
+  // const reader = new FileReader()
+  // reader.onload = (e) => {
+  //   const imageData = {
+  //     uid: file.uid,
+  //     name: file.name,
+  //     url: e.target?.result as string,
+  //     raw: file.raw
+  //   }
+  //   referenceImages.value.push(imageData)
+  // }
+  // reader.readAsDataURL(file.raw)
   
-  return false // 阻止自动上传
+  // return false // 阻止自动上传
 }
 
 const removeImage = (index: number) => {
@@ -1968,7 +1994,7 @@ const generateTask = async (taskId: string) => {
 }
 
 const previewImage = (image: ImageResult) => {
-  previewImageUrl.value = image.url
+  previewImageUrl.value = image
   previewImageData.value = image
   previewVisible.value = true
 }
@@ -2015,7 +2041,7 @@ const saveVideoToAssets = (video: VideoResult) => {
 
 const downloadImage = async (image: ImageResult) => {
   try {
-    await downloadFile(image.url, `generated_image_${image.id}.jpg`)
+    await downloadFile(image, `generated_image_${image.id}.jpg`)
     ElMessage.success('开始下载图片')
   } catch (error) {
     console.error('下载图片失败:', error)

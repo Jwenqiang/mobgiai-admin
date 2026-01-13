@@ -76,11 +76,34 @@ export const getUserList = (params: { page: number; size: number }) => {
   return get('/user/list', params);
 };
 
+// TOS配置接口类型定义
+interface TosTokenResponse {
+  code?: number;
+  data?: {
+    accessKeyId: string;
+    accessKeySecret?: string;
+    secretAccessKey?: string;
+    sessionToken: string;
+    region: string;
+    bucket: string;
+    mainPath?: string;
+  };
+  message?: string;
+  // 直接返回配置的情况
+  accessKeyId?: string;
+  accessKeySecret?: string;
+  secretAccessKey?: string;
+  sessionToken?: string;
+  region?: string;
+  bucket?: string;
+  mainPath?: string;
+}
+
 // TOS相关接口
 export const getTosToken = async () => {
   try {
     console.log('开始请求TOS配置...');
-    const response = await post('/api/v1/tos/get_sts_token');
+    const response = await post<TosTokenResponse>('/api/v1/tos/get_sts_token');
     console.log('TOS配置API响应:', response);
     
     // 检查响应数据结构
