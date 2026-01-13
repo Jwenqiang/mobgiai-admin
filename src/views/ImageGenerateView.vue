@@ -178,7 +178,7 @@
                               class="remove-thumbnail-btn"
                               size="small"
                               type="danger"
-                              @click="removeReferenceImage(videoReferenceImages.indexOf(image))"
+                              @click="removeReferenceImage(index)"
                             >
                               <el-icon><Close /></el-icon>
                             </el-button>
@@ -575,15 +575,13 @@
               
               <!-- 下部分：待生成的模型图缺省图 -->
               <div class="generation-images generating-preview" :class="`count-${task.imageCount?.value || 4}`">
-                <div 
-                  v-for="index in (task.imageCount?.value || 1)" 
-                  :key="index"
-                  class="generation-image-item generating-item"
-                >
+                  <!-- v-for="index in (task.imageCount?.value || 4)" :key="index" -->
+                <div class="generation-image-item generating-item">
                   <div class="image-wrapper">
                     <div class="generating-placeholder-image">
                       <div class="placeholder-content">
-                        <el-icon class="placeholder-icon"><Picture /></el-icon>
+                        <el-icon class="placeholder-icon" v-if="currentGenerateMode?.value === 'video'"><VideoCamera /></el-icon>
+                        <el-icon class="placeholder-icon" v-else><Picture /></el-icon>
                         <div class="placeholder-text">生成中</div>
                         <div class="generating-dots">
                           <span class="dot"></span>
@@ -814,7 +812,7 @@
                             class="remove-thumbnail-btn"
                             size="small"
                             type="danger"
-                            @click="removeReferenceImage(videoReferenceImages.indexOf(image))"
+                            @click="removeReferenceImage(index)"
                           >
                             <el-icon><Close /></el-icon>
                           </el-button>
@@ -1483,15 +1481,14 @@ const selectedKeLingOption = ref('首尾帧') // 可灵模型的特殊选项
 const enableAudio = ref(false)
 const selectedQuality = ref('720p')
 const selectedDuration = ref('5')
-const selectedRatio = ref('16:9')
+const selectedRatio = ref('smart')
 
-// 视频上传相关
+// 视频上传相关状态（与VideoGenerateView保持一致）
 const firstFrameImage = ref('')
 const lastFrameImage = ref('')
 const referenceVideo = ref('')
 const videoReferenceImages = ref(['', '', '', '']) // 4张参考图片
 
-// 历史记录
 const imageHistory = ref<ImageHistoryItem[]>([
   {
     id: '1',
@@ -1514,15 +1511,25 @@ const imageHistory = ref<ImageHistoryItem[]>([
   }
 ])
 
-// 视频生成相关选项数据
-const videoRatios = ref([
-  { value: '16:9', label: '16:9', aspect: '16/9' },
-  { value: '9:16', label: '9:16', aspect: '9/16' },
-  { value: '1:1', label: '1:1', aspect: '1' },
-  { value: '4:3', label: '4:3', aspect: '4/3' },
-  { value: '21:9', label: '21:9', aspect: '21/9' }
+// 可灵模型的特殊选项
+const keLingOptions = ref([
+  { value: '首尾帧', label: '首尾帧', description: '基于首尾帧生成视频' },
+  { value: '多模态参考', label: '多模态参考', description: '多模态内容参考生成' },
+  { value: '视频编辑', label: '视频编辑', description: '智能视频编辑功能' }
 ])
 
+// 视频比例选项
+const videoRatios = ref([
+  { value: 'smart', label: '智能比例', aspect: '1' },
+  { value: '21:9', label: '21:9', aspect: '21/9' },
+  { value: '16:9', label: '16:9', aspect: '16/9' },
+  { value: '4:3', label: '4:3', aspect: '4/3' },
+  { value: '1:1', label: '1:1', aspect: '1' },
+  { value: '3:4', label: '3:4', aspect: '3/4' },
+  { value: '9:16', label: '9:16', aspect: '9/16' }
+])
+
+// 视频质量选项
 const videoQualities = ref([
   { value: '480p', label: '480P' },
   { value: '720p', label: '720P' },
@@ -1530,18 +1537,11 @@ const videoQualities = ref([
   { value: '4k', label: '4K' }
 ])
 
+// 视频时长选项
 const videoDurations = ref([
   { value: '5', label: '5s' },
   { value: '10', label: '10s' },
-  { value: '15', label: '15s' },
-  { value: '20', label: '20s' }
-])
-
-// 可灵模型的特殊选项
-const keLingOptions = ref([
-  { value: '首尾帧', label: '首尾帧', description: '基于首尾帧生成视频' },
-  { value: '多模态参考', label: '多模态参考', description: '多模态内容参考生成' },
-  { value: '视频编辑', label: '视频编辑', description: '智能视频编辑功能' }
+  { value: '15', label: '15s' }
 ])
 
 // 方法
@@ -1627,21 +1627,21 @@ const getVideoConfigSummary = () => {
 }
 
 // 视频上传处理方法
-const handleFirstFrameUpload = (file: { raw: File }) => {
+const handleFirstFrameUpload = (file: File) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     firstFrameImage.value = e.target?.result as string
   }
-  reader.readAsDataURL(file.raw)
+  reader.readAsDataURL(file)
   return false // 阻止自动上传
 }
 
-const handleLastFrameUpload = (file: { raw: File }) => {
+const handleLastFrameUpload = (file: File) => {
   const reader = new FileReader()
   reader.onload = (e) => {
     lastFrameImage.value = e.target?.result as string
   }
-  reader.readAsDataURL(file.raw)
+  reader.readAsDataURL(file)
   return false // 阻止自动上传
 }
 
@@ -1652,18 +1652,18 @@ const swapFrameImages = () => {
   ElMessage.success('首帧图和尾帧图已交换')
 }
 
-const handleVideoUpload = (file: { raw: File }) => {
-  const url = URL.createObjectURL(file.raw)
+const handleVideoUpload = (file: File) => {
+  const url = URL.createObjectURL(file)
   referenceVideo.value = url
   ElMessage.success('视频上传成功')
   return false // 阻止自动上传
 }
 
-const handleReferenceImageUpload = (file: { raw: File }) => {
+const handleReferenceImageUpload = (file: File) => {
   // 找到第一个空位置
   const emptyIndex = videoReferenceImages.value.findIndex(img => !img)
   if (emptyIndex !== -1) {
-    const url = URL.createObjectURL(file.raw)
+    const url = URL.createObjectURL(file)
     videoReferenceImages.value[emptyIndex] = url
     ElMessage.success(`第${emptyIndex + 1}张参考图片上传成功`)
   } else {
@@ -1673,8 +1673,15 @@ const handleReferenceImageUpload = (file: { raw: File }) => {
 }
 
 const removeReferenceImage = (index: number) => {
-  videoReferenceImages.value[index] = ''
-  ElMessage.success(`第${index + 1}张参考图片已删除`)
+  // 找到实际的索引位置
+  const filteredImages = videoReferenceImages.value.filter(img => img)
+  const imageToRemove = filteredImages[index]
+  const actualIndex = videoReferenceImages.value.indexOf(imageToRemove)
+  
+  if (actualIndex !== -1) {
+    videoReferenceImages.value[actualIndex] = ''
+    ElMessage.success('参考图片已删除')
+  }
 }
 
 const previewReferenceImage = (imageUrl: string) => {
@@ -1816,9 +1823,9 @@ const generateTask = async (taskId: string) => {
   // 模拟生成过程
   const steps = [
     { progress: 25, text: '正在分析您的描述...' },
-    { progress: 50, text: '正在生成图片内容...' },
-    { progress: 75, text: '正在优化图片质量...' },
-    { progress: 100, text: '生成完成！' }
+    { progress: 50, text: '正在生成创作内容...' },
+    { progress: 75, text: '正在优化作品质量...' },
+    { progress: 100, text: '生成完成~' }
   ]
 
   try {

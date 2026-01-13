@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>缩略图修复验证测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        .test-steps {
+            list-style: decimal;
+            padding-left: 20px;
+        }
+        .test-steps li {
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+        .expected-result {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            color: #155724;
+        }
+        .code-snippet {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+        }
+        .fix-highlight {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            background: #d4edda;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ 缩略图显示修复验证</h1>
+        
+        <div class="fix-highlight">
+            <strong>修复内容：</strong>修正了ImageGenerateView.vue中视频生成模式下首尾帧图片和参考图片无缩略图显示的问题。
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🔧 问题原因</div>
+            <p>Element Plus Upload组件的回调函数参数类型错误：</p>
+            <div class="code-snippet">
+// ❌ 错误的实现
+const handleFirstFrameUpload = (file: { raw: File }) => {
+  reader.readAsDataURL(file.raw) // 错误：file.raw
+}
+
+// ✅ 正确的实现  
+const handleFirstFrameUpload = (file: File) => {
+  reader.readAsDataURL(file) // 正确：直接使用file
+}
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📋 测试步骤 1：首尾帧模式</div>
+            <ol class="test-steps">
+                <li>打开ImageGenerateView页面</li>
+                <li>点击生成方式下拉框，选择"视频生成"</li>
+                <li>选择非可灵模型（如Seedance 1.5 Pro）或选择可灵模型后选择"首尾帧"选项</li>
+                <li>点击"首帧图"上传按钮，选择一张图片文件</li>
+                <li>点击"尾帧图"上传按钮，选择另一张图片文件</li>
+                <li>点击中间的交换按钮</li>
+            </ol>
+            <div class="expected-result">
+                <strong>预期结果：</strong>
+                <ul>
+                    <li>✅ 首帧图上传后应立即显示缩略图</li>
+                    <li>✅ 尾帧图上传后应立即显示缩略图</li>
+                    <li>✅ 点击交换按钮后两张图片位置互换</li>
+                    <li>✅ 缩略图清晰可见，尺寸适当</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📋 测试步骤 2：多模态参考模式</div>
+            <ol class="test-steps">
+                <li>在视频生成模式下，选择可灵模型</li>
+                <li>选择"多模态参考"选项</li>
+                <li>点击"传视频"上传按钮，选择一个视频文件</li>
+                <li>点击"传图片"上传按钮，依次上传1-4张图片</li>
+                <li>点击任意缩略图上的删除按钮</li>
+                <li>点击缩略图预览图片</li>
+            </ol>
+            <div class="expected-result">
+                <strong>预期结果：</strong>
+                <ul>
+                    <li>✅ 视频上传后应显示视频预览</li>
+                    <li>✅ 每张图片上传后都应显示对应缩略图</li>
+                    <li>✅ 显示正确的上传计数（如"2/4"）</li>
+                    <li>✅ 删除功能正常工作</li>
+                    <li>✅ 点击缩略图能正常预览</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">📋 测试步骤 3：视频编辑模式</div>
+            <ol class="test-steps">
+                <li>在视频生成模式下，选择可灵模型</li>
+                <li>选择"视频编辑"选项</li>
+                <li>重复多模态参考模式的测试步骤</li>
+            </ol>
+            <div class="expected-result">
+                <strong>预期结果：</strong>与多模态参考模式完全相同的行为
+            </div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">🔍 技术验证点</div>
+            <ul>
+                <li><span class="status-badge">已修复</span> handleFirstFrameUpload 参数类型：File</li>
+                <li><span class="status-badge">已修复</span> handleLastFrameUpload 参数类型：File</li>
+                <li><span class="status-badge">已修复</span> handleVideoUpload 参数类型：File</li>
+                <li><span class="status-badge">已修复</span> handleReferenceImageUpload 参数类型：File</li>
+                <li><span class="status-badge">已修复</span> 所有函数使用 file 而不是 file.raw</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">⚠️ 注意事项</div>
+            <ul>
+                <li>确保测试时使用真实的图片和视频文件</li>
+                <li>测试不同格式的文件（jpg, png, mp4等）</li>
+                <li>验证文件大小限制是否正常工作</li>
+                <li>检查控制台是否有JavaScript错误</li>
+                <li>对比VideoGenerateView的相同功能，确保行为一致</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px; padding: 20px; background: #e8f5e8; border-radius: 8px;">
+            <h3 style="color: #28a745; margin: 0;">✅ 修复完成</h3>
+            <p style="margin: 10px 0 0 0; color: #666;">视频生成模式下的缩略图显示问题已解决</p>
+        </div>
+    </div>
+</body>
+</html>
