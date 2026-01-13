@@ -1,9 +1,18 @@
+/*
+ * @Author: joven 632795201@qq.com
+ * @Date: 2026-01-08 16:34:11
+ * @LastEditors: joven 632795201@qq.com
+ * @LastEditTime: 2026-01-13 20:59:23
+ * @FilePath: \workspace\mobgiai-admin\src\stores\auth.ts
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 interface UserInfo {
-  id: string | number // 允许string或number类型
-  username: string
+  uid: string | number // 允许string或number类型
+  expire?: number
+  username?: string
   email?: string
   avatar?: string
   [key: string]: any

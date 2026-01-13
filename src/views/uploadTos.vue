@@ -91,7 +91,6 @@ import { ref } from 'vue'
 import { uploadBigVideoToTOS, uploadImageToTOS } from '../services/tos.js'
 import { getTosToken } from '../api/index'
 import { diagnoseTosUpload, printDiagnosisReport } from '../utils/tosDebug.js'
-import { log } from 'console'
 
 const uploading = ref(false)
 const uploadProgress = ref(0)

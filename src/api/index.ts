@@ -67,15 +67,18 @@ export const uploadVideo = (file: File, onProgress?: (e: AxiosProgressEvent) => 
   return uploadFile('/upload/video', file, 0, onProgress);
 };
 
-// 业务接口示例
-export const login = (data: { username: string; password: string }) => {
-  return post('/auth/login', data);
+// 登录接口
+export const login = (data: { mobile: string; code: string }) => {
+  return post('/api/v1/user/login', data);
+};
+// 验证码接口
+export const getCode = (data: { mobile: string }) => {
+  return post('/api/v1/user/sendCode', data);
 };
 
 export const getUserList = (params: { page: number; size: number }) => {
   return get('/user/list', params);
 };
-
 // TOS配置接口类型定义
 interface TosTokenResponse {
   code?: number;

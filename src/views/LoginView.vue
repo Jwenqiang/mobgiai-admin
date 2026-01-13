@@ -86,8 +86,10 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { Avatar } from '@element-plus/icons-vue'
-import { authAPI } from '../services/api'
+// import { authAPI } from '../services/api'
+import { login,getCode } from '../api/index'
 import { useAuthStore } from '../stores/auth'
+import { log } from 'console'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -131,7 +133,7 @@ const sendCode = async () => {
     sendingCode.value = true
     
     // 调用发送验证码API
-    await authAPI.sendCode(loginForm.phone)
+    await getCode({mobile:loginForm.phone})
     
     ElMessage.success('验证码发送成功')
     
@@ -171,26 +173,28 @@ const handleLogin = async () => {
     loading.value = true
     
     // 调用登录API
-    const response = await authAPI.login(loginForm.phone, loginForm.code)
-    
-    if (response.code === 200) {
+    const response= await login({mobile:loginForm.phone, code:loginForm.code});
+    console.log(response);
+    if (response && typeof response === 'object' && 'token' in response) {
       // 保存登录信息到store
-      authStore.setAuth(response.data.token, response.data.userInfo)
+      const data = response as { token: string; uid: string; expire: number }
+      authStore.setAuth(data.token, { uid: data.uid, expire: data.expire })
       
       ElMessage.success('登录成功')
       
       // 跳转到主页面
       setTimeout(() => {
-        router.push('/dashboard/assets')
+        router.push('/dashboard/image-generate')
       }, 500)
-    } else {
-      throw new Error(response.message || '登录失败')
-    }
+    } 
+    // else {
+    //   throw new Error(response.message || '登录失败')
+    // }
     
   } catch (error: unknown) {
     console.error('登录失败:', error)
-    const errorMessage = error instanceof Error ? error.message : '登录失败，请检查手机号和验证码'
-    ElMessage.error(errorMessage)
+    // const errorMessage = error instanceof Error ? error.message : '登录失败，请检查手机号和验证码'
+    // ElMessage.error(errorMessage)
   } finally {
     loading.value = false
   }
