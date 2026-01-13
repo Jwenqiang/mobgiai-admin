@@ -51,20 +51,144 @@
           <div class="input-top-section">
             <!-- 上传按钮 -->
             <div class="upload-section">
-              <el-upload
-                :file-list="[]"
-                :auto-upload="false"
-                :limit="5"
-                accept="image/*"
-                :show-file-list="false"
-                class="image-uploader"
-                @change="handleImageUpload"
-                :disabled="referenceImages.length >= 5"
-              >
-                <div class="upload-btn large" :class="{ disabled: referenceImages.length >= 5 }">
-                  <el-icon><Plus /></el-icon>
-                </div>
-              </el-upload>
+              <!-- 图片生成模式的上传 -->
+              <template v-if="currentGenerateMode?.value === 'image'">
+                <el-upload
+                  :file-list="[]"
+                  :auto-upload="false"
+                  :limit="5"
+                  accept="image/*"
+                  :show-file-list="false"
+                  class="image-uploader"
+                  @change="handleImageUpload"
+                  :disabled="referenceImages.length >= 5"
+                >
+                  <div class="upload-btn large" :class="{ disabled: referenceImages.length >= 5 }">
+                    <el-icon><Plus /></el-icon>
+                  </div>
+                </el-upload>
+              </template>
+
+              <!-- 视频生成模式的上传 -->
+              <template v-else-if="currentGenerateMode?.value === 'video'">
+                <!-- 首尾帧模式 -->
+                <template v-if="!currentModel?.name?.includes('可灵') || selectedKeLingOption === '首尾帧'">
+                  <div class="video-upload-frames">
+                    <div class="upload-item">
+                      <label class="upload-label">首帧图</label>
+                      <el-upload
+                        :show-file-list="false"
+                        :before-upload="handleFirstFrameUpload"
+                        accept="image/*"
+                        class="frame-uploader"
+                      >
+                        <div class="upload-area" :class="{ 'has-image': firstFrameImage }">
+                          <img v-if="firstFrameImage" :src="firstFrameImage" class="uploaded-image" />
+                          <div v-else class="upload-placeholder">
+                            <el-icon size="16"><Plus /></el-icon>
+                          </div>
+                        </div>
+                      </el-upload>
+                    </div>
+                    
+                    <div class="arrow-section">
+                      <el-button 
+                        class="swap-button" 
+                        @click="swapFrameImages"
+                        :disabled="!firstFrameImage && !lastFrameImage"
+                      >
+                        <el-icon><Switch /></el-icon>
+                      </el-button>
+                    </div>
+                    
+                    <div class="upload-item">
+                      <label class="upload-label">尾帧图</label>
+                      <el-upload
+                        :show-file-list="false"
+                        :before-upload="handleLastFrameUpload"
+                        accept="image/*"
+                        class="frame-uploader"
+                      >
+                        <div class="upload-area" :class="{ 'has-image': lastFrameImage }">
+                          <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
+                          <div v-else class="upload-placeholder">
+                            <el-icon size="16"><Plus /></el-icon>
+                          </div>
+                        </div>
+                      </el-upload>
+                    </div>
+                  </div>
+                </template>
+
+                <!-- 多模态参考模式和视频编辑模式 -->
+                <template v-else-if="currentModel?.name?.includes('可灵') && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')">
+                  <div class="video-upload-multimodal">
+                    <!-- 传视频区域 -->
+                    <div class="upload-item">
+                      <label class="upload-label">传视频</label>
+                      <el-upload
+                        :show-file-list="false"
+                        :before-upload="handleVideoUpload"
+                        accept="video/*"
+                        class="frame-uploader"
+                      >
+                        <div class="upload-area" :class="{ 'has-video': referenceVideo }">
+                          <video v-if="referenceVideo" :src="referenceVideo" class="uploaded-video" muted />
+                          <div v-else class="upload-placeholder">
+                            <el-icon size="16"><VideoCamera /></el-icon>
+                          </div>
+                        </div>
+                      </el-upload>
+                    </div>
+
+                    <!-- 传图片区域 -->
+                    <div class="images-upload-section">
+                      <label class="upload-label">传图片</label>
+                      <div class="images-container">
+                        <!-- 上传框 -->
+                        <el-upload
+                          :show-file-list="false"
+                          :before-upload="handleReferenceImageUpload"
+                          accept="image/*"
+                          class="frame-uploader"
+                          :disabled="videoReferenceImages.filter(img => img).length >= 4"
+                        >
+                          <div class="upload-area small" :class="{ 'disabled': videoReferenceImages.filter(img => img).length >= 4 }">
+                            <div class="upload-placeholder">
+                              <el-icon size="12"><Plus /></el-icon>
+                              <span class="upload-text">{{ videoReferenceImages.filter(img => img).length }}/4</span>
+                            </div>
+                          </div>
+                        </el-upload>
+                        
+                        <!-- 预览缩略图 -->
+                        <div class="preview-thumbnails">
+                          <div 
+                            v-for="(image, index) in videoReferenceImages.filter(img => img)" 
+                            :key="index"
+                            class="thumbnail-item"
+                          >
+                            <div class="thumbnail-wrapper" @click="previewReferenceImage(image)">
+                              <img :src="image" class="thumbnail-image" />
+                              <div class="thumbnail-overlay">
+                                <el-icon class="preview-icon"><Picture /></el-icon>
+                              </div>
+                            </div>
+                            <el-button 
+                              class="remove-thumbnail-btn"
+                              size="small"
+                              type="danger"
+                              @click="removeReferenceImage(videoReferenceImages.indexOf(image))"
+                            >
+                              <el-icon><Close /></el-icon>
+                            </el-button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </template>
             </div>
             
             <!-- 文本输入 -->
@@ -74,7 +198,7 @@
                 type="textarea"
                 :rows="1"
                 :autosize="{ minRows: 1, maxRows: 4 }"
-                placeholder="请描述您想要生成的图片内容..."
+                :placeholder="currentGenerateMode?.value === 'video' ? '请描述您想要生成的视频内容...' : '请描述您想要生成的图片内容...'"
                 class="main-input"
                 :maxlength="300"
                 show-word-limit
@@ -176,8 +300,48 @@
                 </div>
               </el-popover>
 
-              <!-- 图片参数选择 -->
+              <!-- 可灵模型的特殊选项 (仅在视频生成且选择可灵模型时显示) -->
               <el-popover
+                v-if="currentGenerateMode?.value === 'video' && currentModel?.name?.includes('可灵')"
+                ref="keLingPopoverRef"
+                placement="top"
+                :width="240"
+                trigger="click"
+                popper-class="keling-popover"
+                :teleported="true"
+              >
+                <template #reference>
+                  <div class="param-btn keling-option-btn">
+                    <el-icon><Setting /></el-icon>
+                    {{ selectedKeLingOption }}
+                    <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                  </div>
+                </template>
+                <div class="keling-selector">
+                  <div class="selector-header">可灵选项</div>
+                  <div class="option-list">
+                    <div 
+                      v-for="option in keLingOptions" 
+                      :key="option.value"
+                      class="option-item"
+                      :class="{ active: selectedKeLingOption === option.value }"
+                      @click="selectKeLingOption(option)"
+                    >
+                      <div class="option-info">
+                        <div class="option-name">{{ option.label }}</div>
+                        <div class="option-desc">{{ option.description }}</div>
+                      </div>
+                      <div v-if="selectedKeLingOption === option.value" class="check-icon">
+                        <el-icon><Check /></el-icon>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </el-popover>
+
+              <!-- 图片参数选择 (仅在图片生成时显示) -->
+              <el-popover
+                v-if="currentGenerateMode?.value === 'image'"
                 ref="imageParamsPopoverRef"
                 placement="top"
                 :width="280"
@@ -252,6 +416,101 @@
                       type="primary" 
                       size="small" 
                       @click="imageParamsPopoverRef?.hide()"
+                      class="done-btn"
+                    >
+                      完成
+                    </el-button>
+                  </div>
+                </div>
+              </el-popover>
+
+              <!-- 视频参数选择 (仅在视频生成时显示) -->
+              <el-popover
+                v-if="currentGenerateMode?.value === 'video'"
+                ref="videoParamsPopoverRef"
+                placement="top"
+                :width="400"
+                trigger="click"
+                popper-class="video-params-popover"
+                :teleported="true"
+              >
+                <template #reference>
+                  <div class="param-btn">
+                    <div class="btn-icon">
+                      <el-icon><Setting /></el-icon>
+                    </div>
+                    <span>{{ getVideoConfigSummary() }}</span>
+                    <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                  </div>
+                </template>
+                <div class="video-params-selector">
+                  <div class="config-group">
+                    <div class="config-title">同时生成声音</div>
+                    <div class="audio-options">
+                      <el-button 
+                        :class="['audio-btn', { active: enableAudio }]"
+                        @click="selectAudio(true)"
+                      >
+                        开启
+                      </el-button>
+                      <el-button 
+                        :class="['audio-btn', { active: !enableAudio }]"
+                        @click="selectAudio(false)"
+                      >
+                        关闭
+                      </el-button>
+                    </div>
+                  </div>
+
+                  <div class="config-group">
+                    <div class="config-title">选择比例</div>
+                    <div class="ratio-grid">
+                      <div 
+                        v-for="ratio in videoRatios" 
+                        :key="ratio.value"
+                        class="ratio-item"
+                        :class="{ active: selectedRatio === ratio.value }"
+                        @click="selectRatio(ratio)"
+                      >
+                        <div class="ratio-preview" :style="{ aspectRatio: ratio.aspect }"></div>
+                        <div class="ratio-label">{{ ratio.label }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="config-group">
+                    <div class="config-title">选择分辨率</div>
+                    <div class="quality-options">
+                      <el-button 
+                        v-for="quality in videoQualities"
+                        :key="quality.value"
+                        :class="['quality-btn', { active: selectedQuality === quality.value }]"
+                        @click="selectQuality(quality)"
+                      >
+                        {{ quality.label }}
+                      </el-button>
+                    </div>
+                  </div>
+
+                  <div class="config-group">
+                    <div class="config-title">选择时长</div>
+                    <div class="duration-options">
+                      <el-button 
+                        v-for="duration in videoDurations"
+                        :key="duration.value"
+                        :class="['duration-btn', { active: selectedDuration === duration.value }]"
+                        @click="selectDuration(duration)"
+                      >
+                        {{ duration.label }}
+                      </el-button>
+                    </div>
+                  </div>
+                  
+                  <div class="selector-footer">
+                    <el-button 
+                      type="primary" 
+                      size="small" 
+                      @click="videoParamsPopoverRef?.hide()"
                       class="done-btn"
                     >
                       完成
@@ -425,23 +684,147 @@
         <div class="panel-top-section">
           <!-- 上传按钮 -->
           <div class="upload-section">
-            <el-upload
-              :file-list="[]"
-              :auto-upload="false"
-              :limit="5"
-              accept="image/*"
-              :show-file-list="false"
-              class="image-uploader"
-              @change="handleImageUpload"
-              :disabled="referenceImages.length >= 5"
-            >
-              <div class="upload-btn small" :class="{ disabled: referenceImages.length >= 5 }">
-                <el-icon><Plus /></el-icon>
+            <!-- 图片生成模式的上传 -->
+            <template v-if="currentGenerateMode?.value === 'image'">
+              <el-upload
+                :file-list="[]"
+                :auto-upload="false"
+                :limit="5"
+                accept="image/*"
+                :show-file-list="false"
+                class="image-uploader"
+                @change="handleImageUpload"
+                :disabled="referenceImages.length >= 5"
+              >
+                <div class="upload-btn small" :class="{ disabled: referenceImages.length >= 5 }">
+                  <el-icon><Plus /></el-icon>
+                </div>
+              </el-upload>
+              <div class="upload-hint" v-if="referenceImages.length === 0">
+                <span>添加参考图</span>
               </div>
-            </el-upload>
-            <div class="upload-hint" v-if="referenceImages.length === 0">
-              <span>添加参考图</span>
-            </div>
+            </template>
+
+            <!-- 视频生成模式的上传 -->
+            <template v-else-if="currentGenerateMode?.value === 'video'">
+              <!-- 首尾帧模式 -->
+              <template v-if="!currentModel?.name?.includes('可灵') || selectedKeLingOption === '首尾帧'">
+                <div class="video-upload-frames compact">
+                  <div class="upload-item">
+                    <label class="upload-label">首帧图</label>
+                    <el-upload
+                      :show-file-list="false"
+                      :before-upload="handleFirstFrameUpload"
+                      accept="image/*"
+                      class="frame-uploader"
+                    >
+                      <div class="upload-area small" :class="{ 'has-image': firstFrameImage }">
+                        <img v-if="firstFrameImage" :src="firstFrameImage" class="uploaded-image" />
+                        <div v-else class="upload-placeholder">
+                          <el-icon size="12"><Plus /></el-icon>
+                        </div>
+                      </div>
+                    </el-upload>
+                  </div>
+                  
+                  <div class="arrow-section">
+                    <el-button 
+                      class="swap-button small" 
+                      @click="swapFrameImages"
+                      :disabled="!firstFrameImage && !lastFrameImage"
+                    >
+                      <el-icon><Switch /></el-icon>
+                    </el-button>
+                  </div>
+                  
+                  <div class="upload-item">
+                    <label class="upload-label">尾帧图</label>
+                    <el-upload
+                      :show-file-list="false"
+                      :before-upload="handleLastFrameUpload"
+                      accept="image/*"
+                      class="frame-uploader"
+                    >
+                      <div class="upload-area small" :class="{ 'has-image': lastFrameImage }">
+                        <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
+                        <div v-else class="upload-placeholder">
+                          <el-icon size="12"><Plus /></el-icon>
+                        </div>
+                      </div>
+                    </el-upload>
+                  </div>
+                </div>
+              </template>
+
+              <!-- 多模态参考模式和视频编辑模式 -->
+              <template v-else-if="currentModel?.name?.includes('可灵') && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')">
+                <div class="video-upload-multimodal compact">
+                  <!-- 传视频区域 -->
+                  <div class="upload-item">
+                    <label class="upload-label">传视频</label>
+                    <el-upload
+                      :show-file-list="false"
+                      :before-upload="handleVideoUpload"
+                      accept="video/*"
+                      class="frame-uploader"
+                    >
+                      <div class="upload-area small" :class="{ 'has-video': referenceVideo }">
+                        <video v-if="referenceVideo" :src="referenceVideo" class="uploaded-video" muted />
+                        <div v-else class="upload-placeholder">
+                          <el-icon size="12"><VideoCamera /></el-icon>
+                        </div>
+                      </div>
+                    </el-upload>
+                  </div>
+
+                  <!-- 传图片区域 -->
+                  <div class="images-upload-section compact">
+                    <label class="upload-label">传图片</label>
+                    <div class="images-container">
+                      <!-- 上传框 -->
+                      <el-upload
+                        :show-file-list="false"
+                        :before-upload="handleReferenceImageUpload"
+                        accept="image/*"
+                        class="frame-uploader"
+                        :disabled="videoReferenceImages.filter(img => img).length >= 4"
+                      >
+                        <div class="upload-area mini" :class="{ 'disabled': videoReferenceImages.filter(img => img).length >= 4 }">
+                          <div class="upload-placeholder">
+                            <el-icon size="10"><Plus /></el-icon>
+                            <span class="upload-text">{{ videoReferenceImages.filter(img => img).length }}/4</span>
+                          </div>
+                        </div>
+                      </el-upload>
+                      
+                      <!-- 预览缩略图 -->
+                      <div class="preview-thumbnails">
+                        <div 
+                          v-for="(image, index) in videoReferenceImages.filter(img => img)" 
+                          :key="index"
+                          class="thumbnail-item"
+                        >
+                          <div class="thumbnail-wrapper" @click="previewReferenceImage(image)">
+                            <img :src="image" class="thumbnail-image" />
+                            <div class="thumbnail-overlay">
+                              <el-icon class="preview-icon"><Picture /></el-icon>
+                            </div>
+                          </div>
+                          <el-button 
+                            class="remove-thumbnail-btn"
+                            size="small"
+                            type="danger"
+                            @click="removeReferenceImage(videoReferenceImages.indexOf(image))"
+                          >
+                            <el-icon><Close /></el-icon>
+                          </el-button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </template>
           </div>
           
           <!-- 文本输入 -->
@@ -451,7 +834,7 @@
               type="textarea"
               :rows="1"
               :autosize="{ minRows: 1, maxRows: 3 }"
-              placeholder="请描述您想要生成的图片内容..."
+              :placeholder="currentGenerateMode?.value === 'video' ? '请描述您想要生成的视频内容...' : '请描述您想要生成的图片内容...'"
               class="main-input compact"
               :maxlength="300"
               show-word-limit
@@ -581,8 +964,48 @@
               </div>
             </el-popover>
 
-            <!-- 图片参数选择 -->
+            <!-- 可灵模型的特殊选项 (仅在视频生成且选择可灵模型时显示) -->
             <el-popover
+              v-if="currentGenerateMode?.value === 'video' && currentModel?.name?.includes('可灵')"
+              ref="panelKeLingPopoverRef"
+              placement="top"
+              :width="240"
+              trigger="click"
+              popper-class="keling-popover"
+              :teleported="true"
+            >
+              <template #reference>
+                <div class="param-btn keling-option-btn">
+                  <el-icon><Setting /></el-icon>
+                  {{ selectedKeLingOption }}
+                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                </div>
+              </template>
+              <div class="keling-selector">
+                <div class="selector-header">可灵选项</div>
+                <div class="option-list">
+                  <div 
+                    v-for="option in keLingOptions" 
+                    :key="option.value"
+                    class="option-item"
+                    :class="{ active: selectedKeLingOption === option.value }"
+                    @click="selectKeLingOption(option)"
+                  >
+                    <div class="option-info">
+                      <div class="option-name">{{ option.label }}</div>
+                      <div class="option-desc">{{ option.description }}</div>
+                    </div>
+                    <div v-if="selectedKeLingOption === option.value" class="check-icon">
+                      <el-icon><Check /></el-icon>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-popover>
+
+            <!-- 图片参数选择 (仅在图片生成时显示) -->
+            <el-popover
+              v-if="currentGenerateMode?.value === 'image'"
               ref="panelImageParamsPopoverRef"
               placement="top"
               :width="280"
@@ -657,6 +1080,101 @@
                     type="primary" 
                     size="small" 
                     @click="panelImageParamsPopoverRef?.hide()"
+                    class="done-btn"
+                  >
+                    完成
+                  </el-button>
+                </div>
+              </div>
+            </el-popover>
+
+            <!-- 视频参数选择 (仅在视频生成时显示) -->
+            <el-popover
+              v-if="currentGenerateMode?.value === 'video'"
+              ref="panelVideoParamsPopoverRef"
+              placement="top"
+              :width="400"
+              trigger="click"
+              popper-class="video-params-popover"
+              :teleported="true"
+            >
+              <template #reference>
+                <div class="param-btn">
+                  <div class="btn-icon">
+                    <el-icon><Setting /></el-icon>
+                  </div>
+                  <span>{{ getVideoConfigSummary() }}</span>
+                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                </div>
+              </template>
+              <div class="video-params-selector">
+                <div class="config-group">
+                  <div class="config-title">同时生成声音</div>
+                  <div class="audio-options">
+                    <el-button 
+                      :class="['audio-btn', { active: enableAudio }]"
+                      @click="selectAudio(true)"
+                    >
+                      开启
+                    </el-button>
+                    <el-button 
+                      :class="['audio-btn', { active: !enableAudio }]"
+                      @click="selectAudio(false)"
+                    >
+                      关闭
+                    </el-button>
+                  </div>
+                </div>
+
+                <div class="config-group">
+                  <div class="config-title">选择比例</div>
+                  <div class="ratio-grid">
+                    <div 
+                      v-for="ratio in videoRatios" 
+                      :key="ratio.value"
+                      class="ratio-item"
+                      :class="{ active: selectedRatio === ratio.value }"
+                      @click="selectRatio(ratio)"
+                    >
+                      <div class="ratio-preview" :style="{ aspectRatio: ratio.aspect }"></div>
+                      <div class="ratio-label">{{ ratio.label }}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="config-group">
+                  <div class="config-title">选择分辨率</div>
+                  <div class="quality-options">
+                    <el-button 
+                      v-for="quality in videoQualities"
+                      :key="quality.value"
+                      :class="['quality-btn', { active: selectedQuality === quality.value }]"
+                      @click="selectQuality(quality)"
+                    >
+                      {{ quality.label }}
+                    </el-button>
+                  </div>
+                </div>
+
+                <div class="config-group">
+                  <div class="config-title">选择时长</div>
+                  <div class="duration-options">
+                    <el-button 
+                      v-for="duration in videoDurations"
+                      :key="duration.value"
+                      :class="['duration-btn', { active: selectedDuration === duration.value }]"
+                      @click="selectDuration(duration)"
+                    >
+                      {{ duration.label }}
+                    </el-button>
+                  </div>
+                </div>
+                
+                <div class="selector-footer">
+                  <el-button 
+                    type="primary" 
+                    size="small" 
+                    @click="panelVideoParamsPopoverRef?.hide()"
                     class="done-btn"
                   >
                     完成
@@ -758,7 +1276,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Picture, Plus, Download, FolderAdd, Clock, Close,
-  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera
+  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
@@ -854,6 +1372,10 @@ const panelModelPopoverRef = ref()
 const panelImageParamsPopoverRef = ref()
 const generateModePopoverRef = ref()
 const panelGenerateModePopoverRef = ref()
+const videoParamsPopoverRef = ref()
+const panelVideoParamsPopoverRef = ref()
+const keLingPopoverRef = ref()
+const panelKeLingPopoverRef = ref()
 
 // 图片生成模型选项
 const imageModels = ref<Model[]>([
@@ -956,6 +1478,19 @@ const generateModes = ref([
 
 const currentGenerateMode = ref(generateModes.value[0]) // 默认选择图片生成
 
+// 视频生成相关状态
+const selectedKeLingOption = ref('首尾帧') // 可灵模型的特殊选项
+const enableAudio = ref(false)
+const selectedQuality = ref('720p')
+const selectedDuration = ref('5')
+const selectedRatio = ref('16:9')
+
+// 视频上传相关
+const firstFrameImage = ref('')
+const lastFrameImage = ref('')
+const referenceVideo = ref('')
+const videoReferenceImages = ref(['', '', '', '']) // 4张参考图片
+
 // 历史记录
 const imageHistory = ref<ImageHistoryItem[]>([
   {
@@ -977,6 +1512,36 @@ const imageHistory = ref<ImageHistoryItem[]>([
     size: '1:1',
     createdAt: Date.now() - 1000 * 60 * 30
   }
+])
+
+// 视频生成相关选项数据
+const videoRatios = ref([
+  { value: '16:9', label: '16:9', aspect: '16/9' },
+  { value: '9:16', label: '9:16', aspect: '9/16' },
+  { value: '1:1', label: '1:1', aspect: '1' },
+  { value: '4:3', label: '4:3', aspect: '4/3' },
+  { value: '21:9', label: '21:9', aspect: '21/9' }
+])
+
+const videoQualities = ref([
+  { value: '480p', label: '480P' },
+  { value: '720p', label: '720P' },
+  { value: '1080p', label: '1080P' },
+  { value: '4k', label: '4K' }
+])
+
+const videoDurations = ref([
+  { value: '5', label: '5s' },
+  { value: '10', label: '10s' },
+  { value: '15', label: '15s' },
+  { value: '20', label: '20s' }
+])
+
+// 可灵模型的特殊选项
+const keLingOptions = ref([
+  { value: '首尾帧', label: '首尾帧', description: '基于首尾帧生成视频' },
+  { value: '多模态参考', label: '多模态参考', description: '多模态内容参考生成' },
+  { value: '视频编辑', label: '视频编辑', description: '智能视频编辑功能' }
 ])
 
 // 方法
@@ -1025,6 +1590,126 @@ const selectGenerateMode = (mode: { value: string; label: string }) => {
   // 关闭 Popover
   generateModePopoverRef.value?.hide()
   panelGenerateModePopoverRef.value?.hide()
+}
+
+// 视频生成相关方法
+const selectKeLingOption = (option: { value: string; label: string }) => {
+  selectedKeLingOption.value = option.value
+  // 关闭 Popover
+  keLingPopoverRef.value?.hide()
+  panelKeLingPopoverRef.value?.hide()
+}
+
+const selectAudio = (enabled: boolean) => {
+  enableAudio.value = enabled
+}
+
+const selectRatio = (ratio: { value: string; label: string }) => {
+  selectedRatio.value = ratio.value
+}
+
+const selectQuality = (quality: { value: string; label: string }) => {
+  selectedQuality.value = quality.value
+}
+
+const selectDuration = (duration: { value: string; label: string }) => {
+  selectedDuration.value = duration.value
+}
+
+// 生成视频配置摘要文本
+const getVideoConfigSummary = () => {
+  const audioText = enableAudio.value ? '有声' : '无声'
+  const ratioText = videoRatios.value.find(r => r.value === selectedRatio.value)?.label || '16:9'
+  const qualityText = videoQualities.value.find(q => q.value === selectedQuality.value)?.label || '720P'
+  const durationText = videoDurations.value.find(d => d.value === selectedDuration.value)?.label || '5s'
+  
+  return `${audioText} | ${ratioText} | ${qualityText} | ${durationText}`
+}
+
+// 视频上传处理方法
+const handleFirstFrameUpload = (file: { raw: File }) => {
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    firstFrameImage.value = e.target?.result as string
+  }
+  reader.readAsDataURL(file.raw)
+  return false // 阻止自动上传
+}
+
+const handleLastFrameUpload = (file: { raw: File }) => {
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    lastFrameImage.value = e.target?.result as string
+  }
+  reader.readAsDataURL(file.raw)
+  return false // 阻止自动上传
+}
+
+const swapFrameImages = () => {
+  const temp = firstFrameImage.value
+  firstFrameImage.value = lastFrameImage.value
+  lastFrameImage.value = temp
+  ElMessage.success('首帧图和尾帧图已交换')
+}
+
+const handleVideoUpload = (file: { raw: File }) => {
+  const url = URL.createObjectURL(file.raw)
+  referenceVideo.value = url
+  ElMessage.success('视频上传成功')
+  return false // 阻止自动上传
+}
+
+const handleReferenceImageUpload = (file: { raw: File }) => {
+  // 找到第一个空位置
+  const emptyIndex = videoReferenceImages.value.findIndex(img => !img)
+  if (emptyIndex !== -1) {
+    const url = URL.createObjectURL(file.raw)
+    videoReferenceImages.value[emptyIndex] = url
+    ElMessage.success(`第${emptyIndex + 1}张参考图片上传成功`)
+  } else {
+    ElMessage.warning('最多只能上传4张参考图片')
+  }
+  return false // 阻止自动上传
+}
+
+const removeReferenceImage = (index: number) => {
+  videoReferenceImages.value[index] = ''
+  ElMessage.success(`第${index + 1}张参考图片已删除`)
+}
+
+const previewReferenceImage = (imageUrl: string) => {
+  // 创建预览弹窗
+  const previewDialog = document.createElement('div')
+  previewDialog.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    cursor: pointer;
+  `
+  
+  const img = document.createElement('img')
+  img.src = imageUrl
+  img.style.cssText = `
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+    border-radius: 8px;
+  `
+  
+  previewDialog.appendChild(img)
+  document.body.appendChild(previewDialog)
+  
+  // 点击关闭预览
+  previewDialog.addEventListener('click', () => {
+    document.body.removeChild(previewDialog)
+  })
 }
 
 const handleImageUpload = (file: { uid: string; name: string; raw: File }) => {
@@ -1791,6 +2476,515 @@ onUnmounted(() => {
 .generate-btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(74, 144, 226, 0.4);
+}
+
+/* 视频生成相关样式 */
+.video-upload-frames {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.video-upload-frames.compact {
+  gap: 8px;
+}
+
+.video-upload-multimodal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.video-upload-multimodal.compact {
+  gap: 8px;
+}
+
+.upload-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.upload-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  font-weight: 500;
+}
+
+.upload-area {
+  width: 50px;
+  height: 50px;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upload-area.small {
+  width: 40px;
+  height: 40px;
+}
+
+.upload-area.mini {
+  width: 30px;
+  height: 30px;
+}
+
+.upload-area:hover {
+  border-color: #4A90E2;
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.upload-area.has-image,
+.upload-area.has-video {
+  border-style: solid;
+  border-color: #4A90E2;
+}
+
+.upload-area.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.upload-area.disabled:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.uploaded-image,
+.uploaded-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.upload-placeholder {
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.upload-text {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.arrow-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swap-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.3s ease;
+}
+
+.swap-button.small {
+  width: 24px;
+  height: 24px;
+}
+
+.swap-button:hover:not(:disabled) {
+  background: rgba(74, 144, 226, 0.2);
+  border-color: #4A90E2;
+  color: #4A90E2;
+  transform: rotate(180deg);
+}
+
+.swap-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.images-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.images-upload-section.compact {
+  gap: 6px;
+}
+
+.images-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.preview-thumbnails {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.thumbnail-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.thumbnail-wrapper {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid #4A90E2;
+  transition: all 0.3s ease;
+}
+
+.thumbnail-wrapper:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+}
+
+.thumbnail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbnail-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.thumbnail-wrapper:hover .thumbnail-overlay {
+  opacity: 1;
+}
+
+.preview-icon {
+  color: white;
+  font-size: 14px;
+}
+
+.remove-thumbnail-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f56565;
+  border: none;
+  color: white;
+  font-size: 10px;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+.remove-thumbnail-btn:hover {
+  background: #e53e3e;
+  transform: scale(1.1);
+}
+
+/* 可灵选项弹窗样式 */
+:deep(.keling-popover) {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+  z-index: 2000 !important;
+}
+
+:deep(.keling-popover .el-popover__content) {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.keling-selector {
+  padding: 16px;
+  min-width: 240px;
+  background: rgba(26, 26, 46, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 8px;
+}
+
+.keling-selector .selector-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+  position: relative;
+  overflow: hidden;
+}
+
+.option-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
+}
+
+.option-item:hover::before {
+  left: 100%;
+}
+
+.option-item:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.option-item.active {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: #667eea;
+  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
+}
+
+.option-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.option-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.option-desc {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.3;
+}
+
+.option-item.active .option-name {
+  color: #ffffff;
+}
+
+.option-item .check-icon {
+  color: #667eea;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* 视频参数弹窗样式 */
+:deep(.video-params-popover) {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+  z-index: 2000 !important;
+}
+
+:deep(.video-params-popover .el-popover__content) {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.video-params-selector {
+  padding: 18px;
+  min-width: 400px;
+  background: rgba(26, 26, 46, 0.98);
+  backdrop-filter: blur(20px);
+  border-radius: 8px;
+}
+
+.config-group {
+  margin-bottom: 20px;
+}
+
+.config-group:last-child {
+  margin-bottom: 0;
+}
+
+.config-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  margin-bottom: 10px;
+}
+
+.audio-options {
+  display: flex;
+  gap: 8px;
+}
+
+.audio-btn {
+  flex: 1;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+  font-size: 12px;
+  transition: all 0.3s ease;
+}
+
+.audio-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.audio-btn.active {
+  background: rgba(74, 144, 226, 0.3);
+  border-color: #4A90E2;
+  color: #ffffff;
+}
+
+.ratio-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ratio-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.ratio-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.ratio-item.active {
+  background: rgba(74, 144, 226, 0.2);
+  border-color: #4A90E2;
+}
+
+.ratio-preview {
+  width: 24px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.ratio-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.quality-options,
+.duration-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quality-btn,
+.duration-btn {
+  height: 32px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 6px;
+  font-size: 12px;
+  transition: all 0.3s ease;
+}
+
+.quality-btn:hover,
+.duration-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.quality-btn.active,
+.duration-btn.active {
+  background: rgba(74, 144, 226, 0.3);
+  border-color: #4A90E2;
+  color: #ffffff;
+}
+
+.keling-option-btn {
+  background: rgba(240, 119, 198, 0.1);
+  border-color: rgba(240, 119, 198, 0.3);
+  color: rgba(240, 119, 198, 0.9);
+}
+
+.keling-option-btn:hover {
+  background: rgba(240, 119, 198, 0.15);
+  border-color: rgba(240, 119, 198, 0.5);
 }
 
 .generate-btn:disabled {
@@ -3681,7 +4875,11 @@ onUnmounted(() => {
 <style>
 /* 全局样式 - 强制覆盖生成方式弹窗的白色背景 */
 .generate-mode-popover,
-.el-popper.generate-mode-popover {
+.keling-popover,
+.video-params-popover,
+.el-popper.generate-mode-popover,
+.el-popper.keling-popover,
+.el-popper.video-params-popover {
   background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
@@ -3691,7 +4889,11 @@ onUnmounted(() => {
 }
 
 .generate-mode-popover .el-popover__content,
-.el-popper.generate-mode-popover .el-popover__content {
+.keling-popover .el-popover__content,
+.video-params-popover .el-popover__content,
+.el-popper.generate-mode-popover .el-popover__content,
+.el-popper.keling-popover .el-popover__content,
+.el-popper.video-params-popover .el-popover__content {
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
@@ -3701,17 +4903,42 @@ onUnmounted(() => {
 
 /* 确保弹窗箭头也是透明的 */
 .generate-mode-popover .el-popper__arrow::before,
-.el-popper.generate-mode-popover .el-popper__arrow::before {
+.keling-popover .el-popper__arrow::before,
+.video-params-popover .el-popper__arrow::before,
+.el-popper.generate-mode-popover .el-popper__arrow::before,
+.el-popper.keling-popover .el-popper__arrow::before,
+.el-popper.video-params-popover .el-popper__arrow::before {
   background: rgba(26, 26, 46, 0.95) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
 /* 更强的覆盖规则 */
-.el-popover.generate-mode-popover[data-popper-placement] {
+.el-popover.generate-mode-popover[data-popper-placement],
+.el-popover.keling-popover[data-popper-placement],
+.el-popover.video-params-popover[data-popper-placement] {
   background: rgba(26, 26, 46, 0.95) !important;
 }
 
-.el-popover.generate-mode-popover[data-popper-placement] .el-popover__content {
+.el-popover.generate-mode-popover[data-popper-placement] .el-popover__content,
+.el-popover.keling-popover[data-popper-placement] .el-popover__content,
+.el-popover.video-params-popover[data-popper-placement] .el-popover__content {
   background: transparent !important;
+}
+
+/* 最强覆盖规则 - 针对可灵选项 */
+.el-popper[data-popper-placement].keling-popover,
+.el-popover[data-popper-placement].keling-popover {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 12px !important;
+}
+
+.el-popper[data-popper-placement].keling-popover .el-popover__content,
+.el-popover[data-popper-placement].keling-popover .el-popover__content {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 </style>

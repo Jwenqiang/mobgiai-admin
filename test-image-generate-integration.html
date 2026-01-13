@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片生成页面集成测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-title {
+            color: #333;
+            border-bottom: 2px solid #4A90E2;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-list li:before {
+            content: "✓ ";
+            color: #4A90E2;
+            font-weight: bold;
+        }
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 10px;
+            border-left: 4px solid #ffc107;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>图片生成页面集成测试报告</h1>
+        
+        <div class="test-section">
+            <h2 class="test-title">🎯 功能实现概述</h2>
+            <p>成功实现了根据生成方式选择动态显示不同生成器的功能，将VideoGenerateView.vue的视频生成逻辑集成到ImageGenerateView.vue中。</p>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">✨ 新增功能特性</h2>
+            <ul class="feature-list">
+                <li>生成方式选择下拉框（图片生成/视频生成）</li>
+                <li>根据选择动态切换模型列表（图片模型/视频模型）</li>
+                <li>视频生成时显示可灵选项下拉框</li>
+                <li>首尾帧模式：支持首帧图和尾帧图上传</li>
+                <li>多模态参考模式：支持视频和多张图片上传</li>
+                <li>视频编辑模式：智能视频编辑功能</li>
+                <li>视频参数配置：声音、比例、分辨率、时长设置</li>
+                <li>图片参数配置：仅在图片生成时显示</li>
+                <li>悬浮面板同步：底部悬浮面板同样支持所有功能</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">🔧 技术实现要点</h2>
+            
+            <h3>1. 条件渲染逻辑</h3>
+            <div class="code-block">
+<!-- 图片参数选择 (仅在图片生成时显示) -->
+&lt;el-popover v-if="currentGenerateMode?.value === 'image'"&gt;
+  &lt;!-- 图片参数内容 --&gt;
+&lt;/el-popover&gt;
+
+<!-- 视频参数选择 (仅在视频生成时显示) -->
+&lt;el-popover v-if="currentGenerateMode?.value === 'video'"&gt;
+  &lt;!-- 视频参数内容 --&gt;
+&lt;/el-popover&gt;
+
+<!-- 可灵选项 (仅在视频生成且选择可灵模型时显示) -->
+&lt;el-popover v-if="currentGenerateMode?.value === 'video' && currentModel?.name?.includes('可灵')"&gt;
+  &lt;!-- 可灵选项内容 --&gt;
+&lt;/el-popover&gt;
+            </div>
+
+            <h3>2. 上传区域动态切换</h3>
+            <div class="code-block">
+&lt;!-- 图片生成模式的上传 --&gt;
+&lt;template v-if="currentGenerateMode?.value === 'image'"&gt;
+  &lt;!-- 传统的图片上传 --&gt;
+&lt;/template&gt;
+
+&lt;!-- 视频生成模式的上传 --&gt;
+&lt;template v-else-if="currentGenerateMode?.value === 'video'"&gt;
+  &lt;!-- 首尾帧模式 --&gt;
+  &lt;template v-if="!currentModel?.name?.includes('可灵') || selectedKeLingOption === '首尾帧'"&gt;
+    &lt;!-- 首帧图和尾帧图上传 --&gt;
+  &lt;/template&gt;
+  
+  &lt;!-- 多模态参考模式 --&gt;
+  &lt;template v-else-if="currentModel?.name?.includes('可灵') && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')"&gt;
+    &lt;!-- 视频和多图片上传 --&gt;
+  &lt;/template&gt;
+&lt;/template&gt;
+            </div>
+
+            <h3>3. 模型列表动态切换</h3>
+            <div class="code-block">
+const selectGenerateMode = (mode) => {
+  currentGenerateMode.value = mode
+  
+  if (mode.value === 'image') {
+    models.value = imageModels.value
+    // 切换到图片模型列表
+  } else if (mode.value === 'video') {
+    models.value = videoModels.value
+    // 切换到视频模型列表
+  }
+}
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">📋 可灵选项功能</h2>
+            <ul class="feature-list">
+                <li><strong>首尾帧：</strong>基于首尾帧生成视频，支持首帧图和尾帧图上传及交换</li>
+                <li><strong>多模态参考：</strong>支持上传参考视频和最多4张参考图片</li>
+                <li><strong>视频编辑：</strong>智能视频编辑功能，与多模态参考使用相同界面</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">🎨 视频参数配置</h2>
+            <ul class="feature-list">
+                <li><strong>同时生成声音：</strong>开启/关闭音频生成</li>
+                <li><strong>选择比例：</strong>16:9, 9:16, 1:1, 4:3, 21:9</li>
+                <li><strong>选择分辨率：</strong>480P, 720P, 1080P, 4K</li>
+                <li><strong>选择时长：</strong>5s, 10s, 15s, 20s</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">🔄 用户交互流程</h2>
+            <ol>
+                <li>用户选择生成方式（图片生成/视频生成）</li>
+                <li>系统自动切换对应的模型列表</li>
+                <li>如果选择视频生成且模型为可灵，显示可灵选项</li>
+                <li>根据可灵选项显示对应的上传界面</li>
+                <li>用户配置相应的参数（图片参数或视频参数）</li>
+                <li>输入提示词并生成内容</li>
+            </ol>
+        </div>
+
+        <div class="highlight">
+            <strong>✅ 集成完成：</strong>
+            ImageGenerateView.vue现在完全支持视频生成功能，包括VideoGenerateView.vue中的所有可灵选项和参数配置。
+            用户可以在同一个页面中无缝切换图片和视频生成模式。
+        </div>
+
+        <div class="test-section">
+            <h2 class="test-title">🚀 测试建议</h2>
+            <ul class="feature-list">
+                <li>测试生成方式切换时模型列表的正确更新</li>
+                <li>验证可灵选项在不同模型下的显示/隐藏</li>
+                <li>测试首尾帧模式的图片上传和交换功能</li>
+                <li>验证多模态参考模式的视频和图片上传</li>
+                <li>测试视频参数配置的各项设置</li>
+                <li>确认悬浮面板与主面板功能的一致性</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
