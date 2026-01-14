@@ -375,7 +375,7 @@
                   </div>
                 </template>
                 <div class="image-params-selector">
-                  <div class="selector-header">选择比例</div>
+                  <div class="selector-header" v-if="imageSizes.length>0">选择比例</div>
                   <div class="ratio-grid">
                     <div 
                       v-for="size in imageSizes" 
@@ -389,7 +389,7 @@
                     </div>
                   </div>
                   
-                  <div class="selector-header">选择分辨率</div>
+                  <div class="selector-header" v-if="resolutions.length>0">选择分辨率</div>
                   <div class="resolution-options">
                     <div 
                       v-for="resolution in resolutions" 
@@ -416,7 +416,7 @@
                     </div>
                   </div>
                   
-                  <div class="selector-header">图片张数</div>
+                  <div class="selector-header" v-if="imageCounts.length>0">图片张数</div>
                   <div class="count-options">
                     <div 
                       v-for="count in imageCounts" 
@@ -425,7 +425,7 @@
                       :class="{ active: currentImageCount?.value === count.value }"
                       @click="selectImageCount(count)"
                     >
-                      <span>{{ count.label }}</span>
+                      <span>{{ count.label }}张</span>
                     </div>
                   </div>
                   
@@ -480,7 +480,7 @@
                     </div>
                   </div>
 
-                  <div class="config-group">
+                  <div class="config-group" v-if="videoRatios.length > 0 ">
                     <div class="config-title">选择比例</div>
                     <div class="ratio-grid">
                       <div 
@@ -496,7 +496,7 @@
                     </div>
                   </div>
 
-                  <div class="config-group">
+                  <div class="config-group" v-if="videoQualities.length > 0">
                     <div class="config-title">选择分辨率</div>
                     <div class="quality-options">
                       <el-button 
@@ -510,7 +510,7 @@
                     </div>
                   </div>
 
-                  <div class="config-group">
+                  <div class="config-group" v-if="videoDurations.length > 0">
                     <div class="config-title">选择时长</div>
                     <div class="duration-options">
                       <el-button 
@@ -1100,7 +1100,7 @@
                   </div>
                 </div>
                 
-                <div class="selector-header">选择分辨率</div>
+                <div class="selector-header" v-if="resolutions.length>0">选择分辨率</div>
                 <div class="resolution-options">
                   <div 
                     v-for="resolution in resolutions" 
@@ -1127,7 +1127,7 @@
                   </div>
                 </div>
                 
-                <div class="selector-header">图片张数</div>
+                <div class="selector-header" v-if="imageCounts.length>0">图片张数</div>
                 <div class="count-options">
                   <div 
                     v-for="count in imageCounts" 
@@ -1136,7 +1136,7 @@
                     :class="{ active: currentImageCount?.value === count.value }"
                     @click="selectImageCount(count)"
                   >
-                    <span>{{ count.label }}</span>
+                    <span>{{ count.label }}张</span>
                   </div>
                 </div>
                 
@@ -1480,60 +1480,10 @@ const keLingPopoverRef = ref()
 const panelKeLingPopoverRef = ref()
 
 // 图片生成模型选项
-const imageModels = ref<Model[]>([
-  { 
-    aiDriver: 'seedream-45', 
-    name: 'Seedream 4.5', 
-    desc: '最新版本，画质更佳',
-    iconUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-  },
-  { 
-    aiDriver: 'seedream-40', 
-    name: 'Seedream 4.0', 
-    desc: '稳定版本，效果出色',
-    iconUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-  },
-  { 
-    aiDriver: '可灵 O1', 
-    name: '可灵 O1', 
-    desc: '支持自然语言描述，图片生成专用',
-    iconUrl: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-  },
-  { 
-    aiDriver: '可灵 2.0', 
-    name: '可灵 2.0', 
-    desc: '经典版本，稳定可靠',
-    iconUrl: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-  },
-])
+const imageModels = ref<Model[]>([])
 
 // 视频生成模型选项
-const videoModels = ref<Model[]>([
-  {     
-    aiDriver: 'seedance-15-pro', 
-    name: 'Seedance 1.5 Pro', 
-    desc: '高质量视频，全新体验',
-    iconUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-  },
-  {     
-    aiDriver: 'seedance-10-pro', 
-    name: 'Seedance 1.0 Pro', 
-    desc: '效果稳定，超清画质',
-    iconUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-  },
-  {     
-    aiDriver: '可灵O1', 
-    name: '可灵O1', 
-    desc: '支持自然语言描述，视频图片多模态',
-    iconUrl: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-  },
-  {   
-    aiDriver: '可灵2.6', 
-    name: '可灵2.6', 
-    desc: '高质量生成，智能更新',
-    iconUrl: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-  }
-])
+const videoModels = ref<Model[]>([])
 
 // 当前可用的模型列表（根据生成方式动态变化）
 const models = ref<Model[]>(imageModels.value)
@@ -1655,6 +1605,8 @@ const selectModel = (model: Model) => {
   // 关闭 Popover
   modelPopoverRef.value?.hide()
   panelModelPopoverRef.value?.hide()
+  console.log('选择模型：', model)
+  fetchModelConfig(model.aiDriver);
 }
 
 const selectSize = (size: Size) => {
@@ -2137,7 +2089,7 @@ const selectHistoryItem = (historyItem: ImageHistoryItem) => {
 }
 
 //获取下拉框配置信息 genType=1 图片生成 genType=2 视频生成
-const fetchModelConfig = async () => {
+const fetchModelConfig = async (aiDriver?: string) => {
   let genType=1; // 1 图片生成 2 视频生成
   if(currentGenerateMode.value?.value==='image'){
     genType=1;
@@ -2145,25 +2097,26 @@ const fetchModelConfig = async () => {
     genType=2;
   }
   try {
-    const modelCofig = await getImgModelConfig({ genType: genType });
+    const modelCofig = await getImgModelConfig({ genType: genType,aiDriver:aiDriver||'' });
     if(modelCofig){
       const config = modelCofig.data;
+      models.value = config.supports||[];
       if(config){
         // 根据 genType 设置不同的配置
         if(genType===1){
           // 图片生成配置处理
-          console.log('图片生成模型配置：', config);
           imageModels.value = config.supports||[];
+          console.log('图片生成模型列表：', imageModels.value);
           // 图片尺寸选项
-          imageSizes.value = config.optionsInfo.optionsConf.aspectRatio.conf.select||[];
+          imageSizes.value = config.optionsInfo.optionsConf.aspectRatio?.conf.select||[];
           // 分辨率选项
-          resolutions.value = config.optionsInfo.optionsConf.size.conf.select||[];
+          resolutions.value = config.optionsInfo.optionsConf.size?.conf.select||[];
           // 图片张数选项
           imageCounts.value = config.optionsInfo.optionsConf.genImageNum.conf.select||[];
           // 当前选中的选项
-          currentSize.value = config.optionsInfo.optionsDef.aspectRatio
-          currentResolution.value = config.optionsInfo.optionsDef.size
-          currentImageCount.value = config.optionsInfo.optionsDef.genImageNum
+          currentSize.value = config.optionsInfo.optionsDef.aspectRatio||imageSizes.value[0];
+          currentResolution.value = config.optionsInfo.optionsDef.size||resolutions.value[0];
+          currentImageCount.value = config.optionsInfo.optionsDef.genImageNum||imageCounts.value[0];
           console.log('默认图片尺寸：', currentSize.value);
           console.log('默认分辨率：', currentResolution.value);   
           console.log('默认图片张数：', currentImageCount.value);   
@@ -2174,16 +2127,16 @@ const fetchModelConfig = async () => {
           videoModels.value = config.supports||[];
           hasEnableAudio.value=config.optionsInfo.optionsConf.generateAudio?.name?true:false;
           // 视频比例选项
-          videoRatios.value = config.optionsInfo.optionsConf.ratio.conf.select||[];
+          videoRatios.value = config.optionsInfo.optionsConf.ratio?.conf.select||[];
           //分辨率选项
-          videoQualities.value = config.optionsInfo.optionsConf.resolution.conf.select||[];
+          videoQualities.value = config.optionsInfo.optionsConf.resolution?.conf.select||[];
           // 时长选项
-          videoDurations.value = config.optionsInfo.optionsConf.duration.conf.select||[];
+          videoDurations.value = config.optionsInfo.optionsConf.duration?.conf.select||[];
           // 默认选中的选项
-          enableAudio.value=config.optionsInfo.optionsDef.generateAudio.value==true?true:false;
-          selectedRatio.value = config.optionsInfo.optionsDef.ratio.value;
-          selectedQuality.value = config.optionsInfo.optionsDef.resolution.value;
-          selectedDuration.value = config.optionsInfo.optionsDef.duration.value;
+          enableAudio.value=config.optionsInfo.optionsDef.generateAudio?.value==true?true:false;
+          selectedRatio.value = config.optionsInfo.optionsDef.ratio?.value;
+          selectedQuality.value = config.optionsInfo.optionsDef.resolution?.value;
+          selectedDuration.value = config.optionsInfo.optionsDef.duration?.value;
         }
         // 当前选中的模型
         currentModel.value = config.currentModel;
@@ -2196,8 +2149,8 @@ const fetchModelConfig = async () => {
     } 
   }
   catch (error) {
-    console.error('获取图片生成模型配置失败：', error);
-    ElMessage.error('获取图片生成模型配置失败');
+    console.error('获取生成模型配置失败：', error);
+    ElMessage.error('获取生成模型配置失败');
   }
 }
 fetchModelConfig()
