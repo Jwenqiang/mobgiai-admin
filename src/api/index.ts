@@ -58,14 +58,14 @@ export const post = <T = unknown>(url: string, data?: object): Promise<T> => {
 };
 
 // 图片上传（10分钟超时）
-export const uploadImage = (file: File, onProgress?: (e: AxiosProgressEvent) => void) => {
-  return uploadFile('/upload/image', file, 600000, onProgress);
-};
+// export const uploadImage = (file: File, onProgress?: (e: AxiosProgressEvent) => void) => {
+//   return uploadFile('/upload/image', file, 600000, onProgress);
+// };
 
-// 视频上传（不限超时）
-export const uploadVideo = (file: File, onProgress?: (e: AxiosProgressEvent) => void) => {
-  return uploadFile('/upload/video', file, 0, onProgress);
-};
+// // 视频上传（不限超时）
+// export const uploadVideo = (file: File, onProgress?: (e: AxiosProgressEvent) => void) => {
+//   return uploadFile('/upload/video', file, 0, onProgress);
+// };
 
 // 登录接口
 export const login = (data: { mobile: string; code: string }) => {
@@ -106,7 +106,7 @@ interface TosTokenResponse {
   mainPath?: string;
 }
 
-// TOS相关接口
+// TOS获取配置接口
 export const getTosToken = async () => {
   try {
     console.log('开始请求TOS配置...');

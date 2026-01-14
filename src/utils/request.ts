@@ -81,7 +81,7 @@ service.interceptors.response.use(
       console.log('请求已取消：', error.message);
       return Promise.reject(new Error('请求已取消'));
     }
-    ElMessage.error(error.message || '网络异常');
+    // ElMessage.error(error.message || '网络异常');
     return Promise.reject(error);
   }
 );

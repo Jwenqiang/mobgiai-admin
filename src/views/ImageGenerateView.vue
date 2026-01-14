@@ -14,22 +14,19 @@
           </div>
         </div>
         
-        <!-- 上传图片预览列表 - 放在页面头部下方 -->
-        <div v-if="referenceImages.length > 0" class="upload-preview-section header-below">
-          <div class="preview-header">
-            <span class="preview-label">参考图片 ({{ referenceImages.length }}/5)</span>
-            <el-button size="small" link @click="clearAllImages">清空全部</el-button>
-          </div>
+        <!-- 上传图片预览列表 - 放在页面头部下方，使用统一样式 -->
+        <div v-if="referenceImages.length > 0" class="upload-preview-section compact">
+          <div class="preview-label">参考图片 ({{ referenceImages.length }}/{{ getMaxImageCount() }})</div>
           <div class="upload-preview-list">
             <div 
               v-for="(image, index) in referenceImages" 
-              :key="image.uid"
+              :key="index"
               class="upload-preview-item"
               @click="previewUploadImage(image.url)"
             >
               <img 
                 :src="image.url" 
-                :alt="image.name || '参考图片'"
+                alt="参考图"
                 class="upload-preview-image"
               />
               <el-button 
@@ -189,6 +186,24 @@
                     </div>
                   </div>
                 </template>
+
+                <!-- 通用参考图片上传（其他视频模式） -->
+                <template v-else>
+                  <el-upload
+                    :file-list="[]"
+                    :auto-upload="false"
+                    :limit="4"
+                    accept="image/*"
+                    :show-file-list="false"
+                    class="image-uploader"
+                    @change="handleImageUpload"
+                    :disabled="referenceImages.length >= 4"
+                  >
+                    <div class="upload-btn large" :class="{ disabled: referenceImages.length >= 4 }">
+                      <el-icon><Plus /></el-icon>
+                    </div>
+                  </el-upload>
+                </template>
               </template>
             </div>
             
@@ -201,7 +216,7 @@
                 :autosize="{ minRows: 1, maxRows: 4 }"
                 :placeholder="currentGenerateMode?.value === 'video' ? '请描述您想要生成的视频内容...' : '请描述您想要生成的图片内容...'"
                 class="main-input"
-                :maxlength="300"
+                :maxlength="inputSize"
                 show-word-limit
                 @keydown.enter.exact="handleGenerate"
               />
@@ -268,7 +283,7 @@
                 <template #reference>
                   <div class="param-btn model-btn">
                     <div class="btn-icon">
-                      <div class="model-dot" :style="{ background: currentModel?.color || '#4A90E2' }"></div>
+                      <div class="model-dot" :style="{ background: currentModel?.iconUrl || '#4A90E2' }"></div>
                     </div>
                     <span>{{ currentModel?.name || 'Seedream 4.5' }}</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
@@ -279,21 +294,21 @@
                   <div class="model-list">
                     <div 
                       v-for="model in models" 
-                      :key="model.id"
+                      :key="model.aiDriver"
                       class="model-item"
-                      :class="{ active: currentModel?.id === model.id }"
+                      :class="{ active: currentModel?.aiDriver === model.aiDriver }"
                       @click="selectModel(model)"
                     >
                       <div class="model-info">
-                        <div class="model-avatar" :style="{ background: model.color }">
+                        <div class="model-avatar" :style="{ background: model.iconUrl }">
                           <span class="model-initial">{{ model.name.charAt(0) }}</span>
                         </div>
                         <div class="model-details">
                           <div class="model-name">{{ model.name }}</div>
-                          <div class="model-desc">{{ model.description }}</div>
+                          <div class="model-desc">{{ model.desc }}</div>
                         </div>
                       </div>
-                      <div v-if="currentModel?.id === model.id" class="check-icon">
+                      <div v-if="currentModel?.aiDriver === model.aiDriver" class="check-icon">
                         <el-icon><Check /></el-icon>
                       </div>
                     </div>
@@ -849,6 +864,27 @@
                   </div>
                 </div>
               </template>
+
+              <!-- 通用参考图片上传（其他视频模式） -->
+              <template v-else>
+                <el-upload
+                  :file-list="[]"
+                  :auto-upload="false"
+                  :limit="4"
+                  accept="image/*"
+                  :show-file-list="false"
+                  class="image-uploader"
+                  @change="handleImageUpload"
+                  :disabled="referenceImages.length >= 4"
+                >
+                  <div class="upload-btn small" :class="{ disabled: referenceImages.length >= 4 }">
+                    <el-icon><Plus /></el-icon>
+                  </div>
+                </el-upload>
+                <div class="upload-hint" v-if="referenceImages.length === 0">
+                  <span>添加参考图</span>
+                </div>
+              </template>
             </template>
           </div>
           
@@ -861,7 +897,7 @@
               :autosize="{ minRows: 1, maxRows: 3 }"
               :placeholder="currentGenerateMode?.value === 'video' ? '请描述您想要生成的视频内容...' : '请描述您想要生成的图片内容...'"
               class="main-input compact"
-              :maxlength="300"
+              :maxlength="inputSize"
               show-word-limit
               @keydown.enter.exact="handleGenerate"
             />
@@ -870,7 +906,7 @@
 
         <!-- 悬浮面板中的上传图片预览列表 -->
         <div v-if="referenceImages.length > 0" class="upload-preview-section compact">
-          <div class="preview-label">参考图片 ({{ referenceImages.length }}/5)</div>
+          <div class="preview-label">参考图片 ({{ referenceImages.length }}/{{ getMaxImageCount() }})</div>
           <div class="upload-preview-list">
             <div 
               v-for="(image, index) in referenceImages" 
@@ -956,7 +992,7 @@
               <template #reference>
                 <div class="param-btn model-btn">
                   <div class="btn-icon">
-                    <div class="model-dot" :style="{ background: currentModel?.color || '#4A90E2' }"></div>
+                    <div class="model-dot" :style="{ background: currentModel?.iconUrl || '#4A90E2' }"></div>
                   </div>
                   <span>{{ currentModel?.name || 'Seedream 4.5' }}</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
@@ -967,21 +1003,21 @@
                 <div class="model-list">
                   <div 
                     v-for="model in models" 
-                    :key="model.id"
+                    :key="model.aiDriver"
                     class="model-item"
-                    :class="{ active: currentModel?.id === model.id }"
+                    :class="{ active: currentModel?.aiDriver === model.aiDriver }"
                     @click="selectModel(model)"
                   >
                     <div class="model-info">
                       <div class="model-icon">
-                        <div class="icon-circle" :style="{ background: model.color }"></div>
+                        <div class="icon-circle" :style="{ background: model.iconUrl }"></div>
                       </div>
                       <div class="model-details">
                         <div class="model-name">{{ model.name }}</div>
-                        <div class="model-desc">{{ model.description }}</div>
+                        <div class="model-desc">{{ model.desc }}</div>
                       </div>
                     </div>
-                    <div v-if="currentModel?.id === model.id" class="check-icon">
+                    <div v-if="currentModel?.aiDriver === model.aiDriver" class="check-icon">
                       <el-icon><Check /></el-icon>
                     </div>
                   </div>
@@ -1323,6 +1359,7 @@ import {
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
+import { getImgModelConfig } from '../api/generate'
 
 interface UploadFile {
   uid: string
@@ -1353,10 +1390,10 @@ interface ImageHistoryItem {
 }
 
 interface Model {
-  id: string
+  aiDriver: string
   name: string
-  description: string
-  color: string
+  desc: string
+  iconUrl: string
 }
 
 interface Size {
@@ -1404,6 +1441,8 @@ const previewImageUrl = ref('')
 const previewImageData = ref<ImageResult | null>(null)
 const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
+// 控制提示词输入框字数限制
+const inputSize = ref(300)
 
 // 视频预览相关状态
 const videoPreviewVisible = ref(false)
@@ -1436,56 +1475,56 @@ const panelKeLingPopoverRef = ref()
 // 图片生成模型选项
 const imageModels = ref<Model[]>([
   { 
-    id: 'seedream-45', 
+    aiDriver: 'seedream-45', 
     name: 'Seedream 4.5', 
-    description: '最新版本，画质更佳',
-    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    desc: '最新版本，画质更佳',
+    iconUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
   },
   { 
-    id: 'seedream-40', 
+    aiDriver: 'seedream-40', 
     name: 'Seedream 4.0', 
-    description: '稳定版本，效果出色',
-    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    desc: '稳定版本，效果出色',
+    iconUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
   },
   { 
-    id: 'keling-o1-image', 
+    aiDriver: '可灵 O1', 
     name: '可灵 O1', 
-    description: '支持自然语言描述，图片生成专用',
-    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+    desc: '支持自然语言描述，图片生成专用',
+    iconUrl: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
   },
   { 
-    id: 'keling-20', 
+    aiDriver: '可灵 2.0', 
     name: '可灵 2.0', 
-    description: '经典版本，稳定可靠',
-    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
-  }
+    desc: '经典版本，稳定可靠',
+    iconUrl: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+  },
 ])
 
 // 视频生成模型选项
 const videoModels = ref<Model[]>([
-  { 
-    id: 'seedance-15-pro', 
+  {     
+    aiDriver: 'seedance-15-pro', 
     name: 'Seedance 1.5 Pro', 
-    description: '高质量视频，全新体验',
-    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    desc: '高质量视频，全新体验',
+    iconUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
   },
-  { 
-    id: 'seedance-10-pro', 
+  {     
+    aiDriver: 'seedance-10-pro', 
     name: 'Seedance 1.0 Pro', 
-    description: '效果稳定，超清画质',
-    color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    desc: '效果稳定，超清画质',
+    iconUrl: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
   },
-  { 
-    id: 'keling-o1-video', 
+  {     
+    aiDriver: '可灵O1', 
     name: '可灵O1', 
-    description: '支持自然语言描述，视频图片多模态',
-    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+    desc: '支持自然语言描述，视频图片多模态',
+    iconUrl: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
   },
-  { 
-    id: 'keling-26', 
+  {   
+    aiDriver: '可灵2.6', 
     name: '可灵2.6', 
-    description: '高质量生成，智能更新',
-    color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+    desc: '高质量生成，智能更新',
+    iconUrl: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
   }
 ])
 
@@ -1627,6 +1666,10 @@ const selectImageCount = (count: ImageCount) => {
 
 const selectGenerateMode = (mode: { value: string; label: string }) => {
   currentGenerateMode.value = mode
+  //调配置接口
+  fetchModelConfig();
+  // 切换模式时清空参考图片
+  referenceImages.value = []
   
   // 根据生成方式切换可用的模型列表
   if (mode.value === 'image') {
@@ -1684,6 +1727,16 @@ const getVideoConfigSummary = () => {
   return `${audioText} | ${ratioText} | ${qualityText} | ${durationText}`
 }
 
+// 获取最大图片上传数量
+const getMaxImageCount = () => {
+  if (currentGenerateMode.value?.value === 'image') {
+    return 5 // 图片生成模式最多5张
+  } else if (currentGenerateMode.value?.value === 'video') {
+    return 4 // 视频生成模式最多4张
+  }
+  return 5 // 默认5张
+}
+
 // 视频上传处理方法
 const handleFirstFrameUpload = (file: File) => {
   const reader = new FileReader()
@@ -1710,9 +1763,27 @@ const swapFrameImages = () => {
   ElMessage.success('首帧图和尾帧图已交换')
 }
 
-const handleVideoUpload = (file: File) => {
-  const url = URL.createObjectURL(file)
-  referenceVideo.value = url
+const handleVideoUpload = async (file: File) => {
+  // const url = URL.createObjectURL(file)
+  // 上传到火山引擎tos上
+  console.log(file,"上传的视频")
+  if (!file) return;
+  try {
+    console.log('开始请求TOS配置...');
+    const tosConfig = await getTosToken();
+    
+    if (!tosConfig) {
+      throw new Error('未获取到TOS配置');
+    }
+    // 调用图片上传方法
+    const videoUrl = await uploadBigVideoToTOS(file, tosConfig);
+    referenceVideo.value=videoUrl;
+    console.log('视频上传成功！地址：', videoUrl);
+  } catch (error: unknown) {
+    console.error('视频上传失败：', error);
+  } 
+  
+  // referenceVideo.value = url
   ElMessage.success('视频上传成功')
   return false // 阻止自动上传
 }
@@ -1777,28 +1848,30 @@ const previewReferenceImage = (imageUrl: string) => {
   })
 }
 
-const handleImageUpload = async (files: File) => {
+const handleImageUpload = async (uploadFile: any) => {
+  const maxCount = getMaxImageCount()
+  
   // 检查文件数量限制
-  if (referenceImages.value.length >= 5) {
-    ElMessage.warning('最多只能上传5张图片')
+  if (referenceImages.value.length >= maxCount) {
+    ElMessage.warning(`最多只能上传${maxCount}张图片`)
     return false
   }
 
   // 检查文件类型
-  const isImage = files.raw.type.startsWith('image/')
+  const isImage = uploadFile.raw.type.startsWith('image/')
   if (!isImage) {
     ElMessage.error('只能上传图片文件')
     return false
   }
 
   // 检查文件大小 (10MB)
-  const isLt10M = files.raw.size / 1024 / 1024 < 10
+  const isLt10M = uploadFile.raw.size / 1024 / 1024 < 10
   if (!isLt10M) {
     ElMessage.error('图片大小不能超过10MB')
     return false
   }
 // 上传到火山引擎tos上
-  const file = files.raw;
+  const file = uploadFile.raw;
   console.log(file,"上传的图片")
   if (!file) return;
   if (!file.type.includes('image')) {
@@ -1814,28 +1887,17 @@ const handleImageUpload = async (files: File) => {
     }
     // 调用图片上传方法
     const imageUrl = await uploadImageToTOS(file, tosConfig);
-    const img:ImageResult = {
-      id: Date.now().toString(),
+    const img: UploadFile = {
+      uid: uploadFile.uid || Date.now().toString(),
+      name: uploadFile.name || 'image.jpg',
       url: imageUrl,
-      thumbnail: imageUrl
+      raw: file
     }
     referenceImages.value.push(img);
     console.log('图片上传成功！地址：', imageUrl);
   } catch (error: unknown) {
     console.error('图片上传失败：', error);
   } 
-  // 创建预览URL
-  // const reader = new FileReader()
-  // reader.onload = (e) => {
-  //   const imageData = {
-  //     uid: file.uid,
-  //     name: file.name,
-  //     url: e.target?.result as string,
-  //     raw: file.raw
-  //   }
-  //   referenceImages.value.push(imageData)
-  // }
-  // reader.readAsDataURL(file.raw)
   
   // return false // 阻止自动上传
 }
@@ -2065,6 +2127,46 @@ const selectHistoryItem = (historyItem: ImageHistoryItem) => {
   currentImages.value = historyItem.images
   showHistory.value = false
 }
+
+//获取下拉框配置信息 genType=1 图片生成 genType=2 视频生成
+const fetchModelConfig = async () => {
+  let genType=1; // 1 图片生成 2 视频生成
+  if(currentGenerateMode.value?.value==='image'){
+    genType=1;
+  }else{
+    genType=2;
+  }
+  try {
+    const modelCofig = await getImgModelConfig({ genType: genType });
+    if(modelCofig){
+      const config = modelCofig.data;
+      if(config){
+        // 根据 genType 设置不同的配置
+        if(genType===1){
+          // 图片生成配置处理
+          console.log('图片生成模型配置：', config);
+          imageModels.value = config.supports||[];
+        }else if(genType===2){  
+          // 视频生成配置处理
+          console.log('视频生成模型配置：', config);
+          videoModels.value = config.supports||[];
+        }
+        // 当前选中的模型
+        currentModel.value = config.currentModel;
+        // 模型提示词的数量限制
+        inputSize.value = config.optionsInfo.optionsConf.prompt.conf.maxLen || 300;
+    }else{
+      throw new Error('未获取到模型配置');
+    }
+    // 根据返回的配置更新模型列表等
+    } 
+  }
+  catch (error) {
+    console.error('获取图片生成模型配置失败：', error);
+    ElMessage.error('获取图片生成模型配置失败');
+  }
+}
+fetchModelConfig()
 
 // 新增方法
 const clearAllImages = () => {
@@ -3176,7 +3278,7 @@ onUnmounted(() => {
   z-index: 1;
   flex-shrink: 0;
 }
-/* 上传图片预览区域 */
+/* 上传图片预览区域 - 统一样式 */
 .upload-preview-section {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: 12px;
@@ -3184,87 +3286,6 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 12px;
   padding: 12px;
-}
-
-/* 页面头部下方的参考图片区域 */
-.upload-preview-section.header-below {
-  width: 100%;
-  max-width: 500px;
-  margin: 0 auto 16px auto;
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 12px;
-  margin-top: 0;
-  border-top: none;
-}
-
-.upload-preview-section.header-below .preview-header {
-  margin-bottom: 8px;
-}
-
-.upload-preview-section.header-below .preview-label {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 400;
-}
-
-.upload-preview-section.header-below .upload-preview-list {
-  gap: 8px;
-}
-
-.upload-preview-section.header-below .upload-preview-item {
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  position: relative;
-  overflow: visible;
-}
-
-.upload-preview-section.header-below .upload-preview-item:hover {
-  transform: scale(1.02);
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.upload-preview-section.header-below .upload-preview-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 5px;
-}
-
-.upload-preview-section.header-below .remove-btn-corner {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 16px !important;
-  height: 16px !important;
-  min-height: 16px !important;
-  padding: 0 !important;
-  background: rgba(255, 77, 79, 0.95) !important;
-  border: 1px solid #ffffff !important;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-  z-index: 10;
-  opacity: 0;
-  transition: all 0.3s ease;
-  border-radius: 50% !important;
-}
-
-.upload-preview-section.header-below .upload-preview-item:hover .remove-btn-corner {
-  opacity: 1;
-}
-
-.upload-preview-section.header-below .remove-btn-corner:hover {
-  background: #ff4d4f !important;
-  transform: scale(1.1);
-}
-
-.upload-preview-section.header-below .remove-btn-corner .el-icon {
-  font-size: 8px;
-  color: #ffffff;
 }
 
 .preview-header {
@@ -3346,34 +3367,59 @@ onUnmounted(() => {
   transform: scale(1.1);
 }
 
-/* 悬浮面板中的上传图片预览 */
+/* 统一的上传图片预览样式 - 适用于有内容和无内容时 */
 .upload-preview-section.compact {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 16px auto;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 12px;
+  margin-top: 0;
+  border-top: none;
+}
+
+/* 悬浮面板中的compact样式覆盖 */
+.floating-input-panel .upload-preview-section.compact {
   margin-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 8px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 6px;
   padding: 8px;
+  max-width: none;
+  margin: 8px 0 0 0;
 }
 
 .upload-preview-section.compact .preview-label {
-  font-size: 10px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   font-weight: 500;
+}
+
+.floating-input-panel .upload-preview-section.compact .preview-label {
+  font-size: 10px;
+  margin-bottom: 6px;
 }
 
 .upload-preview-section.compact .upload-preview-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   padding: 0;
+}
+
+.floating-input-panel .upload-preview-section.compact .upload-preview-list {
+  gap: 6px;
 }
 
 .upload-preview-section.compact .upload-preview-item {
   position: relative;
-  width: 36px;
-  height: 36px;
+  width: 48px;
+  height: 48px;
   border-radius: 6px;
   overflow: visible;
   cursor: pointer;
@@ -3381,6 +3427,11 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(4px);
+}
+
+.floating-input-panel .upload-preview-section.compact .upload-preview-item {
+  width: 36px;
+  height: 36px;
 }
 
 .upload-preview-section.compact .upload-preview-item:hover {
@@ -4710,7 +4761,7 @@ onUnmounted(() => {
   }
   
   .floating-input-panel {
-    bottom: 12px;
+    bottom: 12%;
     width: calc(100% - 20px);
     max-width: 500px;
     left: 50%;
@@ -4734,7 +4785,7 @@ onUnmounted(() => {
   .panel-bottom-section {
     flex-direction: column;
     gap: 8px;
-    align-items: stretch;
+    align-items: center;
   }
   
   .panel-bottom-section .params-section {
@@ -4841,7 +4892,7 @@ onUnmounted(() => {
     max-width: 600px;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 14px;
+    bottom: 12%;
   }
   
   .floating-input-panel.collapsed {
