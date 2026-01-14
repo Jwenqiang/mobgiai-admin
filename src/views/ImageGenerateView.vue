@@ -370,7 +370,7 @@
                     <div class="btn-icon">
                       <el-icon><FullScreen /></el-icon>
                     </div>
-                    <span>{{ currentSize?.label || '9:16' }} | {{ currentResolution?.label || '4K' }} | {{ currentImageCount?.label || '4' }}张</span>
+                    <span>{{ currentSize?.value || '9:16' }} | {{ currentResolution?.value || '4K' }} | {{ currentImageCount?.value || '4' }}张</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
@@ -398,19 +398,21 @@
                       :class="{ active: currentResolution?.value === resolution.value }"
                       @click="selectResolution(resolution)"
                     >
-                      <span>{{ resolution.label }}</span>
+                      <span>{{ resolution.label=='2K'?'高清':'超清' }}{{ resolution.label }}</span>
                     </div>
                   </div>
                   
                   <div class="selector-header">尺寸</div>
                   <div class="size-display">
                     <div class="size-input-group">
-                      <span class="size-label">W</span>
-                      <div class="size-value">{{ currentSize?.width || 1440 }}</div>
-                      <span class="size-connector">⟷</span>
-                      <span class="size-label">H</span>
-                      <div class="size-value">{{ currentSize?.height || 2560 }}</div>
-                      <span class="size-unit">PX</span>
+                    <span class="size-label">W</span>
+                    <div class="size-value" v-if="currentResolution?.value=='4K'">{{ currentSize?.width*2 || 2880 }}</div>
+                    <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
+                    <span class="size-connector">⟷</span>
+                    <span class="size-label">H</span>
+                    <div class="size-value" v-if="currentResolution?.value=='4K'">{{ currentSize?.height*2 || 5120 }}</div>
+                    <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
+                    <span class="size-unit">PX</span>
                     </div>
                   </div>
                   
@@ -427,7 +429,7 @@
                     </div>
                   </div>
                   
-                  <div class="selector-footer">
+                  <!-- <div class="selector-footer">
                     <el-button 
                       type="primary" 
                       size="small" 
@@ -436,7 +438,7 @@
                     >
                       完成
                     </el-button>
-                  </div>
+                  </div> -->
                 </div>
               </el-popover>
 
@@ -460,11 +462,11 @@
                   </div>
                 </template>
                 <div class="video-params-selector">
-                  <div class="config-group">
+                  <div class="config-group" v-if="hasEnableAudio">
                     <div class="config-title">同时生成声音</div>
                     <div class="audio-options">
                       <el-button 
-                        :class="['audio-btn', { active: enableAudio }]"
+                        :class="['audio-btn', { active: enableAudio==true }]"
                         @click="selectAudio(true)"
                       >
                         开启
@@ -522,7 +524,7 @@
                     </div>
                   </div>
                   
-                  <div class="selector-footer">
+                  <!-- <div class="selector-footer">
                     <el-button 
                       type="primary" 
                       size="small" 
@@ -531,7 +533,7 @@
                     >
                       完成
                     </el-button>
-                  </div>
+                  </div> -->
                 </div>
               </el-popover>
             </div>
@@ -1079,7 +1081,7 @@
                   <div class="btn-icon">
                     <el-icon><FullScreen /></el-icon>
                   </div>
-                  <span>{{ currentSize?.label || '9:16' }} | {{ currentResolution?.label || '4K' }} | {{ currentImageCount?.label || '4' }}张</span>
+                  <span>{{ currentSize?.value || '9:16' }} | {{ currentResolution?.value || '4K' }} | {{ currentImageCount?.value || '4' }}张</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
@@ -1107,7 +1109,7 @@
                     :class="{ active: currentResolution?.value === resolution.value }"
                     @click="selectResolution(resolution)"
                   >
-                    <span>{{ resolution.label }}</span>
+                    <span>{{ resolution.label=='2K'?'高清':'超清' }}{{ resolution.label }}</span>
                   </div>
                 </div>
                 
@@ -1115,10 +1117,12 @@
                 <div class="size-display">
                   <div class="size-input-group">
                     <span class="size-label">W</span>
-                    <div class="size-value">{{ currentSize?.width || 1440 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value=='4K'">{{ currentSize?.width*2 || 2880 }}</div>
+                    <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
                     <span class="size-connector">⟷</span>
                     <span class="size-label">H</span>
-                    <div class="size-value">{{ currentSize?.height || 2560 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value=='4K'">{{ currentSize?.height || 5120 }}</div>
+                    <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
                     <span class="size-unit">PX</span>
                   </div>
                 </div>
@@ -1136,7 +1140,7 @@
                   </div>
                 </div>
                 
-                <div class="selector-footer">
+                <!-- <div class="selector-footer">
                   <el-button 
                     type="primary" 
                     size="small" 
@@ -1145,7 +1149,7 @@
                   >
                     完成
                   </el-button>
-                </div>
+                </div> -->
               </div>
             </el-popover>
 
@@ -1169,7 +1173,7 @@
                 </div>
               </template>
               <div class="video-params-selector">
-                <div class="config-group">
+                <div class="config-group" v-if="hasEnableAudio">
                   <div class="config-title">同时生成声音</div>
                   <div class="audio-options">
                     <el-button 
@@ -1231,7 +1235,7 @@
                   </div>
                 </div>
                 
-                <div class="selector-footer">
+                <!-- <div class="selector-footer">
                   <el-button 
                     type="primary" 
                     size="small" 
@@ -1240,7 +1244,7 @@
                   >
                     完成
                   </el-button>
-                </div>
+                </div> -->
               </div>
             </el-popover>
           </div>
@@ -1399,20 +1403,23 @@ interface Model {
 interface Size {
   value: string
   label: string
-  width: number
-  height: number
-  aspect: string
+  width?: number
+  height?: number
+  aspect?: string
+  key?: string
 }
 
 interface Resolution {
   value: string
   label: string
-  quality: string
+  quality?: string
+  key?: string
 }
 
 interface ImageCount {
   value: number
-  label: string
+  label: string,
+  key?: string
 }
 
 interface GenerationTask {
@@ -1545,12 +1552,12 @@ const imageSizes = ref<Size[]>([
   { value: '9:16', label: '9:16', width: 1080, height: 1920, aspect: '9/16' }
 ])
 
-const currentSize = ref(imageSizes.value[7]) // 默认选择9:16
+const currentSize = ref({ value: '9:16', label: '9:16' }) // 默认选择9:16
 
 // 分辨率选项
 const resolutions = ref<Resolution[]>([
-  { value: '2k', label: '高清 2K', quality: '2K' },
-  { value: '4k', label: '超清 4K', quality: '4K' }
+  { value: '2k', label: '2K'},
+  { value: '4k', label: '4K'}
 ])
 
 const currentResolution = ref(resolutions.value[0])
@@ -1575,6 +1582,7 @@ const currentGenerateMode = ref(generateModes.value[0]) // 默认选择图片生
 
 // 视频生成相关状态
 const selectedKeLingOption = ref('首尾帧') // 可灵模型的特殊选项
+const hasEnableAudio=ref(false)
 const enableAudio = ref(false)
 const selectedQuality = ref('720p')
 const selectedDuration = ref('5')
@@ -2146,10 +2154,36 @@ const fetchModelConfig = async () => {
           // 图片生成配置处理
           console.log('图片生成模型配置：', config);
           imageModels.value = config.supports||[];
+          // 图片尺寸选项
+          imageSizes.value = config.optionsInfo.optionsConf.aspectRatio.conf.select||[];
+          // 分辨率选项
+          resolutions.value = config.optionsInfo.optionsConf.size.conf.select||[];
+          // 图片张数选项
+          imageCounts.value = config.optionsInfo.optionsConf.genImageNum.conf.select||[];
+          // 当前选中的选项
+          currentSize.value = config.optionsInfo.optionsDef.aspectRatio
+          currentResolution.value = config.optionsInfo.optionsDef.size
+          currentImageCount.value = config.optionsInfo.optionsDef.genImageNum
+          console.log('默认图片尺寸：', currentSize.value);
+          console.log('默认分辨率：', currentResolution.value);   
+          console.log('默认图片张数：', currentImageCount.value);   
+          
         }else if(genType===2){  
           // 视频生成配置处理
           console.log('视频生成模型配置：', config);
           videoModels.value = config.supports||[];
+          hasEnableAudio.value=config.optionsInfo.optionsConf.generateAudio?.name?true:false;
+          // 视频比例选项
+          videoRatios.value = config.optionsInfo.optionsConf.ratio.conf.select||[];
+          //分辨率选项
+          videoQualities.value = config.optionsInfo.optionsConf.resolution.conf.select||[];
+          // 时长选项
+          videoDurations.value = config.optionsInfo.optionsConf.duration.conf.select||[];
+          // 默认选中的选项
+          enableAudio.value=config.optionsInfo.optionsDef.generateAudio.value==true?true:false;
+          selectedRatio.value = config.optionsInfo.optionsDef.ratio.value;
+          selectedQuality.value = config.optionsInfo.optionsDef.resolution.value;
+          selectedDuration.value = config.optionsInfo.optionsDef.duration.value;
         }
         // 当前选中的模型
         currentModel.value = config.currentModel;
