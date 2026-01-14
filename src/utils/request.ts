@@ -57,17 +57,17 @@ service.interceptors.response.use(
     const pendingKey = getPendingKey(response.config);
     pendingMap.delete(pendingKey);
 
-    const { code, msg, data } = response.data;
-    
+    // const { code, msg, data } = response.data;
+    const resData = response.data;
     // 添加调试日志
-    console.log('响应拦截器 - 接口返回:', { code, msg, data });
+    console.log('响应拦截器 - 接口返回:', resData);
     
     // 根据你的后端接口规范调整成功状态码判断
-    if (code === 200 || code === 0) {  // 通常后端用0表示成功
-      return data;
+    if (resData.code === 200 || resData.code === 0) {  // 通常后端用0表示成功
+      return resData;
     } else {
-      ElMessage.error(msg || '接口请求失败');
-      return Promise.reject(new Error(msg));
+      // ElMessage.error(resData.msg || '接口请求失败');
+      return Promise.reject(new Error(resData.msg));
     }
   },
   (error: AxiosError) => {

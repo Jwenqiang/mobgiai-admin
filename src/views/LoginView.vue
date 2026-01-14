@@ -173,9 +173,9 @@ const handleLogin = async () => {
     
     // 调用登录API
     const response= await login({mobile:loginForm.phone, code:loginForm.code});
-    if (response && typeof response === 'object' && 'token' in response) {
+    if (response&&response.data) {
       // 保存登录信息到store
-      const data = response as { token: string; uid: string; expiredTime: number;username:string }
+      const data = response.data as { token: string; uid: string; expiredTime: number;username:string }
       authStore.setAuth(data.token, { uid: data.uid, expiredTime: data.expiredTime,username:loginForm.phone})
       
       ElMessage.success('登录成功')
@@ -185,14 +185,14 @@ const handleLogin = async () => {
         router.push('/dashboard/image-generate')
       }, 500)
     } 
-    // else {
-    //   throw new Error(response.message || '登录失败')
-    // }
+    else {
+      throw new Error(response.msg || '登录失败')
+    }
     
   } catch (error: unknown) {
     console.error('登录失败:', error)
-    // const errorMessage = error instanceof Error ? error.message : '登录失败，请检查手机号和验证码'
-    // ElMessage.error(errorMessage)
+    const errorMessage = error instanceof Error ? error.message : '登录失败，请检查手机号和验证码'
+    ElMessage.error(errorMessage)
   } finally {
     loading.value = false
   }

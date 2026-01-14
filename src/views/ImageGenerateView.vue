@@ -1261,14 +1261,14 @@
     </div>
 
     <!-- 历史记录切换按钮 -->
-    <el-button 
+    <!-- <el-button 
       class="history-toggle"
       type="primary"
       circle
       @click="toggleHistory"
     >
       <el-icon><Clock /></el-icon>
-    </el-button>
+    </el-button> -->
 
     <!-- 上传图片预览对话框 -->
     <el-dialog v-model="uploadPreviewVisible" title="图片预览" width="60%" center class="preview-dialog">
