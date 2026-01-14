@@ -23,13 +23,13 @@
           <div class="upload-preview-list">
             <div 
               v-for="(image, index) in referenceImages" 
-              :key="index"
+              :key="image.uid"
               class="upload-preview-item"
-              @click="previewUploadImage(image)"
+              @click="previewUploadImage(image.url)"
             >
               <img 
-                :src="image" 
-                :alt="image"
+                :src="image.url" 
+                :alt="image.name || '参考图片'"
                 class="upload-preview-image"
               />
               <el-button 
@@ -634,10 +634,10 @@
                 v-for="(image, index) in currentImages" 
                 :key="index"
                 class="generation-image-item"
-                @click="previewImage(image)"
+                @click="previewImage(image.url)"
               >
                 <div class="image-wrapper">
-                  <img :src="image" :alt="`生成的图片 ${index + 1}`" class="generated-image" />
+                  <img :src="image.url" :alt="`生成的图片 ${index + 1}`" class="generated-image" />
                   <div class="image-overlay">
                     <div class="overlay-actions">
                       <el-button 
@@ -876,11 +876,11 @@
               v-for="(image, index) in referenceImages" 
               :key="index"
               class="upload-preview-item"
-              @click="previewUploadImage(image)"
+              @click="previewUploadImage(image.url)"
             >
               <img 
-                :src="image" 
-                :alt="image"
+                :src="image.url" 
+                :alt="参考图"
                 class="upload-preview-image"
               />
               <el-button 
@@ -1332,9 +1332,9 @@ interface UploadFile {
 }
 
 interface ImageResult {
-  // id: string
-  // url: string
-  // thumbnail: string
+  id: string
+  url: string
+  thumbnail: string
 }
 
 interface VideoResult {
@@ -1777,30 +1777,29 @@ const previewReferenceImage = (imageUrl: string) => {
   })
 }
 
-const handleImageUpload = async (e:Event) => {
+const handleImageUpload = async (files: File) => {
   // 检查文件数量限制
   if (referenceImages.value.length >= 5) {
     ElMessage.warning('最多只能上传5张图片')
     return false
   }
 
-  // // 检查文件类型
-  // const isImage = file.raw.type.startsWith('image/')
-  // if (!isImage) {
-  //   ElMessage.error('只能上传图片文件')
-  //   return false
-  // }
+  // 检查文件类型
+  const isImage = files.raw.type.startsWith('image/')
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件')
+    return false
+  }
 
-  // // 检查文件大小 (10MB)
-  // const isLt10M = file.raw.size / 1024 / 1024 < 10
-  // if (!isLt10M) {
-  //   ElMessage.error('图片大小不能超过10MB')
-  //   return false
-  // }
+  // 检查文件大小 (10MB)
+  const isLt10M = files.raw.size / 1024 / 1024 < 10
+  if (!isLt10M) {
+    ElMessage.error('图片大小不能超过10MB')
+    return false
+  }
 // 上传到火山引擎tos上
-  // const target = e.target as HTMLInputElement;
-  const file = e.raw;
-  console.log(e,"上传的图片")
+  const file = files.raw;
+  console.log(file,"上传的图片")
   if (!file) return;
   if (!file.type.includes('image')) {
     ElMessage.warning("请选择正确的图片文件");
@@ -1815,8 +1814,12 @@ const handleImageUpload = async (e:Event) => {
     }
     // 调用图片上传方法
     const imageUrl = await uploadImageToTOS(file, tosConfig);
-    
-    referenceImages.value.push(imageUrl);
+    const img:ImageResult = {
+      id: Date.now().toString(),
+      url: imageUrl,
+      thumbnail: imageUrl
+    }
+    referenceImages.value.push(img);
     console.log('图片上传成功！地址：', imageUrl);
   } catch (error: unknown) {
     console.error('图片上传失败：', error);
@@ -1994,7 +1997,7 @@ const generateTask = async (taskId: string) => {
 }
 
 const previewImage = (image: ImageResult) => {
-  previewImageUrl.value = image
+  previewImageUrl.value = image.url
   previewImageData.value = image
   previewVisible.value = true
 }
@@ -2041,7 +2044,7 @@ const saveVideoToAssets = (video: VideoResult) => {
 
 const downloadImage = async (image: ImageResult) => {
   try {
-    await downloadFile(image, `generated_image_${image.id}.jpg`)
+    await downloadFile(image.url, `generated_image_${image.id}.jpg`)
     ElMessage.success('开始下载图片')
   } catch (error) {
     console.error('下载图片失败:', error)

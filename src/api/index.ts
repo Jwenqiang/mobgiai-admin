@@ -77,7 +77,7 @@ export const logout = () => {
 };
 // 验证码接口
 export const getCode = (data: { mobile: string }) => {
-  return post('/api/v1/user/sendCode', data);
+  return post('/api/v1/misc/send_sms', data);
 };
 
 export const getUserList = (params: { page: number; size: number }) => {

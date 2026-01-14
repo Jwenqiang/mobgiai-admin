@@ -4,9 +4,7 @@
     <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
         <div class="logo">
-          <el-icon size="24" color="#4A90E2">
-            <Avatar />
-          </el-icon>
+          <img src="@/assets/logo.svg" alt="MobgiAI Logo" class="logo-icon" />
           <span v-if="!sidebarCollapsed" class="logo-text">MobgiAI</span>
         </div>
         <el-button 
@@ -103,8 +101,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Avatar, Expand, Fold, Wallet, VideoCamera, Picture, User, 
-  More, SwitchButton,Opportunity
+  Expand, Fold, VideoCamera, User, 
+  More, SwitchButton, Opportunity
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 // import { authAPI } from '../services/api'
@@ -231,6 +229,12 @@ onMounted(() => {
   font-weight: 600;
   color: #333;
   white-space: nowrap;
+}
+
+.logo-icon {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
 }
 
 .collapse-btn {

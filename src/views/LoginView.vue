@@ -2,7 +2,7 @@
   <div class="login-container">
     <!-- 左上角Logo -->
     <div class="top-logo">
-      <el-icon class="logo-icon"><Avatar /></el-icon>
+      <el-icon class="logo-icon"><img src="@/assets/logo.svg" alt="MobgiAI Logo" class="logo-icon" /></el-icon>
       <span class="logo-text">MobgiAI</span>
     </div>
 
@@ -11,16 +11,14 @@
       <!-- Logo和标题 -->
       <div class="card-header">
         <div class="card-logo">
-          <div class="logo-diamond">
-            <div class="diamond-inner"></div>
-          </div>
+          <img src="@/assets/logo.svg" alt="MobgiAI Logo" class="logo-image" />
         </div>
         <h1 class="card-title">欢迎来到 MobgiAI</h1>
         <p class="card-subtitle">手机号登录</p>
-        <div class="login-tip">
+        <!-- <div class="login-tip">
           <p>💡 测试提示：</p>
           <p>验证码请输入：<strong>123456</strong></p>
-        </div>
+        </div> -->
       </div>
 
       <!-- 登录表单 -->
@@ -299,6 +297,15 @@ const handleLogin = async () => {
   transform: rotate(-45deg);
 }
 
+.logo-image {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto;
+  display: block;
+  border-radius: 16px;
+  box-shadow: 0 16px 32px rgba(74, 144, 226, 0.3);
+}
+
 .card-title {
   font-size: 24px;
   font-weight: 600;
@@ -530,6 +537,11 @@ const handleLogin = async () => {
     height: 45px;
   }
   
+  .logo-image {
+    width: 90px;
+    height: 90px;
+  }
+  
   .card-header {
     margin-bottom: 40px;
   }
@@ -591,6 +603,11 @@ const handleLogin = async () => {
     width: 50px;
     height: 50px;
   }
+  
+  .logo-image {
+    width: 100px;
+    height: 100px;
+  }
 }
 
 @media (max-width: 1024px) and (min-width: 769px) {
@@ -638,6 +655,11 @@ const handleLogin = async () => {
   .diamond-inner {
     width: 35px;
     height: 35px;
+  }
+  
+  .logo-image {
+    width: 70px;
+    height: 70px;
   }
 }
 
@@ -719,6 +741,11 @@ const handleLogin = async () => {
     height: 30px;
   }
   
+  .logo-image {
+    width: 60px;
+    height: 60px;
+  }
+  
   .card-title {
     font-size: 20px;
   }
@@ -742,6 +769,11 @@ const handleLogin = async () => {
   .diamond-inner {
     width: 25px;
     height: 25px;
+  }
+  
+  .logo-image {
+    width: 50px;
+    height: 50px;
   }
   
   .card-title {
