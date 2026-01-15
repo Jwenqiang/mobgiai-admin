@@ -213,7 +213,7 @@
                 v-model="prompt"
                 type="textarea"
                 :rows="1"
-                :autosize="{ minRows: 1, maxRows: 4 }"
+                :autosize="false"
                 :placeholder="currentGenerateMode?.value === 'video' ? '请描述您想要生成的视频内容...' : '请描述您想要生成的图片内容...'"
                 class="main-input"
                 :maxlength="inputSize"
@@ -285,7 +285,7 @@
                     <div class="btn-icon">
                       <div class="model-dot" :style="{ background: currentModel?.iconUrl || '#4A90E2' }"></div>
                     </div>
-                    <span>{{ currentModel?.name || 'Seedream 4.5' }}</span>
+                    <span>{{ currentModel?.name }}</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
@@ -334,20 +334,20 @@
                   </div>
                 </template>
                 <div class="keling-selector">
-                  <div class="selector-header">可灵O1选项</div>
+                  <div class="selector-header">参考类型</div>
                   <div class="option-list">
                     <div 
                       v-for="option in keLingOptions" 
                       :key="option.value"
                       class="option-item"
-                      :class="{ active: selectedKeLingOption === option.value }"
+                      :class="{ active: selectedKeLingOption === option.label }"
                       @click="selectKeLingOption(option)"
                     >
                       <div class="option-info">
                         <div class="option-name">{{ option.label }}</div>
                         <div class="option-desc">{{ option.description }}</div>
                       </div>
-                      <div v-if="selectedKeLingOption === option.value" class="check-icon">
+                      <div v-if="selectedKeLingOption === option.label" class="check-icon">
                         <el-icon><Check /></el-icon>
                       </div>
                     </div>
@@ -370,7 +370,7 @@
                     <div class="btn-icon">
                       <el-icon><FullScreen /></el-icon>
                     </div>
-                    <span>{{ currentSize?.value || '9:16' }} | {{ currentResolution?.value || '4K' }} | {{ currentImageCount?.value || '4' }}张</span>
+                    <span>{{ currentSize?.value }} | {{ currentResolution?.value }} | {{ currentImageCount?.value }}张</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
@@ -466,14 +466,14 @@
                     <div class="config-title">同时生成声音</div>
                     <div class="audio-options">
                       <el-button 
-                        :class="['audio-btn', { active: enableAudio==true }]"
-                        @click="selectAudio(true)"
+                        :class="['audio-btn', { active: enableAudio ==='yes' }]"
+                        @click="selectAudio('yes')"
                       >
                         开启
                       </el-button>
                       <el-button 
-                        :class="['audio-btn', { active: !enableAudio }]"
-                        @click="selectAudio(false)"
+                        :class="['audio-btn', { active: enableAudio === 'no' }]"
+                        @click="selectAudio('no')"
                       >
                         关闭
                       </el-button>
@@ -978,7 +978,7 @@
                   <div class="btn-icon">
                     <el-icon><VideoCamera v-if="currentGenerateMode?.value === 'video'" /><Picture v-else /></el-icon>
                   </div>
-                  <span>{{ currentGenerateMode?.label || '图片生成' }}</span>
+                  <span>{{ currentGenerateMode?.label }}</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
@@ -1053,7 +1053,7 @@
               </div>
             </el-popover>
 
-            <!-- 可灵模型的特殊选项 (仅在视频生成且选择可灵模型时显示) -->
+            <!-- 参考类型 可灵模型的特殊选项 (仅在视频生成且选择可灵模型时显示) -->
             <el-popover
               v-if="keLingOptions.length>0"
               ref="panelKeLingPopoverRef"
@@ -1071,20 +1071,20 @@
                 </div>
               </template>
               <div class="keling-selector">
-                <div class="selector-header">可灵选项</div>
+                <div class="selector-header">参考类型</div>
                 <div class="option-list">
                   <div 
                     v-for="option in keLingOptions" 
                     :key="option.value"
                     class="option-item"
-                    :class="{ active: selectedKeLingOption === option.value }"
+                    :class="{ active: selectedKeLingOption === option.label }"
                     @click="selectKeLingOption(option)"
                   >
                     <div class="option-info">
                       <div class="option-name">{{ option.label }}</div>
                       <!-- <div class="option-desc">{{ option.description }}</div> -->
                     </div>
-                    <div v-if="selectedKeLingOption === option.value" class="check-icon">
+                    <div v-if="selectedKeLingOption === option.label" class="check-icon">
                       <el-icon><Check /></el-icon>
                     </div>
                   </div>
@@ -1107,7 +1107,7 @@
                   <div class="btn-icon">
                     <el-icon><FullScreen /></el-icon>
                   </div>
-                  <span>{{ currentSize?.value || '9:16' }} | {{ currentResolution?.value || '4K' }} | {{ currentImageCount?.value || '4' }}张</span>
+                  <span>{{ currentSize?.value }} | {{ currentResolution?.value  }} | {{ currentImageCount?.value  }}张</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
@@ -1203,14 +1203,14 @@
                   <div class="config-title">同时生成声音</div>
                   <div class="audio-options">
                     <el-button 
-                      :class="['audio-btn', { active: enableAudio }]"
-                      @click="selectAudio(true)"
+                      :class="['audio-btn', { active: enableAudio === 'yes' }]"
+                      @click="selectAudio('yes')"
                     >
                       开启
                     </el-button>
                     <el-button 
-                      :class="['audio-btn', { active: !enableAudio }]"
-                      @click="selectAudio(false)"
+                      :class="['audio-btn', { active: enableAudio === 'no' }]"
+                      @click="selectAudio('no')"
                     >
                       关闭
                     </el-button>
@@ -1417,7 +1417,7 @@ import {
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
-import { getImgModelConfig } from '../api/generate'
+import { getImgModelConfig, getGenerateResults } from '../api/generate'
 
 interface UploadFile {
   uid: string
@@ -1547,21 +1547,12 @@ const videoModels = ref<Model[]>([])
 // 当前可用的模型列表（根据生成方式动态变化）
 const models = ref<Model[]>(imageModels.value)
 
-const currentModel = ref(models.value[0])
+const currentModel = ref<Model>(models.value[0])
 
 // 尺寸选项 - 按图片显示的顺序排列
-const imageSizes = ref<Size[]>([
-  { value: '21:9', label: '21:9', width: 2560, height: 1080, aspect: '21/9' },
-  { value: '16:9', label: '16:9', width: 1920, height: 1080, aspect: '16/9' },
-  { value: '3:2', label: '3:2', width: 1536, height: 1024, aspect: '3/2' },
-  { value: '4:3', label: '4:3', width: 1440, height: 1080, aspect: '4/3' },
-  { value: '1:1', label: '1:1', width: 1024, height: 1024, aspect: '1' },
-  { value: '3:4', label: '3:4', width: 1080, height: 1440, aspect: '3/4' },
-  { value: '2:3', label: '2:3', width: 1024, height: 1536, aspect: '2/3' },
-  { value: '9:16', label: '9:16', width: 1080, height: 1920, aspect: '9/16' }
-])
+const imageSizes = ref<Size[]>([])
 
-const currentSize = ref({ value: '9:16', label: '9:16' }) // 默认选择9:16
+const currentSize = ref<Size>() // 默认选择9:16
 
 // 分辨率选项
 const resolutions = ref<Resolution[]>([
@@ -1591,10 +1582,10 @@ const currentGenerateMode = ref(generateModes.value[0]) // 默认选择图片生
 
 // 视频生成相关状态
 const selectedKeLingOption = ref('首尾帧') // 可灵模型的特殊选项
-const selectedKeLingOptionVal = ref('') // 可灵模型的特殊选项
+const selectedKeLingOptionVal = ref('first_tail') // 可灵模型的特殊选项
 // const hasReferType = ref(false)
 const hasEnableAudio=ref(false)
-const enableAudio = ref(false)
+const enableAudio = ref('no')
 const selectedQuality = ref('720p')
 const selectedDuration = ref('5')
 const selectedRatio = ref('smart')
@@ -1687,9 +1678,10 @@ const selectImageCount = (count: ImageCount) => {
   currentImageCount.value = count
   // 不关闭 Popover，允许继续选择其他参数
 }
-
+// 选择生成方式 图片生成还是视频生成
 const selectGenerateMode = (mode: { value: string; label: string }) => {
   currentGenerateMode.value = mode
+  keLingOptions.value = [] // 切换生成方式时清空可灵选项
   //调配置接口
   fetchModelConfig();
   // 切换模式时清空参考图片
@@ -1699,14 +1691,14 @@ const selectGenerateMode = (mode: { value: string; label: string }) => {
   if (mode.value === 'image') {
     models.value = imageModels.value
     // 如果当前选择的模型不在图片模型列表中，则选择第一个图片模型
-    const currentModelExists = imageModels.value.find(model => model.id === currentModel.value.id)
+    const currentModelExists = imageModels.value.find(model => model.aiDriver === currentModel.value.aiDriver)
     if (!currentModelExists) {
       currentModel.value = imageModels.value[0]
     }
   } else if (mode.value === 'video') {
     models.value = videoModels.value
     // 如果当前选择的模型不在视频模型列表中，则选择第一个视频模型
-    const currentModelExists = videoModels.value.find(model => model.id === currentModel.value.id)
+    const currentModelExists = videoModels.value.find(model => model.aiDriver === currentModel.value.aiDriver)
     if (!currentModelExists) {
       currentModel.value = videoModels.value[0]
     }
@@ -1726,7 +1718,7 @@ const selectKeLingOption = (option: { value: string; label: string }) => {
   panelKeLingPopoverRef.value?.hide()
 }
 
-const selectAudio = (enabled: boolean) => {
+const selectAudio = (enabled: string) => {
   enableAudio.value = enabled
 }
 
@@ -2214,7 +2206,7 @@ const fetchModelConfig = async (aiDriver?: string) => {
           console.log(keLingOptions.value)
           
           // 默认选中的选项
-          enableAudio.value=config.optionsInfo.optionsDef.generateAudio?.value==true?true:false;
+          enableAudio.value=config.optionsInfo.optionsDef.generateAudio?.value;
           selectedRatio.value = config.optionsInfo.optionsDef.aspectRatio?.value;
           selectedQuality.value = config.optionsInfo.optionsDef.resolution?.value;
           selectedDuration.value = config.optionsInfo.optionsDef.duration?.value;
@@ -2239,6 +2231,17 @@ const fetchModelConfig = async (aiDriver?: string) => {
   }
 }
 fetchModelConfig()
+//获取列表
+const fetchGenerateResults = async () => {
+  try {
+    const results = await getGenerateResults({ page: 1, pageSize: 10 });
+    console.log('生成结果列表:', results);
+  } catch (error) {
+    console.error('获取生成结果失败：', error);
+    ElMessage.error('获取生成结果失败');
+  }
+}
+fetchGenerateResults()
 
 // 新增方法
 const clearAllImages = () => {
@@ -2393,7 +2396,7 @@ onUnmounted(() => {
 /* 输入容器 */
 .input-container {
   width: 100%;
-  max-width: 662px;
+  max-width: 690px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -2404,12 +2407,12 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(20px);
   border-radius: 16px;
-  padding: 16px;
+  padding: 12px 16px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
+  min-height: 60px;
 }
 
 /* 输入区域下半部分 */
@@ -2533,9 +2536,13 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   position: relative;
-  padding-bottom: 20px; /* 为字符计数器留出空间 */
+  height: 56px;
+  justify-content: center; /* 垂直居中对齐 */
+}
+
+.main-input {
+  height: 100%;
 }
 
 .main-input :deep(.el-textarea__inner) {
@@ -2543,10 +2550,20 @@ onUnmounted(() => {
   border: none;
   color: #ffffff;
   font-size: 14px;
-  line-height: 1.4;
+  line-height: 1.5;
   resize: none;
   padding: 0;
   box-shadow: none;
+  height: 56px !important;
+  overflow: hidden;
+  overflow-y: hidden !important;
+  scrollbar-width: none;
+  display: flex;
+  align-items: center;
+}
+
+.main-input :deep(.el-textarea__inner)::-webkit-scrollbar {
+  display: none;
 }
 
 .main-input :deep(.el-textarea__inner)::placeholder {
@@ -2563,7 +2580,7 @@ onUnmounted(() => {
   font-size: 11px;
   line-height: 1;
   right: 0;
-  bottom: -18px;
+  bottom: 2px;
   position: absolute;
 }
 
@@ -2844,8 +2861,8 @@ onUnmounted(() => {
 }
 
 .upload-area {
-  width: 50px;
-  height: 50px;
+  width: 56px;
+  height: 56px;
   border: 2px dashed rgba(255, 255, 255, 0.3);
   border-radius: 8px;
   display: flex;
@@ -3047,27 +3064,16 @@ onUnmounted(() => {
   transform: scale(1.1);
 }
 
-/* 可灵选项弹窗样式 */
+/* 可灵选项弹窗样式 - 与生成方式选择保持一致 */
 :deep(.keling-popover) {
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
-  backdrop-filter: blur(24px) !important;
-  border: 1.5px solid rgba(240, 119, 198, 0.3) !important;
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 14px !important;
   padding: 0 !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 119, 198, 0.1) inset !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
   z-index: 2000 !important;
-  animation: popoverFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes popoverFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  overflow: hidden !important;
 }
 
 :deep(.keling-popover .el-popover__content) {
@@ -3078,46 +3084,40 @@ onUnmounted(() => {
 }
 
 .keling-selector {
-  padding: 20px;
-  /* min-width: 280px; */
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%);
-  backdrop-filter: blur(24px);
+  padding: 10px;
+  min-width: 180px;
+  background: rgba(26, 26, 46, 0.98);
+  backdrop-filter: blur(20px);
   border-radius: 14px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
   overflow: hidden;
 }
 
 .keling-selector .selector-header {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   color: #ffffff;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 2px solid rgba(240, 119, 198, 0.3);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   text-align: center;
-  letter-spacing: 0.5px;
-  background: linear-gradient(90deg, rgba(240, 119, 198, 0.8), rgba(255, 150, 220, 0.8));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .option-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .option-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.05);
+  padding: 8px;
+  border-radius: 6px;
+  background: transparent;
   cursor: pointer;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
   position: relative;
   overflow: hidden;
 }
@@ -3129,73 +3129,45 @@ onUnmounted(() => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(240, 119, 198, 0.15), transparent);
-  transition: left 0.6s ease;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s ease;
 }
 
 .option-item:hover::before {
   left: 100%;
 }
 
-.option-item::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 10px;
-  padding: 1.5px;
-  background: linear-gradient(135deg, rgba(240, 119, 198, 0.4), rgba(255, 150, 220, 0.4));
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  opacity: 0;
-  transition: opacity 0.35s ease;
-}
-
 .option-item:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(240, 119, 198, 0.4);
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 4px 16px rgba(240, 119, 198, 0.2);
-}
-
-.option-item:hover::after {
-  opacity: 1;
-}
-
-.option-item.active {
-  background: linear-gradient(135deg, rgba(240, 119, 198, 0.25) 0%, rgba(255, 150, 220, 0.2) 100%);
-  border-color: rgba(240, 119, 198, 0.6);
-  box-shadow: 0 4px 20px rgba(240, 119, 198, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
   transform: translateY(-1px);
 }
 
-.option-item.active::after {
-  opacity: 1;
+.option-item.active {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: #667eea;
+  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
 }
 
 .option-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
   flex: 1;
   min-width: 0;
 }
 
 .option-name {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  letter-spacing: 0.3px;
 }
 
 .option-item.active .option-name {
-  background: linear-gradient(90deg, #ffffff, rgba(240, 119, 198, 1));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #ffffff;
 }
 
 .option-desc {
@@ -3204,33 +3176,10 @@ onUnmounted(() => {
   line-height: 1.4;
 }
 
-.option-item.active .option-name {
-  background: linear-gradient(90deg, #ffffff, rgba(240, 119, 198, 1));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
 .option-item .check-icon {
-  color: #f077c6;
-  font-size: 16px;
+  color: #667eea;
+  font-size: 14px;
   flex-shrink: 0;
-  animation: checkBounce 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  filter: drop-shadow(0 2px 4px rgba(240, 119, 198, 0.4));
-}
-
-@keyframes checkBounce {
-  0% {
-    transform: scale(0);
-    opacity: 0;
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
 }
 
 /* 视频参数弹窗样式 */
@@ -3382,31 +3331,12 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.95);
   position: relative;
   overflow: hidden;
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.keling-option-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(240, 119, 198, 0.2), rgba(255, 150, 220, 0.2));
-  opacity: 0;
-  transition: opacity 0.35s ease;
+  transition: all 0.3s ease;
 }
 
 .keling-option-btn:hover {
-  background: linear-gradient(135deg, rgba(240, 119, 198, 0.25) 0%, rgba(255, 150, 220, 0.2) 100%);
-  border-color: rgba(240, 119, 198, 0.6);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(240, 119, 198, 0.3);
-}
-
-.keling-option-btn:hover::before {
-  opacity: 1;
-}
-
-.keling-option-btn .el-icon {
-  filter: drop-shadow(0 1px 2px rgba(240, 119, 198, 0.4));
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .generate-btn:disabled {
@@ -5253,20 +5183,13 @@ onUnmounted(() => {
 .el-popper.generate-mode-popover,
 .el-popper.keling-popover,
 .el-popper.video-params-popover {
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
-  backdrop-filter: blur(24px) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 14px !important;
   padding: 0 !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
   overflow: hidden !important;
-}
-
-/* 可灵弹窗特殊边框 */
-.keling-popover,
-.el-popper.keling-popover {
-  border: 1.5px solid rgba(240, 119, 198, 0.3) !important;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 119, 198, 0.1) inset !important;
 }
 
 .generate-mode-popover .el-popover__content,
@@ -5289,25 +5212,15 @@ onUnmounted(() => {
 .el-popper.generate-mode-popover .el-popper__arrow::before,
 .el-popper.keling-popover .el-popper__arrow::before,
 .el-popper.video-params-popover .el-popper__arrow::before {
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
-  border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
-}
-
-/* 可灵弹窗箭头特殊颜色 */
-.keling-popover .el-popper__arrow::before,
-.el-popper.keling-popover .el-popper__arrow::before {
-  border-color: rgba(240, 119, 198, 0.3) !important;
+  background: rgba(26, 26, 46, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
 
 /* 更强的覆盖规则 */
 .el-popover.generate-mode-popover[data-popper-placement],
 .el-popover.keling-popover[data-popper-placement],
 .el-popover.video-params-popover[data-popper-placement] {
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
-}
-
-.el-popover.keling-popover[data-popper-placement] {
-  border: 1.5px solid rgba(240, 119, 198, 0.3) !important;
+  background: rgba(26, 26, 46, 0.95) !important;
 }
 
 .el-popover.generate-mode-popover[data-popper-placement] .el-popover__content,
@@ -5316,18 +5229,26 @@ onUnmounted(() => {
   background: transparent !important;
 }
 
-/* 最强覆盖规则 - 针对可灵选项 */
+/* 最强覆盖规则 */
+.el-popper[data-popper-placement].generate-mode-popover,
 .el-popper[data-popper-placement].keling-popover,
-.el-popover[data-popper-placement].keling-popover {
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
-  backdrop-filter: blur(24px) !important;
-  border: 1.5px solid rgba(240, 119, 198, 0.3) !important;
+.el-popper[data-popper-placement].video-params-popover,
+.el-popover[data-popper-placement].generate-mode-popover,
+.el-popover[data-popper-placement].keling-popover,
+.el-popover[data-popper-placement].video-params-popover {
+  background: rgba(26, 26, 46, 0.95) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
   border-radius: 14px !important;
   overflow: hidden !important;
 }
 
+.el-popper[data-popper-placement].generate-mode-popover .el-popover__content,
 .el-popper[data-popper-placement].keling-popover .el-popover__content,
-.el-popover[data-popper-placement].keling-popover .el-popover__content {
+.el-popper[data-popper-placement].video-params-popover .el-popover__content,
+.el-popover[data-popper-placement].generate-mode-popover .el-popover__content,
+.el-popover[data-popper-placement].keling-popover .el-popover__content,
+.el-popover[data-popper-placement].video-params-popover .el-popover__content {
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
