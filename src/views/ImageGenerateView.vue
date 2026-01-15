@@ -119,7 +119,7 @@
                 </template>
 
                 <!-- 多模态参考模式和视频编辑模式 -->
-                <template v-else-if="currentModel?.name?.includes('可灵O1') && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')">
+                <template v-else-if="(selectedKeLingOption === '多模态参考' || selectedKeLingOption === '编辑视频')">
                   <div class="video-upload-multimodal">
                     <!-- 传视频区域 -->
                     <div class="upload-item">
@@ -316,9 +316,9 @@
                 </div>
               </el-popover>
 
-              <!-- 可灵模型的特殊选项 (仅在视频生成且选择可灵模型时显示) -->
+              <!-- referType参考类型(可灵模型)的特殊选项 (仅在视频生成且选择可灵模型时显示) -->
               <el-popover
-                v-if="currentGenerateMode?.value === 'video' && currentModel?.name?.includes('可灵O1')"
+                v-if="keLingOptions.length>0"
                 ref="keLingPopoverRef"
                 placement="top"
                 :width="240"
@@ -825,7 +825,7 @@
               </template>
 
               <!-- 多模态参考模式和视频编辑模式 -->
-              <template v-else-if="currentModel?.name?.includes('可灵') && (selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')">
+              <template v-else-if="(selectedKeLingOption === '多模态参考' || selectedKeLingOption === '编辑视频')">
                 <div class="video-upload-multimodal compact">
                   <!-- 传视频区域 -->
                   <div class="upload-item">
@@ -1022,7 +1022,7 @@
                   <div class="btn-icon">
                     <div class="model-dot" :style="{ background: currentModel?.iconUrl || '#4A90E2' }"></div>
                   </div>
-                  <span>{{ currentModel?.name || 'Seedream 4.5' }}</span>
+                  <span>{{ currentModel?.name}}</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
@@ -1055,7 +1055,7 @@
 
             <!-- 可灵模型的特殊选项 (仅在视频生成且选择可灵模型时显示) -->
             <el-popover
-              v-if="currentGenerateMode?.value === 'video' && currentModel?.name?.includes('可灵')"
+              v-if="keLingOptions.length>0"
               ref="panelKeLingPopoverRef"
               placement="top"
               :width="240"
@@ -1082,7 +1082,7 @@
                   >
                     <div class="option-info">
                       <div class="option-name">{{ option.label }}</div>
-                      <div class="option-desc">{{ option.description }}</div>
+                      <!-- <div class="option-desc">{{ option.description }}</div> -->
                     </div>
                     <div v-if="selectedKeLingOption === option.value" class="check-icon">
                       <el-icon><Check /></el-icon>
@@ -1591,6 +1591,8 @@ const currentGenerateMode = ref(generateModes.value[0]) // 默认选择图片生
 
 // 视频生成相关状态
 const selectedKeLingOption = ref('首尾帧') // 可灵模型的特殊选项
+const selectedKeLingOptionVal = ref('') // 可灵模型的特殊选项
+// const hasReferType = ref(false)
 const hasEnableAudio=ref(false)
 const enableAudio = ref(false)
 const selectedQuality = ref('720p')
@@ -1628,11 +1630,7 @@ const imageHistory = ref<ImageHistoryItem[]>([
 ])
 
 // 可灵模型的特殊选项
-const keLingOptions = ref([
-  { value: '首尾帧', label: '首尾帧', description: '基于首尾帧生成视频' },
-  { value: '多模态参考', label: '多模态参考', description: '多模态内容参考生成' },
-  { value: '视频编辑', label: '视频编辑', description: '智能视频编辑功能' }
-])
+const keLingOptions = ref<KeLingOption[]>([])
 
 // 视频比例选项
 const videoRatios = ref([
@@ -1721,7 +1719,8 @@ const selectGenerateMode = (mode: { value: string; label: string }) => {
 
 // 视频生成相关方法
 const selectKeLingOption = (option: { value: string; label: string }) => {
-  selectedKeLingOption.value = option.value
+  selectedKeLingOption.value = option.label
+  selectedKeLingOptionVal.value = option.value
   // 关闭 Popover
   keLingPopoverRef.value?.hide()
   panelKeLingPopoverRef.value?.hide()
@@ -2210,6 +2209,10 @@ const fetchModelConfig = async (aiDriver?: string) => {
           videoDurations.value = config.optionsInfo.optionsConf.duration?.conf.select||[];
           generationModes.value = config.optionsInfo.optionsConf.mode?.conf.select||[];
           keepOriginalAudioOptions.value = config.optionsInfo.optionsConf.keepOriginalSound?.conf.select||[];
+          //参考模型选项
+          keLingOptions.value = config.optionsInfo.optionsConf.referType?.conf.select||[];
+          console.log(keLingOptions.value)
+          
           // 默认选中的选项
           enableAudio.value=config.optionsInfo.optionsDef.generateAudio?.value==true?true:false;
           selectedRatio.value = config.optionsInfo.optionsDef.aspectRatio?.value;
@@ -2633,10 +2636,11 @@ onUnmounted(() => {
   background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   padding: 0 !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
   z-index: 2000 !important;
+  overflow: hidden !important;
 }
 
 /* 强制覆盖 Element Plus 弹窗内容的白色背景 */
@@ -2652,9 +2656,10 @@ onUnmounted(() => {
   background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   padding: 0 !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+  overflow: hidden !important;
 }
 
 :global(.el-popper.generate-mode-popover .el-popover__content) {
@@ -2669,7 +2674,8 @@ onUnmounted(() => {
   min-width: 180px;
   background: rgba(26, 26, 46, 0.98);
   backdrop-filter: blur(20px);
-  border-radius: 8px;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .generate-mode-selector .selector-header {
@@ -3043,13 +3049,25 @@ onUnmounted(() => {
 
 /* 可灵选项弹窗样式 */
 :deep(.keling-popover) {
-  background: rgba(26, 26, 46, 0.95) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 12px !important;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1.5px solid rgba(240, 119, 198, 0.3) !important;
+  border-radius: 14px !important;
   padding: 0 !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 119, 198, 0.1) inset !important;
   z-index: 2000 !important;
+  animation: popoverFadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes popoverFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 :deep(.keling-popover .el-popover__content) {
@@ -3060,39 +3078,46 @@ onUnmounted(() => {
 }
 
 .keling-selector {
-  padding: 16px;
-  min-width: 240px;
-  background: rgba(26, 26, 46, 0.98);
-  backdrop-filter: blur(20px);
-  border-radius: 8px;
+  padding: 20px;
+  /* min-width: 280px; */
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%);
+  backdrop-filter: blur(24px);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  overflow: hidden;
 }
 
 .keling-selector .selector-header {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: #ffffff;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(240, 119, 198, 0.3);
   text-align: center;
+  letter-spacing: 0.5px;
+  background: linear-gradient(90deg, rgba(240, 119, 198, 0.8), rgba(255, 150, 220, 0.8));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .option-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .option-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
-  border-radius: 8px;
-  background: transparent;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid transparent;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
   position: relative;
   overflow: hidden;
 }
@@ -3104,57 +3129,108 @@ onUnmounted(() => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.5s ease;
+  background: linear-gradient(90deg, transparent, rgba(240, 119, 198, 0.15), transparent);
+  transition: left 0.6s ease;
 }
 
 .option-item:hover::before {
   left: 100%;
 }
 
+.option-item::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  padding: 1.5px;
+  background: linear-gradient(135deg, rgba(240, 119, 198, 0.4), rgba(255, 150, 220, 0.4));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
 .option-item:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(240, 119, 198, 0.4);
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 16px rgba(240, 119, 198, 0.2);
+}
+
+.option-item:hover::after {
+  opacity: 1;
 }
 
 .option-item.active {
-  background: rgba(102, 126, 234, 0.3);
-  border-color: #667eea;
-  box-shadow: 0 1px 4px rgba(102, 126, 234, 0.2);
+  background: linear-gradient(135deg, rgba(240, 119, 198, 0.25) 0%, rgba(255, 150, 220, 0.2) 100%);
+  border-color: rgba(240, 119, 198, 0.6);
+  box-shadow: 0 4px 20px rgba(240, 119, 198, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.option-item.active::after {
+  opacity: 1;
 }
 
 .option-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   flex: 1;
   min-width: 0;
 }
 
 .option-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.3px;
+}
+
+.option-item.active .option-name {
+  background: linear-gradient(90deg, #ffffff, rgba(240, 119, 198, 1));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .option-desc {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.7);
-  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.4;
 }
 
 .option-item.active .option-name {
-  color: #ffffff;
+  background: linear-gradient(90deg, #ffffff, rgba(240, 119, 198, 1));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .option-item .check-icon {
-  color: #667eea;
-  font-size: 14px;
+  color: #f077c6;
+  font-size: 16px;
   flex-shrink: 0;
+  animation: checkBounce 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  filter: drop-shadow(0 2px 4px rgba(240, 119, 198, 0.4));
+}
+
+@keyframes checkBounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 /* 视频参数弹窗样式 */
@@ -3162,10 +3238,11 @@ onUnmounted(() => {
   background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 12px !important;
+  border-radius: 14px !important;
   padding: 0 !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
   z-index: 2000 !important;
+  overflow: hidden !important;
 }
 
 :deep(.video-params-popover .el-popover__content) {
@@ -3180,7 +3257,8 @@ onUnmounted(() => {
   min-width: 400px;
   background: rgba(26, 26, 46, 0.98);
   backdrop-filter: blur(20px);
-  border-radius: 8px;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .config-group {
@@ -3301,14 +3379,34 @@ onUnmounted(() => {
 }
 
 .keling-option-btn {
-  background: rgba(240, 119, 198, 0.1);
-  border-color: rgba(240, 119, 198, 0.3);
-  color: rgba(240, 119, 198, 0.9);
+  color: rgba(255, 255, 255, 0.95);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.keling-option-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(240, 119, 198, 0.2), rgba(255, 150, 220, 0.2));
+  opacity: 0;
+  transition: opacity 0.35s ease;
 }
 
 .keling-option-btn:hover {
-  background: rgba(240, 119, 198, 0.15);
-  border-color: rgba(240, 119, 198, 0.5);
+  background: linear-gradient(135deg, rgba(240, 119, 198, 0.25) 0%, rgba(255, 150, 220, 0.2) 100%);
+  border-color: rgba(240, 119, 198, 0.6);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(240, 119, 198, 0.3);
+}
+
+.keling-option-btn:hover::before {
+  opacity: 1;
+}
+
+.keling-option-btn .el-icon {
+  filter: drop-shadow(0 1px 2px rgba(240, 119, 198, 0.4));
 }
 
 .generate-btn:disabled {
@@ -4410,6 +4508,7 @@ onUnmounted(() => {
   padding: 0 !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
   z-index: 2000 !important;
+  overflow: hidden !important;
 }
 
 /* 确保Element Plus弹窗层级足够高 */
@@ -4440,7 +4539,8 @@ onUnmounted(() => {
   min-width: 220px;
   background: rgba(26, 26, 46, 0.98);
   backdrop-filter: blur(20px);
-  border-radius: 8px;
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .image-params-selector {
@@ -5153,12 +5253,20 @@ onUnmounted(() => {
 .el-popper.generate-mode-popover,
 .el-popper.keling-popover,
 .el-popper.video-params-popover {
-  background: rgba(26, 26, 46, 0.95) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 12px !important;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 14px !important;
   padding: 0 !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+  overflow: hidden !important;
+}
+
+/* 可灵弹窗特殊边框 */
+.keling-popover,
+.el-popper.keling-popover {
+  border: 1.5px solid rgba(240, 119, 198, 0.3) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(240, 119, 198, 0.1) inset !important;
 }
 
 .generate-mode-popover .el-popover__content,
@@ -5181,15 +5289,25 @@ onUnmounted(() => {
 .el-popper.generate-mode-popover .el-popper__arrow::before,
 .el-popper.keling-popover .el-popper__arrow::before,
 .el-popper.video-params-popover .el-popper__arrow::before {
-  background: rgba(26, 26, 46, 0.95) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
+}
+
+/* 可灵弹窗箭头特殊颜色 */
+.keling-popover .el-popper__arrow::before,
+.el-popper.keling-popover .el-popper__arrow::before {
+  border-color: rgba(240, 119, 198, 0.3) !important;
 }
 
 /* 更强的覆盖规则 */
 .el-popover.generate-mode-popover[data-popper-placement],
 .el-popover.keling-popover[data-popper-placement],
 .el-popover.video-params-popover[data-popper-placement] {
-  background: rgba(26, 26, 46, 0.95) !important;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
+}
+
+.el-popover.keling-popover[data-popper-placement] {
+  border: 1.5px solid rgba(240, 119, 198, 0.3) !important;
 }
 
 .el-popover.generate-mode-popover[data-popper-placement] .el-popover__content,
@@ -5201,10 +5319,11 @@ onUnmounted(() => {
 /* 最强覆盖规则 - 针对可灵选项 */
 .el-popper[data-popper-placement].keling-popover,
 .el-popover[data-popper-placement].keling-popover {
-  background: rgba(26, 26, 46, 0.95) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  border-radius: 12px !important;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(35, 35, 60, 0.98) 100%) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1.5px solid rgba(240, 119, 198, 0.3) !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
 }
 
 .el-popper[data-popper-placement].keling-popover .el-popover__content,
