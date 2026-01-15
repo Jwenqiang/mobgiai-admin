@@ -2,6 +2,18 @@
   <div class="image-generate-container">
     <!-- 主要内容区域 -->
     <div class="main-content">
+      <!-- 初始加载动画 - 只覆盖内容区域 -->
+      <div v-if="initialLoading" class="initial-loading-overlay">
+        <div class="loading-content">
+          <div class="loading-dots">
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+          </div>
+          <div class="loading-text">加载中</div>
+        </div>
+      </div>
+      
       <!-- 无内容时的居中输入区域 -->
       <div v-if="historyResults.length === 0 && generationTasks.length === 0" class="centered-input-section">
         <!-- 主标题 -->
@@ -123,17 +135,16 @@
                   <div class="video-upload-multimodal">
                     <!-- 传视频区域 -->
                     <div class="upload-item">
-                      <label class="upload-label">传视频</label>
                       <el-upload
                         :show-file-list="false"
                         :before-upload="handleVideoUpload"
                         accept="video/*"
                         class="frame-uploader"
                       >
-                        <div class="upload-area" :class="{ 'has-video': referenceVideo }">
+                        <div class="upload-area-video" :class="{ 'has-video': referenceVideo }">
                           <video v-if="referenceVideo" :src="referenceVideo" class="uploaded-video" muted />
-                          <div v-else class="upload-placeholder">
-                            <el-icon size="16"><VideoCamera /></el-icon>
+                          <div v-else class="upload-placeholder-video">
+                            <el-icon size="24"><VideoCamera /></el-icon>
                           </div>
                         </div>
                       </el-upload>
@@ -141,7 +152,6 @@
 
                     <!-- 传图片区域 -->
                     <div class="images-upload-section">
-                      <label class="upload-label">传图片</label>
                       <div class="images-container">
                         <!-- 上传框 -->
                         <el-upload
@@ -151,10 +161,12 @@
                           class="frame-uploader"
                           :disabled="videoReferenceImages.filter(img => img).length >= 4"
                         >
-                          <div class="upload-area small" :class="{ 'disabled': videoReferenceImages.filter(img => img).length >= 4 }">
-                            <div class="upload-placeholder">
-                              <el-icon size="12"><Plus /></el-icon>
-                              <span class="upload-text">{{ videoReferenceImages.filter(img => img).length }}/4</span>
+                          <div class="upload-area-image" :class="{ 'disabled': videoReferenceImages.filter(img => img).length >= 4 }">
+                            <div class="upload-placeholder-image">
+                              <svg class="placeholder-icon-small" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 304c35.3 0 64 28.7 64 64s-28.7 64-64 64-64-28.7-64-64 28.7-64 64-64zm513.9 437.1c-2.4 5.2-7.9 8.9-13.9 8.9H186c-6.6 0-12.6-4.1-15-10.3-2.3-6.2-0.8-13.1 4-17.5l167.4-151.8c3.7-3.4 9.4-3.4 13.1 0l100.6 91.2 219.3-198.9c3.7-3.4 9.4-3.4 13.1 0l232.5 211c4.8 4.4 6.3 11.3 3.9 17.4z" fill="currentColor"/>
+                              </svg>
+                              <span class="upload-count">{{ videoReferenceImages.filter(img => img).length }}/4</span>
                             </div>
                           </div>
                         </el-upload>
@@ -223,7 +235,7 @@
             </div>
           </div>
           
-          <!-- 下半部分：参数选择和生成按钮 -->
+          <!-- 下半部分：参数选择 -->
           <div class="input-bottom-section">
             <!-- 参数选择按钮组 -->
             <div class="params-section">
@@ -563,19 +575,19 @@
                 </div>
               </el-popover>
             </div>
-            
-            <!-- 生成按钮 -->
-            <div class="generate-section">
-              <el-button 
-                type="primary" 
-                :loading="generationTasks.length >= maxConcurrentTasks"
-                :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks"
-                @click="handleGenerate"
-                class="generate-btn"
-              >
-                <span>{{ generationTasks.length >= maxConcurrentTasks ? '生成中...' : '生成' }}</span>
-              </el-button>
-            </div>
+          </div>
+          
+          <!-- 生成按钮 - 独立放置在右下角 -->
+          <div class="generate-section-fixed">
+            <el-button 
+              type="primary" 
+              :loading="generationTasks.length >= maxConcurrentTasks"
+              :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks"
+              @click="handleGenerate"
+              class="generate-btn"
+            >
+              <span>{{ generationTasks.length >= maxConcurrentTasks ? '生成中...' : '生成' }}</span>
+            </el-button>
           </div>
         </div>
       </div>
@@ -648,50 +660,96 @@
             v-for="result in historyResults" 
             :key="result.id"
             class="generation-card"
+            :class="{ 'generation-failed': result.status === 3 }"
           >
             <!-- 上部分：缩略图和描述 -->
             <div class="generation-header">
-              <div class="generation-thumbnail">
-                <img v-if="result.genType === 1 && result.images?.length > 0" :src="result.images[0]" alt="生成缩略图" class="thumbnail-image" />
-                <div v-else-if="result.genType === 2 && result.videoUrl" class="thumbnail-video-icon">
-                  <div class="video-icon-wrapper">
-                    <el-icon size="20"><VideoCamera /></el-icon>
+              <div class="generation-thumbnail yes" :class="{ 'failed-thumbnail': result.status === 3 }">
+                <!-- 生成失败状态 -->
+                <div v-if="result.status === 3" class="failed-placeholder">
+                  <div class="failed-icon-wrapper">
+                    <el-icon size="32" class="failed-icon">
+                      <VideoCamera v-if="result.type === 2" />
+                      <Picture v-else />
+                    </el-icon>
+                    <div class="failed-overlay">
+                      <el-icon size="20" class="error-icon"><CircleClose /></el-icon>
+                    </div>
                   </div>
-                  <div class="video-icon-bg"></div>
+                  <div class="failed-text">生成失败</div>
                 </div>
+                <!-- 正常状态 -->
+                <template v-else>
+                  <img v-if="result.type === 1 && result.assets?.length > 0 && result.assets[0]?.coverUrl" 
+                       :src="result.assets[0]?.coverUrl" 
+                       alt="生成缩略图" 
+                       class="thumbnail-image" />
+                  <div v-else-if="result.type === 2 && result.assets?.length > 0" class="thumbnail-video-icon">
+                    <div class="video-icon-wrapper">
+                      <el-icon size="20"><VideoCamera /></el-icon>
+                    </div>
+                    <div class="video-icon-bg"></div>
+                  </div>
+                </template>
               </div>
               <div class="generation-info">
-                <div class="generation-prompt">{{ result.prompt || '暂无描述' }}</div>
+                <div class="generation-prompt">{{ result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '暂无描述' }}</div>
               </div>
             </div>
             
-            <!-- 中部分：模型标签等信息 -->
+            <!-- 中部分:模型标签等信息 -->
             <div class="generation-meta">
               <div class="meta-tags">
-                <span class="meta-tag model-tag">{{ result.aiDriver || 'AI模型' }}</span>
-                <span class="meta-tag size-tag">{{ result.genType === 1 ? '图片' : '视频' }}</span>
-                <span class="meta-tag time-tag">{{ formatTime(result.createdAt) }}</span>
+                <span class="meta-tag model-tag">{{ result.tags?.find(t => t.key === 'aiDriver')?.val || 'AI模型' }}</span>
+                <!-- <span class="meta-tag size-tag">{{ result.type === 1 ? '图片' : '视频' }}</span> -->
+                <span class="meta-tag model-tag" v-if="result.tags?.find(t => t.key === 'genImageNum')?.val">
+                  {{ result.tags?.find(t => t.key === 'genImageNum')?.val }}张
+                </span>
+                <span class="meta-tag model-tag" v-if="result.tags?.find(t => t.key === 'size')?.val">
+                  {{ result.tags?.find(t => t.key === 'size')?.val }}画质
+                </span>
+                <span v-if="result.status === 3" class="meta-tag status-tag failed">生成失败</span>
+                <span class="meta-tag time-tag">{{ formatTime(result.createdAt || new Date(result.createTime).getTime()) }}</span>
               </div>
             </div>
             
-            <!-- 下部分：生成内容 - 根据 genType 显示不同内容 -->
+            <!-- 下部分：生成内容 - 根据 type 显示不同内容 -->
+            <!-- 失败状态显示 -->
+            <div v-if="result.status === 3" class="generation-images failed-content">
+              <div class="failed-message">
+                <div class="failed-icon-large">
+                  <el-icon size="48">
+                    <VideoCamera v-if="result.type === 2" />
+                    <Picture v-else />
+                  </el-icon>
+                  <div class="error-badge">
+                    <el-icon size="24"><CircleClose /></el-icon>
+                  </div>
+                </div>
+                <div class="failed-info">
+                  <div class="failed-title">{{ result.type === 2 ? '视频' : '图片' }}生成失败</div>
+                  <div class="failed-desc">请检查参数设置或稍后重试</div>
+                </div>
+              </div>
+            </div>
+            
             <!-- 图片结果显示 -->
-            <div v-if="result.genType === 1 && result.images" class="generation-images" :class="`count-${result.images.length}`">
+            <div v-else-if="result.type === 1 && result.assets" class="generation-images" :class="`count-${result.assets.filter(a => a.type === 1).length}`">
               <div 
-                v-for="(imageUrl, imgIndex) in result.images" 
-                :key="imgIndex"
+                v-for="(asset, imgIndex) in result.assets.filter(a => a.type === 1)" 
+                :key="asset.id"
                 class="generation-image-item"
-                @click="previewImage(imageUrl)"
+                @click="previewImage(asset.materialUrl || asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)"
               >
                 <div class="image-wrapper">
-                  <img :src="imageUrl" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" />
+                  <img :src="asset.materialUrl || asset.coverUrl" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" />
                   <div class="image-overlay">
                     <div class="overlay-actions">
                       <el-button 
                         type="primary" 
                         size="small" 
                         circle
-                        @click.stop="downloadImageUrl(imageUrl, result.id, imgIndex)"
+                        @click.stop="downloadImageUrl(asset.materialUrl || asset.coverUrl, result.id, imgIndex)"
                         class="action-btn"
                       >
                         <el-icon><Download /></el-icon>
@@ -703,11 +761,11 @@
             </div>
 
             <!-- 视频结果显示 -->
-            <div v-else-if="result.genType === 2 && result.videoUrl" class="generation-images video-result-container">
-              <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.videoUrl)">
+            <div v-else-if="result.type === 2 && result.assets?.find(a => a.type === 2)" class="generation-images video-result-container">
+              <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.assets.find(a => a.type === 2)?.materialUrl || '', result.assets.find(a => a.type === 2), result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)">
                 <div class="image-wrapper video-wrapper">
                   <video 
-                    :src="result.videoUrl" 
+                    :src="result.assets.find(a => a.type === 2)?.materialUrl" 
                     class="generated-image generated-video"
                     muted
                     preload="metadata"
@@ -734,7 +792,7 @@
                 <el-icon class="button-icon"><Refresh /></el-icon>
                 <span>再次生成</span>
               </el-button>
-              <el-button v-if="result.genType === 2 && result.videoUrl" class="action-button download-button" @click="downloadVideoUrl(result.videoUrl, result.id)">
+              <el-button v-if="result.type === 2 && result.assets?.find(a => a.type === 2)" class="action-button download-button" @click="downloadVideoUrl(result.assets.find(a => a.type === 2)?.materialUrl || '', result.id)">
                 <el-icon class="button-icon"><Download /></el-icon>
                 <span>下载</span>
               </el-button>
@@ -781,13 +839,12 @@
                 @change="handleImageUpload"
                 :disabled="referenceImages.length >= 5"
               >
-                <div class="upload-btn small" :class="{ disabled: referenceImages.length >= 5 }">
-                  <el-icon><Plus /></el-icon>
+                <div class="upload-btn-placeholder small" :class="{ disabled: referenceImages.length >= 5 }">
+                  <svg class="placeholder-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 304c35.3 0 64 28.7 64 64s-28.7 64-64 64-64-28.7-64-64 28.7-64 64-64zm513.9 437.1c-2.4 5.2-7.9 8.9-13.9 8.9H186c-6.6 0-12.6-4.1-15-10.3-2.3-6.2-0.8-13.1 4-17.5l167.4-151.8c3.7-3.4 9.4-3.4 13.1 0l100.6 91.2 219.3-198.9c3.7-3.4 9.4-3.4 13.1 0l232.5 211c4.8 4.4 6.3 11.3 3.9 17.4z" fill="currentColor"/>
+                  </svg>
                 </div>
               </el-upload>
-              <div class="upload-hint" v-if="referenceImages.length === 0">
-                <span>添加参考图</span>
-              </div>
             </template>
 
             <!-- 视频生成模式的上传 -->
@@ -846,17 +903,16 @@
                 <div class="video-upload-multimodal compact">
                   <!-- 传视频区域 -->
                   <div class="upload-item">
-                    <label class="upload-label">传视频</label>
                     <el-upload
                       :show-file-list="false"
                       :before-upload="handleVideoUpload"
                       accept="video/*"
                       class="frame-uploader"
                     >
-                      <div class="upload-area small" :class="{ 'has-video': referenceVideo }">
+                      <div class="upload-area-video compact" :class="{ 'has-video': referenceVideo }">
                         <video v-if="referenceVideo" :src="referenceVideo" class="uploaded-video" muted />
-                        <div v-else class="upload-placeholder">
-                          <el-icon size="12"><VideoCamera /></el-icon>
+                        <div v-else class="upload-placeholder-video compact">
+                          <el-icon size="18"><VideoCamera /></el-icon>
                         </div>
                       </div>
                     </el-upload>
@@ -864,7 +920,6 @@
 
                   <!-- 传图片区域 -->
                   <div class="images-upload-section compact">
-                    <label class="upload-label">传图片</label>
                     <div class="images-container">
                       <!-- 上传框 -->
                       <el-upload
@@ -874,10 +929,12 @@
                         class="frame-uploader"
                         :disabled="videoReferenceImages.filter(img => img).length >= 4"
                       >
-                        <div class="upload-area mini" :class="{ 'disabled': videoReferenceImages.filter(img => img).length >= 4 }">
-                          <div class="upload-placeholder">
-                            <el-icon size="10"><Plus /></el-icon>
-                            <span class="upload-text">{{ videoReferenceImages.filter(img => img).length }}/4</span>
+                        <div class="upload-area-image compact" :class="{ 'disabled': videoReferenceImages.filter(img => img).length >= 4 }">
+                          <div class="upload-placeholder-image compact">
+                            <svg class="placeholder-icon-small" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 304c35.3 0 64 28.7 64 64s-28.7 64-64 64-64-28.7-64-64 28.7-64 64-64zm513.9 437.1c-2.4 5.2-7.9 8.9-13.9 8.9H186c-6.6 0-12.6-4.1-15-10.3-2.3-6.2-0.8-13.1 4-17.5l167.4-151.8c3.7-3.4 9.4-3.4 13.1 0l100.6 91.2 219.3-198.9c3.7-3.4 9.4-3.4 13.1 0l232.5 211c4.8 4.4 6.3 11.3 3.9 17.4z" fill="currentColor"/>
+                            </svg>
+                            <span class="upload-count">{{ videoReferenceImages.filter(img => img).length }}/4</span>
                           </div>
                         </div>
                       </el-upload>
@@ -922,13 +979,12 @@
                   @change="handleImageUpload"
                   :disabled="referenceImages.length >= 4"
                 >
-                  <div class="upload-btn small" :class="{ disabled: referenceImages.length >= 4 }">
-                    <el-icon><Plus /></el-icon>
+                  <div class="upload-btn-placeholder small" :class="{ disabled: referenceImages.length >= 4 }">
+                    <svg class="placeholder-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 304c35.3 0 64 28.7 64 64s-28.7 64-64 64-64-28.7-64-64 28.7-64 64-64zm513.9 437.1c-2.4 5.2-7.9 8.9-13.9 8.9H186c-6.6 0-12.6-4.1-15-10.3-2.3-6.2-0.8-13.1 4-17.5l167.4-151.8c3.7-3.4 9.4-3.4 13.1 0l100.6 91.2 219.3-198.9c3.7-3.4 9.4-3.4 13.1 0l232.5 211c4.8 4.4 6.3 11.3 3.9 17.4z" fill="currentColor"/>
+                    </svg>
                   </div>
                 </el-upload>
-                <div class="upload-hint" v-if="referenceImages.length === 0">
-                  <span>添加参考图</span>
-                </div>
               </template>
             </template>
           </div>
@@ -1389,34 +1445,141 @@
     </el-dialog>
 
     <!-- 图片预览对话框 -->
-    <el-dialog v-model="previewVisible" title="" width="80%" center class="preview-dialog">
+    <el-dialog 
+      v-model="previewVisible" 
+      title="" 
+      width="90%" 
+      center 
+      class="preview-dialog image-preview-dialog" 
+      :show-close="false"
+      :close-on-click-modal="true"
+      :close-on-press-escape="true"
+      :lock-scroll="true"
+      :modal="true"
+      append-to-body
+    >
       <div v-if="previewImageData" class="preview-content">
-        <img :src="previewImageUrl" class="preview-image" />
-        <div class="preview-actions">
-          <el-button type="primary" @click="downloadImage(previewImageData)">
-            <el-icon><Download /></el-icon>
-            下载
-          </el-button>
-          <el-button @click="saveToAssets(previewImageData)">
-            <el-icon><FolderAdd /></el-icon>
-            保存
-          </el-button>
+        <div class="preview-close-btn" @click="previewVisible = false">
+          <el-icon><Close /></el-icon>
+        </div>
+        
+        <div class="preview-layout">
+          <!-- 左侧：媒体展示区 -->
+          <div class="preview-media-section">
+            <div class="media-container">
+              <img :src="previewImageUrl" class="preview-image" alt="预览图片" />
+            </div>
+          </div>
+          
+          <!-- 右侧：信息面板 -->
+          <div class="preview-info-section">
+            <div class="info-content">
+              <!-- 标题 -->
+              <div class="preview-header">
+                <div class="header-icon">
+                  <el-icon><Picture /></el-icon>
+                </div>
+                <h3 class="header-title">图片详情</h3>
+              </div>
+              
+              <!-- 提示词 -->
+              <div class="preview-prompt-section" v-if="previewPrompt">
+                <div class="prompt-label">
+                  <el-icon><Edit /></el-icon>
+                  <span>生成提示词</span>
+                </div>
+                <div class="prompt-text">{{ previewPrompt }}</div>
+              </div>
+              
+              <!-- 占位符 - 如果没有提示词 -->
+              <div v-else class="prompt-placeholder">
+                <el-icon><Edit /></el-icon>
+                <span>暂无提示词信息</span>
+              </div>
+              
+              <!-- 操作按钮 -->
+              <div class="preview-actions">
+                <el-button 
+                  type="primary" 
+                  @click="downloadImage(previewImageData)" 
+                  class="preview-action-btn primary-btn"
+                >
+                  <el-icon><Download /></el-icon>
+                  <span>下载图片</span>
+                </el-button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </el-dialog>
+    
     <!-- 视频预览对话框 -->
-    <el-dialog v-model="videoPreviewVisible" title="" width="80%" center class="preview-dialog video-preview-dialog">
+    <el-dialog 
+      v-model="videoPreviewVisible" 
+      title="" 
+      width="90%" 
+      center 
+      class="preview-dialog video-preview-dialog" 
+      :show-close="false"
+      :close-on-click-modal="true"
+      :close-on-press-escape="true"
+      :lock-scroll="true"
+      :modal="true"
+      append-to-body
+    >
       <div v-if="previewVideoData" class="preview-content">
-        <video :src="previewVideoUrl" class="preview-video" controls autoplay />
-        <div class="preview-actions">
-          <el-button type="primary" @click="downloadVideo(previewVideoData)">
-            <el-icon><Download /></el-icon>
-            下载
-          </el-button>
-          <el-button @click="saveVideoToAssets(previewVideoData)">
-            <el-icon><FolderAdd /></el-icon>
-            保存
-          </el-button>
+        <div class="preview-close-btn" @click="videoPreviewVisible = false">
+          <el-icon><Close /></el-icon>
+        </div>
+        
+        <div class="preview-layout">
+          <!-- 左侧：媒体展示区 -->
+          <div class="preview-media-section">
+            <div class="media-container">
+              <video :src="previewVideoUrl" class="preview-video" controls autoplay />
+            </div>
+          </div>
+          
+          <!-- 右侧：信息面板 -->
+          <div class="preview-info-section">
+            <div class="info-content">
+              <!-- 标题 -->
+              <div class="preview-header">
+                <div class="header-icon">
+                  <el-icon><VideoCamera /></el-icon>
+                </div>
+                <h3 class="header-title">视频详情</h3>
+              </div>
+              
+              <!-- 提示词 -->
+              <div class="preview-prompt-section" v-if="previewPrompt">
+                <div class="prompt-label">
+                  <el-icon><Edit /></el-icon>
+                  <span>生成提示词</span>
+                </div>
+                <div class="prompt-text">{{ previewPrompt }}</div>
+              </div>
+              
+              <!-- 占位符 - 如果没有提示词 -->
+              <div v-else class="prompt-placeholder">
+                <el-icon><Edit /></el-icon>
+                <span>暂无提示词信息</span>
+              </div>
+              
+              <!-- 操作按钮 -->
+              <div class="preview-actions">
+                <el-button 
+                  type="primary" 
+                  @click="downloadVideo(previewVideoData)" 
+                  class="preview-action-btn primary-btn"
+                >
+                  <el-icon><Download /></el-icon>
+                  <span>下载视频</span>
+                </el-button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </el-dialog>
@@ -1430,7 +1593,7 @@ import { getTosToken } from '../api/index'
 import { ElMessage } from 'element-plus'
 import {
   Picture, Plus, Download, FolderAdd, Clock, Close,
-  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay, Loading
+  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay, Loading, CircleClose
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
@@ -1514,14 +1677,37 @@ interface KeLingOption {
 }
 
 // 历史结果数据接口
+interface Asset {
+  id: number
+  type: number // 1: 图片, 2: 视频
+  coverUri: string
+  coverUrl: string
+  materialUri: string
+  materialUrl: string
+  createTime: string
+}
+
+interface Tag {
+  id: number
+  name: string
+  key: string
+  val: string
+}
+
 interface HistoryResult {
-  id: string
-  prompt: string
-  genType: number // 1: 图片, 2: 视频
-  images?: string[] // 图片URL数组
-  videoUrl?: string // 视频URL
-  aiDriver: string // AI模型
-  createdAt: number
+  id: number
+  type: number // 1: 图片, 2: 视频
+  status: number // 状态
+  createTime: string
+  assets: Asset[]
+  tags: Tag[]
+  // 兼容旧字段
+  prompt?: string
+  genType?: number
+  images?: string[]
+  videoUrl?: string
+  aiDriver?: string
+  createdAt?: number
 }
 
 const prompt = ref('')
@@ -1533,6 +1719,7 @@ const showHistory = ref(false)
 const previewVisible = ref(false)
 const previewImageUrl = ref('')
 const previewImageData = ref<ImageResult | null>(null)
+const previewPrompt = ref('')
 const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
 // 控制提示词输入框字数限制
@@ -1544,6 +1731,7 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const loadingMore = ref(false)
 const hasMore = ref(true)
+const initialLoading = ref(true) // 初始加载状态
 const resultsDisplayRef = ref<HTMLElement | null>(null)
 const loadMoreObserver = ref<IntersectionObserver | null>(null)
 
@@ -2122,13 +2310,31 @@ const generateTask = async (taskId: string) => {
   }
 }
 
-const previewImage = (imageUrl: string) => {
+const previewImage = (imageUrl: string, imageData?: Asset, promptText?: string) => {
   previewImageUrl.value = imageUrl
+  // 如果传入了imageData，使用它；否则创建一个临时对象
+  previewImageData.value = imageData || {
+    id: Date.now().toString(),
+    materialUrl: imageUrl,
+    coverUrl: imageUrl
+  } as any
+  previewPrompt.value = promptText || ''
   previewVisible.value = true
 }
 
-const previewVideo = (videoUrl: string) => {
+const previewVideo = (videoUrl: string, videoData?: Asset, promptText?: string) => {
   previewVideoUrl.value = videoUrl
+  // 如果没有传入videoData，创建一个临时对象
+  previewVideoData.value = videoData ? {
+    id: videoData.id.toString(),
+    url: videoData.materialUrl,
+    thumbnail: videoData.coverUrl
+  } : {
+    id: Date.now().toString(),
+    url: videoUrl,
+    thumbnail: ''
+  }
+  previewPrompt.value = promptText || ''
   videoPreviewVisible.value = true
 }
 
@@ -2212,18 +2418,18 @@ const selectHistoryItem = (historyItem: ImageHistoryItem) => {
 
 // 从历史记录重新编辑
 const editGeneration = (result: HistoryResult) => {
-  prompt.value = result.prompt
+  prompt.value = result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || ''
   ElMessage.info('已加载历史记录，可以重新编辑')
 }
 
 // 从历史记录再次生成
 const regenerateFromHistory = (result: HistoryResult) => {
-  prompt.value = result.prompt
+  prompt.value = result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || ''
   handleGenerate()
 }
 
 // 删除历史记录项
-const deleteHistoryItem = async (id: string) => {
+const deleteHistoryItem = async (id: number) => {
   try {
     // 这里应该调用删除接口
     // await deleteGenerateResult(id)
@@ -2319,21 +2525,52 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
   
   try {
     loadingMore.value = true
+    // 首次加载时设置初始加载状态
+    if (page === 1 && !append) {
+      initialLoading.value = true
+    }
     const results = await getGenerateResults({ page, pageSize: pageSize.value })
     
     if (results && results.data) {
       const { list, total } = results.data
       
       // 处理返回的数据
-      const formattedResults: HistoryResult[] = list.map((item: Record<string, any>) => ({
-        id: item.id || item._id,
-        prompt: item.prompt || '',
-        genType: item.genType || 1,
-        images: item.images || [],
-        videoUrl: item.videoUrl || '',
-        aiDriver: item.aiDriver || 'AI模型',
-        createdAt: item.createdAt || Date.now()
-      }))
+      const formattedResults: HistoryResult[] = list.map((item: {
+        id: number
+        type: number
+        status: number
+        createTime: string
+        assets?: Asset[]
+        tags?: Tag[]
+      }) => {
+        // 从tags中提取prompt和aiDriver
+        const promptTag = item.tags?.find((tag) => tag.key === 'prompt')
+        const aiDriverTag = item.tags?.find((tag) => tag.key === 'aiDriver')
+        
+        // 提取图片URLs
+        const images = item.assets
+          ?.filter((asset) => asset.type === 1)
+          .map((asset) => asset.materialUrl || asset.coverUrl) || []
+        
+        // 提取视频URL
+        const videoUrl = item.assets?.find((asset) => asset.type === 2)?.materialUrl || ''
+        
+        return {
+          id: item.id,
+          type: item.type,
+          status: item.status,
+          createTime: item.createTime,
+          assets: item.assets || [],
+          tags: item.tags || [],
+          // 兼容字段
+          prompt: promptTag?.val || '',
+          genType: item.type,
+          images: images,
+          videoUrl: videoUrl,
+          aiDriver: aiDriverTag?.val || 'AI模型',
+          createdAt: new Date(item.createTime).getTime()
+        }
+      })
       
       if (append) {
         historyResults.value = [...historyResults.value, ...formattedResults]
@@ -2354,6 +2591,10 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
     ElMessage.error('获取生成结果失败')
   } finally {
     loadingMore.value = false
+    // 首次加载完成后关闭初始加载状态
+    if (initialLoading.value) {
+      initialLoading.value = false
+    }
   }
 }
 
@@ -2528,6 +2769,88 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
+/* 初始加载动画 - 只覆盖内容区域 */
+.initial-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 26, 46, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 48px 60px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  border: 1px solid rgba(74, 144, 226, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.loading-dots {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.loading-dots .dot {
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, #4A90E2 0%, #667eea 100%);
+  border-radius: 50%;
+  animation: dotJump 1.4s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(74, 144, 226, 0.6);
+}
+
+.loading-dots .dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.loading-dots .dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dots .dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotJump {
+  0%, 60%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+  30% {
+    transform: translateY(-20px) scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.loading-text {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
 .image-generate-container::before {
   content: '';
   position: absolute;
@@ -2587,6 +2910,8 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  position: relative;
+  padding-bottom: 56px; /* 为固定的生成按钮留出空间 */
 }
 
 /* 输入区域上半部分 */
@@ -2606,9 +2931,9 @@ onUnmounted(() => {
 .input-bottom-section {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  padding-right: 100px; /* 为生成按钮留出空间 */
 }
 
 /* 上传按钮 */
@@ -2716,6 +3041,98 @@ onUnmounted(() => {
 
 .upload-btn.small .el-icon {
   font-size: 14px;
+}
+
+/* 缺省图片上传按钮样式 */
+.upload-btn-placeholder {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.08) 0%, rgba(102, 126, 234, 0.08) 100%);
+  border: 1.5px dashed rgba(74, 144, 226, 0.3);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.upload-btn-placeholder::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(74, 144, 226, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease;
+}
+
+.upload-btn-placeholder:hover::before {
+  width: 100%;
+  height: 100%;
+}
+
+.upload-btn-placeholder:hover {
+  border-color: #4A90E2;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.15) 0%, rgba(102, 126, 234, 0.15) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.25);
+}
+
+.upload-btn-placeholder.small {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.placeholder-icon {
+  width: 24px;
+  height: 24px;
+  color: rgba(74, 144, 226, 0.6);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 1;
+}
+
+.upload-btn-placeholder.small .placeholder-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.upload-btn-placeholder:hover .placeholder-icon {
+  color: #4A90E2;
+  transform: scale(1.1);
+}
+
+.upload-btn-placeholder.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upload-btn-placeholder.disabled:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  transform: none;
+  box-shadow: none;
+}
+
+.upload-btn-placeholder.disabled .placeholder-icon {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.upload-btn-placeholder.disabled:hover .placeholder-icon {
+  transform: none;
+}
+
+.upload-btn-placeholder.disabled::before {
+  display: none;
 }
 
 /* 文本输入区域 */
@@ -2994,22 +3411,31 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
+/* 生成按钮固定在右下角 */
+.generate-section-fixed {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  z-index: 10;
+}
+
 .generate-btn {
   background: linear-gradient(135deg, #4A90E2, #357ABD);
   border: none;
   color: #ffffff;
-  height: 36px;
-  padding: 0 20px;
-  border-radius: 18px;
-  font-size: 13px;
+  height: 40px;
+  padding: 0 24px;
+  border-radius: 20px;
+  font-size: 14px;
   font-weight: 500;
   transition: all 0.3s ease;
-  min-width: 70px;
+  min-width: 80px;
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
 }
 
 .generate-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(74, 144, 226, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(74, 144, 226, 0.5);
 }
 
 /* 视频生成相关样式 */
@@ -3025,8 +3451,9 @@ onUnmounted(() => {
 
 .video-upload-multimodal {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 12px;
+  align-items: flex-start;
 }
 
 .video-upload-multimodal.compact {
@@ -3038,6 +3465,129 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 6px;
+}
+
+/* 新的视频上传区域样式 */
+.upload-area-video {
+  width: 48px;
+  height: 48px;
+  border: 1.5px dashed rgba(74, 144, 226, 0.4);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.08) 0%, rgba(102, 126, 234, 0.08) 100%);
+}
+
+.upload-area-video.compact {
+  width: 40px;
+  height: 40px;
+}
+
+.upload-area-video:hover {
+  border-color: #4A90E2;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.15) 0%, rgba(102, 126, 234, 0.15) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.25);
+}
+
+.upload-area-video.has-video {
+  border-style: solid;
+  border-color: #4A90E2;
+}
+
+.upload-placeholder-video {
+  color: rgba(74, 144, 226, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.upload-placeholder-video.compact {
+  font-size: 18px;
+}
+
+.upload-area-video:hover .upload-placeholder-video {
+  color: #4A90E2;
+  transform: scale(1.1);
+}
+
+/* 新的图片上传区域样式 */
+.upload-area-image {
+  width: 40px;
+  height: 40px;
+  border: 1.5px dashed rgba(74, 144, 226, 0.3);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.06) 0%, rgba(102, 126, 234, 0.06) 100%);
+}
+
+.upload-area-image.compact {
+  width: 32px;
+  height: 32px;
+}
+
+.upload-area-image:hover {
+  border-color: #4A90E2;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.12) 0%, rgba(102, 126, 234, 0.12) 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.2);
+}
+
+.upload-area-image.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.upload-area-image.disabled:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.05);
+  transform: none;
+  box-shadow: none;
+}
+
+.upload-placeholder-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: all 0.3s ease;
+}
+
+.placeholder-icon-small {
+  width: 16px;
+  height: 16px;
+  color: rgba(74, 144, 226, 0.6);
+  transition: all 0.3s ease;
+}
+
+.upload-area-image:hover .placeholder-icon-small {
+  color: #4A90E2;
+  transform: scale(1.1);
+}
+
+.upload-count {
+  font-size: 9px;
+  color: rgba(74, 144, 226, 0.7);
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.upload-area-image:hover .upload-count {
+  color: #4A90E2;
 }
 
 .upload-label {
@@ -4274,6 +4824,137 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.7);
 }
 
+.status-tag.failed {
+  background: rgba(255, 77, 79, 0.2);
+  border-color: rgba(255, 77, 79, 0.4);
+  color: #ff6b6b;
+}
+
+/* 失败状态样式 */
+.generation-card.generation-failed {
+  border-bottom-color: rgba(255, 77, 79, 0.15);
+}
+
+.generation-thumbnail.failed-thumbnail {
+  background: rgba(255, 77, 79, 0.1);
+  border: 1px solid rgba(255, 77, 79, 0.2);
+}
+
+.failed-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.failed-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.failed-icon {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.failed-overlay {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 24px;
+  height: 24px;
+  background: #ff4d4f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(26, 26, 46, 1);
+}
+
+.error-icon {
+  color: #ffffff;
+}
+
+.failed-text {
+  font-size: 11px;
+  color: rgba(255, 77, 79, 0.8);
+  font-weight: 500;
+}
+
+.generation-images.failed-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  background: rgba(255, 77, 79, 0.05);
+  border: 1px dashed rgba(255, 77, 79, 0.3);
+  border-radius: 12px;
+  padding: 40px 20px;
+}
+
+.failed-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.failed-icon-large {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 77, 79, 0.1);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 77, 79, 0.3);
+}
+
+.failed-icon-large > .el-icon {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.error-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  background: #ff4d4f;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid rgba(26, 26, 46, 1);
+}
+
+.error-badge .el-icon {
+  color: #ffffff;
+}
+
+.failed-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.failed-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ff6b6b;
+}
+
+.failed-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 /* 下部分：生成图 */
 .generation-images {
   display: grid;
@@ -4621,31 +5302,463 @@ onUnmounted(() => {
 
 /* 预览对话框 */
 .preview-dialog :deep(.el-dialog) {
-  background: rgba(26, 26, 46, 0.95);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent !important;
+  backdrop-filter: none;
+  border: none !important;
+  box-shadow: none !important;
+  max-width: 1100px;
+  max-height: 80vh;
+  margin: 5vh auto !important;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
 .preview-dialog :deep(.el-dialog__header) {
   display: none;
 }
 
-.preview-content {
-  text-align: center;
-}
-
-.preview-image {
-  width: 100%;
-  max-height: 70vh;
-  object-fit: contain;
-  border-radius: 12px;
-}
-
-.preview-actions {
-  margin-top: 20px;
+.preview-dialog :deep(.el-dialog__body) {
+  padding: 0;
+  background: transparent;
+  height: 80vh;
+  max-height: 80vh;
+  overflow: hidden;
   display: flex;
+  align-items: center;
+}
+
+.preview-dialog :deep(.el-overlay) {
+  background-color: rgba(0, 0, 0, 0.94) !important;
+  backdrop-filter: blur(30px);
+  overflow: hidden !important;
+}
+
+/* 确保对话框包装器不产生滚动 */
+.preview-dialog.el-overlay {
+  overflow: hidden !important;
+}
+
+.preview-content {
+  position: relative;
+  height: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+}
+
+.preview-close-btn {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 12px;
+  cursor: pointer;
+  z-index: 10000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.preview-close-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.preview-close-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.15) 100%);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #ffffff;
+  transform: rotate(90deg) scale(1.08);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+.preview-close-btn:hover::before {
+  opacity: 1;
+}
+
+.preview-close-btn:active {
+  transform: rotate(90deg) scale(0.95);
+}
+
+.preview-close-btn .el-icon {
+  font-size: 22px;
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+
+/* 左右布局 */
+.preview-layout {
+  display: flex;
+  height: 100%;
+  max-height: 75vh;
+  gap: 0;
+  overflow: hidden;
+}
+
+/* 左侧媒体区域 */
+.preview-media-section {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(18, 18, 28, 0.4) 0%, rgba(10, 10, 20, 0.6) 100%);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.preview-media-section::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+  filter: blur(80px);
+  animation: pulseGlow 6s ease-in-out infinite;
+}
+
+.preview-media-section::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.08) 0%, transparent 40%),
+    radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.08) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+.media-container {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-image,
+.preview-video {
+  max-width: 100%;
+  max-height: calc(80vh - 48px);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 
+    0 30px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 60px rgba(102, 126, 234, 0.15);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  background: #000;
+}
+
+.preview-image:hover,
+.preview-video:hover {
+  box-shadow: 
+    0 40px 100px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 0 80px rgba(102, 126, 234, 0.25);
+  transform: scale(1.01);
+}
+
+/* 右侧信息区域 */
+.preview-info-section {
+  width: 340px;
+  flex-shrink: 0;
+  background: linear-gradient(
+    135deg,
+    rgba(26, 26, 46, 0.95) 0%,
+    rgba(18, 18, 35, 0.98) 100%
+  );
+  backdrop-filter: blur(40px);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.preview-info-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    radial-gradient(circle at 50% 0%, rgba(102, 126, 234, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 50% 100%, rgba(118, 75, 162, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.info-content {
+  position: relative;
+  z-index: 1;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.info-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.info-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 3px;
+}
+
+.info-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.info-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* 标题区域 */
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+}
+
+.preview-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 45px;
+  height: 2px;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  border-radius: 2px;
+}
+
+.header-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #667eea;
+  font-size: 20px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.2);
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+/* 提示词区域 */
+.preview-prompt-section {
+  flex: 1;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.prompt-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.prompt-label .el-icon {
+  font-size: 15px;
+  color: #667eea;
+}
+
+.prompt-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.95);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  overflow-y: auto;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+  min-height: 80px;
+  max-height: 250px;
+}
+
+.prompt-text:hover {
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.prompt-text::-webkit-scrollbar {
+  width: 6px;
+}
+
+.prompt-text::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 3px;
+}
+
+.prompt-text::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  transition: background 0.3s ease;
+}
+
+.prompt-text::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* 占位符 */
+.prompt-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 30px 16px;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 13px;
+  font-style: italic;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  margin-bottom: 20px;
+  min-height: 80px;
+}
+
+.prompt-placeholder .el-icon {
+  font-size: 18px;
+}
+
+/* 操作按钮 */
+.preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+  flex-shrink: 0;
+}
+
+.preview-action-btn {
+  width: 100%;
+  height: 44px;
+  border-radius: 22px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.preview-action-btn.primary-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #ffffff;
+  box-shadow: 
+    0 8px 24px rgba(102, 126, 234, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.preview-action-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transition: left 0.6s ease;
+}
+
+.preview-action-btn:hover::before {
+  left: 100%;
+}
+
+.preview-action-btn.primary-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 12px 36px rgba(102, 126, 234, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+  background: linear-gradient(135deg, #7b8ff0 0%, #8a5bb8 100%);
+}
+
+.preview-action-btn:active {
+  transform: translateY(-1px);
+}
+
+.preview-action-btn .el-icon {
+  font-size: 20px;
 }
 
 /* 选择器样式 - 即梦风格 */
@@ -5264,7 +6377,7 @@ onUnmounted(() => {
   }
   
   .floating-input-panel {
-    max-width: 700px;
+    max-width: 714px;
     left: 50%;
     transform: translateX(-50%);
     bottom: 100px;
@@ -5353,6 +6466,23 @@ onUnmounted(() => {
 
 <style>
 /* 全局样式 - 用于 Element Plus Popover 组件 */
+
+/* 预览对话框打开时隐藏 body 滚动条 */
+body.el-popup-parent--hidden {
+  overflow: hidden !important;
+  padding-right: 0 !important;
+}
+
+/* 确保对话框遮罩层覆盖整个视口 */
+.el-overlay {
+  overflow: hidden !important;
+}
+
+/* 预览对话框样式 */
+.preview-dialog.el-dialog__wrapper {
+  overflow: hidden !important;
+}
+
 .model-popover,
 .image-params-popover,
 .generate-mode-popover,
@@ -5589,16 +6719,152 @@ onUnmounted(() => {
   color: #22c55e;
 }
 
-/* 视频预览对话框样式 */
-.video-preview-dialog .preview-video {
-  width: 100%;
-  max-height: 70vh;
-  object-fit: contain;
-  border-radius: 8px;
-  background: #000;
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .preview-info-section {
+    width: 380px;
+  }
+  
+  .info-content {
+    padding: 32px 24px;
+  }
 }
 
-/* 响应式调整 */
+@media (max-width: 968px) {
+  .preview-layout {
+    flex-direction: column;
+  }
+  
+  .preview-media-section {
+    min-height: 50vh;
+    padding: 30px 20px;
+  }
+  
+  .preview-info-section {
+    width: 100%;
+    max-height: 40vh;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  
+  .info-content {
+    padding: 24px 20px;
+  }
+  
+  .preview-header {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+  }
+  
+  .header-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .header-title {
+    font-size: 18px;
+  }
+  
+  .preview-prompt-section {
+    margin-bottom: 20px;
+  }
+  
+  .prompt-text {
+    font-size: 14px;
+    padding: 16px;
+  }
+  
+  .preview-action-btn {
+    height: 48px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .preview-dialog :deep(.el-dialog) {
+    width: 95% !important;
+    max-height: 95vh;
+    margin: 2.5vh auto !important;
+  }
+  
+  .preview-close-btn {
+    top: 16px;
+    right: 16px;
+    width: 40px;
+    height: 40px;
+  }
+  
+  .preview-close-btn .el-icon {
+    font-size: 18px;
+  }
+  
+  .preview-media-section {
+    min-height: 45vh;
+    padding: 20px 16px;
+  }
+  
+  .preview-image,
+  .preview-video {
+    max-height: calc(45vh - 40px);
+    border-radius: 16px;
+  }
+  
+  .info-content {
+    padding: 20px 16px;
+  }
+  
+  .preview-header {
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+  
+  .header-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+  
+  .header-title {
+    font-size: 16px;
+  }
+  
+  .prompt-label {
+    font-size: 11px;
+    gap: 8px;
+  }
+  
+  .prompt-label .el-icon {
+    font-size: 16px;
+  }
+  
+  .prompt-text {
+    font-size: 13px;
+    padding: 14px;
+    line-height: 1.6;
+  }
+  
+  .preview-action-btn {
+    height: 44px;
+    font-size: 13px;
+  }
+  
+  .preview-action-btn .el-icon {
+    font-size: 18px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 968px) {
+  .preview-media-section {
+    padding: 30px 24px;
+  }
+  
+  .preview-image,
+  .preview-video {
+    max-height: calc(50vh - 60px);
+  }
+}
 @media (max-width: 768px) {
   .play-button {
     width: 40px;
