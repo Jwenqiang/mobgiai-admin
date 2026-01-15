@@ -601,19 +601,39 @@
             v-for="task in generationTasks" 
             :key="task.id"
             class="generation-card generating"
+            :class="{ 
+              'generating-video': task.type === 2 || currentGenerateMode?.value === 'video',
+              'generating-image': task.type === 1 || currentGenerateMode?.value === 'image'
+            }"
           >
             <!-- 上部分：缩略图和制作中状态 -->
             <div class="generation-header">
-              <div class="generation-thumbnail generating-thumb">
+              <div class="generation-thumbnail generating-thumb" 
+                   :class="{ 
+                     'video-thumb': task.type === 2 || currentGenerateMode?.value === 'video',
+                     'image-thumb': task.type === 1 || currentGenerateMode?.value === 'image'
+                   }">
                 <div class="generating-placeholder">
-                  <el-icon class="placeholder-icon"><Picture v-if="currentGenerateMode?.value === 'image'" /><VideoCamera v-else /></el-icon>
+                  <div class="icon-wrapper">
+                    <el-icon class="placeholder-icon">
+                      <VideoCamera v-if="task.type === 2 || currentGenerateMode?.value === 'video'" />
+                      <Picture v-else />
+                    </el-icon>
+                    <div class="type-badge" :class="{ 'video-badge': task.type === 2 || currentGenerateMode?.value === 'video' }">
+                      <el-icon size="14"><Loading /></el-icon>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="generation-info">
                 <div class="generation-status">
-                  <span class="status-text">制作中...</span>
+                  <span class="status-text" :class="{ 'video-status': task.type === 2 || currentGenerateMode?.value === 'video' }">
+                    {{ task.type === 2 || currentGenerateMode?.value === 'video' ? '视频制作中...' : '图片生成中...' }}
+                  </span>
                   <div class="status-progress">
-                    <div class="progress-bar" :style="{ width: task.progress + '%' }"></div>
+                    <div class="progress-bar" 
+                         :class="{ 'video-progress': task.type === 2 || currentGenerateMode?.value === 'video' }"
+                         :style="{ width: task.progress + '%' }"></div>
                   </div>
                 </div>
                 <div class="generation-prompt">{{ task.prompt || '正在生成您描述的内容...' }}</div>
@@ -623,21 +643,41 @@
             <!-- 中部分：模型标签等信息 -->
             <div class="generation-meta">
               <div class="meta-tags">
+                <span class="meta-tag type-tag" 
+                      :class="{ 
+                        'video-type-tag': task.type === 2 || currentGenerateMode?.value === 'video',
+                        'image-type-tag': task.type === 1 || currentGenerateMode?.value === 'image'
+                      }">
+                  <el-icon size="12">
+                    <VideoCamera v-if="task.type === 2 || currentGenerateMode?.value === 'video'" />
+                    <Picture v-else />
+                  </el-icon>
+                  {{ task.type === 2 || currentGenerateMode?.value === 'video' ? '视频' : '图片' }}
+                </span>
                 <span class="meta-tag model-tag">{{ task.model?.name || 'Seedream 4.5' }}</span>
                 <span class="meta-tag size-tag">{{ task.size?.label || '9:16' }}</span>
-                <span class="meta-tag status-tag generating">{{ task.progressText }}</span>
+                <span class="meta-tag status-tag generating" 
+                      :class="{ 'video-generating': task.type === 2 || currentGenerateMode?.value === 'video' }">
+                  {{ task.progressText }}
+                </span>
               </div>
             </div>
             
             <!-- 下部分：待生成的模型图缺省图 -->
             <div class="generation-images generating-preview">
-              <div class="generation-image-item generating-item">
+              <div class="generation-image-item generating-item" 
+                   :class="{ 'video-item': task.type === 2 || currentGenerateMode?.value === 'video' }">
                 <div class="image-wrapper">
-                  <div class="generating-placeholder-image">
+                  <div class="generating-placeholder-image" 
+                       :class="{ 'video-placeholder': task.type === 2 || currentGenerateMode?.value === 'video' }">
                     <div class="placeholder-content">
-                      <el-icon class="placeholder-icon" v-if="currentGenerateMode?.value === 'video'"><VideoCamera /></el-icon>
-                      <el-icon class="placeholder-icon" v-else><Picture /></el-icon>
-                      <div class="placeholder-text">生成中</div>
+                      <el-icon class="placeholder-icon">
+                        <VideoCamera v-if="task.type === 2 || currentGenerateMode?.value === 'video'" />
+                        <Picture v-else />
+                      </el-icon>
+                      <div class="placeholder-text">
+                        {{ task.type === 2 || currentGenerateMode?.value === 'video' ? '视频生成中' : '图片生成中' }}
+                      </div>
                       <div class="generating-dots">
                         <span class="dot"></span>
                         <span class="dot"></span>
@@ -4529,6 +4569,16 @@ onUnmounted(() => {
   animation: slideInFromTop 0.4s ease-out;
 }
 
+/* 视频生成中 - 紫色主题 */
+.generation-card.generating.generating-video {
+  border-bottom-color: rgba(147, 51, 234, 0.3);
+}
+
+/* 图片生成中 - 蓝色主题 */
+.generation-card.generating.generating-image {
+  border-bottom-color: rgba(74, 144, 226, 0.3);
+}
+
 @keyframes slideInFromTop {
   from {
     opacity: 0;
@@ -4551,6 +4601,18 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+/* 视频缩略图 - 紫色边框 */
+.generation-thumbnail.generating-thumb.video-thumb {
+  background: rgba(147, 51, 234, 0.08);
+  border-color: rgba(147, 51, 234, 0.3);
+}
+
+/* 图片缩略图 - 蓝色边框 */
+.generation-thumbnail.generating-thumb.image-thumb {
+  background: rgba(74, 144, 226, 0.08);
+  border-color: rgba(74, 144, 226, 0.3);
+}
+
 .generation-thumbnail.generating-thumb::before {
   content: '';
   position: absolute;
@@ -4560,6 +4622,16 @@ onUnmounted(() => {
   height: 200%;
   background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.05), transparent);
   animation: shimmer 2s infinite;
+}
+
+/* 视频缩略图光效 */
+.generation-thumbnail.generating-thumb.video-thumb::before {
+  background: linear-gradient(45deg, transparent, rgba(147, 51, 234, 0.1), transparent);
+}
+
+/* 图片缩略图光效 */
+.generation-thumbnail.generating-thumb.image-thumb::before {
+  background: linear-gradient(45deg, transparent, rgba(74, 144, 226, 0.1), transparent);
 }
 
 @keyframes shimmer {
@@ -4577,10 +4649,41 @@ onUnmounted(() => {
   z-index: 1;
 }
 
+.generating-placeholder .icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .generating-placeholder .placeholder-icon {
   font-size: 24px;
   color: rgba(255, 255, 255, 0.4);
   animation: pulse 2s infinite;
+}
+
+/* 类型徽章 */
+.generating-placeholder .type-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 20px;
+  height: 20px;
+  background: #4A90E2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(26, 26, 46, 1);
+}
+
+.generating-placeholder .type-badge.video-badge {
+  background: linear-gradient(135deg, #9333ea, #a855f7);
+}
+
+.generating-placeholder .type-badge .el-icon {
+  color: #ffffff;
+  animation: rotate 1s linear infinite;
 }
 
 @keyframes pulse {
@@ -4601,6 +4704,10 @@ onUnmounted(() => {
   display: block;
 }
 
+.status-text.video-status {
+  color: #9333ea;
+}
+
 .status-progress {
   width: 100%;
   height: 3px;
@@ -4616,6 +4723,10 @@ onUnmounted(() => {
   border-radius: 2px;
   transition: width 0.3s ease;
   position: relative;
+}
+
+.progress-bar.video-progress {
+  background: linear-gradient(90deg, #9333ea, #a855f7);
 }
 
 .progress-bar::after {
@@ -4634,12 +4745,38 @@ onUnmounted(() => {
   100% { transform: translateX(100%); }
 }
 
+/* 类型标签 */
+.meta-tag.type-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.meta-tag.type-tag.video-type-tag {
+  background: rgba(147, 51, 234, 0.25);
+  border-color: rgba(147, 51, 234, 0.5);
+  color: #c084fc;
+}
+
+.meta-tag.type-tag.image-type-tag {
+  background: rgba(74, 144, 226, 0.25);
+  border-color: rgba(74, 144, 226, 0.5);
+  color: #60a5fa;
+}
+
 /* 状态标签 */
 .status-tag.generating {
   background: rgba(74, 144, 226, 0.2);
   border-color: rgba(74, 144, 226, 0.4);
   color: #4A90E2;
   animation: statusPulse 2s infinite;
+}
+
+.status-tag.generating.video-generating {
+  background: rgba(147, 51, 234, 0.2);
+  border-color: rgba(147, 51, 234, 0.4);
+  color: #9333ea;
 }
 
 @keyframes statusPulse {
@@ -4649,18 +4786,25 @@ onUnmounted(() => {
 
 /* 生成中的图片预览区域 */
 .generation-images.generating-preview {
-  display: grid;
+  display: flex;
   gap: 16px;
   width: 100%;
 }
 
 .generation-image-item.generating-item {
-  aspect-ratio: 1;
+  width: 265px;
+  height: 265px;
+  flex-shrink: 0;
   border-radius: 8px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.05);
   border: 2px dashed rgba(255, 255, 255, 0.15);
   position: relative;
+}
+
+.generation-image-item.generating-item.video-item {
+  background: rgba(147, 51, 234, 0.05);
+  border-color: rgba(147, 51, 234, 0.2);
 }
 
 .generating-placeholder-image {
@@ -4674,6 +4818,10 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
+.generating-placeholder-image.video-placeholder {
+  background: rgba(147, 51, 234, 0.03);
+}
+
 .generating-placeholder-image::before {
   content: '';
   position: absolute;
@@ -4684,6 +4832,10 @@ onUnmounted(() => {
   background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.03), transparent);
   animation: shimmer 3s infinite;
   animation-delay: var(--delay, 0s);
+}
+
+.generating-placeholder-image.video-placeholder::before {
+  background: linear-gradient(45deg, transparent, rgba(147, 51, 234, 0.05), transparent);
 }
 
 .generation-image-item.generating-item:nth-child(1) .generating-placeholder-image::before {
@@ -4717,10 +4869,18 @@ onUnmounted(() => {
   animation: pulse 2s infinite;
 }
 
+.video-placeholder .placeholder-content .placeholder-icon {
+  color: rgba(147, 51, 234, 0.5);
+}
+
 .placeholder-text {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
   font-weight: 500;
+}
+
+.video-placeholder .placeholder-text {
+  color: rgba(147, 51, 234, 0.7);
 }
 
 .generating-dots {
@@ -4735,6 +4895,10 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.4);
   border-radius: 50%;
   animation: dotPulse 1.5s infinite;
+}
+
+.video-placeholder .generating-dots .dot {
+  background: rgba(147, 51, 234, 0.6);
 }
 
 .generating-dots .dot:nth-child(1) {
@@ -7061,6 +7225,7 @@ body.el-popup-parent--hidden {
 .video-overlay {
   /* 继承 image-overlay 的样式 */
   position: relative;
+  pointer-events: none; /* 允许鼠标事件穿透到视频元素 */
 }
 
 .play-button {
@@ -7080,6 +7245,7 @@ body.el-popup-parent--hidden {
   z-index: 1;
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
+  pointer-events: auto; /* 播放按钮本身可以接收点击事件 */
 }
 
 .video-result-item:hover .play-button {
