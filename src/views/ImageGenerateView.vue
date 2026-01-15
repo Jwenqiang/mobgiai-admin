@@ -594,56 +594,54 @@
 
       <!-- 结果展示区域 -->
       <div class="results-section">
-        <!-- 多任务生成中状态 -->
-        <div v-if="generationTasks.length > 0" class="generating-tasks">
+        <!-- 生成结果 - 新布局 -->
+        <div v-if="historyResults.length > 0 || generationTasks.length > 0" class="results-display" ref="resultsDisplayRef">
+          <!-- 多任务生成中状态 - 插入到列表头部 -->
           <div 
             v-for="task in generationTasks" 
             :key="task.id"
-            class="generating-state"
+            class="generation-card generating"
           >
-            <div class="generation-card generating">
-              <!-- 上部分：缩略图和制作中状态 -->
-              <div class="generation-header">
-                <div class="generation-thumbnail generating-thumb">
-                  <div class="generating-placeholder">
-                    <el-icon class="placeholder-icon"><Picture /></el-icon>
-                  </div>
-                </div>
-                <div class="generation-info">
-                  <div class="generation-status">
-                    <span class="status-text">制作中...</span>
-                    <div class="status-progress">
-                      <div class="progress-bar" :style="{ width: task.progress + '%' }"></div>
-                    </div>
-                  </div>
-                  <div class="generation-prompt">{{ task.prompt || '正在生成您描述的图片内容...' }}</div>
+            <!-- 上部分：缩略图和制作中状态 -->
+            <div class="generation-header">
+              <div class="generation-thumbnail generating-thumb">
+                <div class="generating-placeholder">
+                  <el-icon class="placeholder-icon"><Picture v-if="currentGenerateMode?.value === 'image'" /><VideoCamera v-else /></el-icon>
                 </div>
               </div>
-              
-              <!-- 中部分：模型标签等信息 -->
-              <div class="generation-meta">
-                <div class="meta-tags">
-                  <span class="meta-tag model-tag">{{ task.model?.name || 'Seedream 4.5' }}</span>
-                  <span class="meta-tag size-tag">{{ task.size?.label || '9:16' }}</span>
-                  <span class="meta-tag status-tag">{{ task.progressText }}</span>
+              <div class="generation-info">
+                <div class="generation-status">
+                  <span class="status-text">制作中...</span>
+                  <div class="status-progress">
+                    <div class="progress-bar" :style="{ width: task.progress + '%' }"></div>
+                  </div>
                 </div>
+                <div class="generation-prompt">{{ task.prompt || '正在生成您描述的内容...' }}</div>
               </div>
-              
-              <!-- 下部分：待生成的模型图缺省图 -->
-              <div class="generation-images generating-preview" :class="`count-${task.imageCount?.value || 4}`">
-                  <!-- v-for="index in (task.imageCount?.value || 4)" :key="index" -->
-                <div class="generation-image-item generating-item">
-                  <div class="image-wrapper">
-                    <div class="generating-placeholder-image">
-                      <div class="placeholder-content">
-                        <el-icon class="placeholder-icon" v-if="currentGenerateMode?.value === 'video'"><VideoCamera /></el-icon>
-                        <el-icon class="placeholder-icon" v-else><Picture /></el-icon>
-                        <div class="placeholder-text">生成中</div>
-                        <div class="generating-dots">
-                          <span class="dot"></span>
-                          <span class="dot"></span>
-                          <span class="dot"></span>
-                        </div>
+            </div>
+            
+            <!-- 中部分：模型标签等信息 -->
+            <div class="generation-meta">
+              <div class="meta-tags">
+                <span class="meta-tag model-tag">{{ task.model?.name || 'Seedream 4.5' }}</span>
+                <span class="meta-tag size-tag">{{ task.size?.label || '9:16' }}</span>
+                <span class="meta-tag status-tag generating">{{ task.progressText }}</span>
+              </div>
+            </div>
+            
+            <!-- 下部分：待生成的模型图缺省图 -->
+            <div class="generation-images generating-preview">
+              <div class="generation-image-item generating-item">
+                <div class="image-wrapper">
+                  <div class="generating-placeholder-image">
+                    <div class="placeholder-content">
+                      <el-icon class="placeholder-icon" v-if="currentGenerateMode?.value === 'video'"><VideoCamera /></el-icon>
+                      <el-icon class="placeholder-icon" v-else><Picture /></el-icon>
+                      <div class="placeholder-text">生成中</div>
+                      <div class="generating-dots">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
                       </div>
                     </div>
                   </div>
@@ -651,22 +649,56 @@
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- 生成结果 - 新布局 -->
-        <div v-if="historyResults.length > 0" class="results-display" ref="resultsDisplayRef">
           <!-- 遍历历史结果列表 -->
           <div 
             v-for="result in historyResults" 
             :key="result.id"
             class="generation-card"
-            :class="{ 'generation-failed': result.status === 3 }"
+            :class="{ 
+              'generation-failed': result.status === 3,
+              'generation-processing': result.status === 1,
+              'generation-queuing': result.status === 0
+            }"
           >
             <!-- 上部分：缩略图和描述 -->
             <div class="generation-header">
-              <div class="generation-thumbnail yes" :class="{ 'failed-thumbnail': result.status === 3 }">
-                <!-- 生成失败状态 -->
-                <div v-if="result.status === 3" class="failed-placeholder">
+              <div class="generation-thumbnail yes" 
+                   :class="{ 
+                     'failed-thumbnail': result.status === 3,
+                     'generating-thumbnail': result.status === 1,
+                     'queuing-thumbnail': result.status === 0
+                   }">
+                <!-- 排队中状态 (status === 0) -->
+                <div v-if="result.status === 0" class="queuing-placeholder">
+                  <div class="queuing-icon-wrapper">
+                    <el-icon size="32" class="queuing-icon">
+                      <VideoCamera v-if="result.type === 2" />
+                      <Picture v-else />
+                    </el-icon>
+                    <div class="queuing-overlay">
+                      <el-icon size="20" class="clock-icon"><Clock /></el-icon>
+                    </div>
+                  </div>
+                  <div class="queuing-text">排队中</div>
+                </div>
+                
+                <!-- 生成中状态 (status === 1) -->
+                <div v-else-if="result.status === 1" class="processing-placeholder">
+                  <div class="processing-icon-wrapper">
+                    <el-icon size="32" class="processing-icon">
+                      <VideoCamera v-if="result.type === 2" />
+                      <Picture v-else />
+                    </el-icon>
+                    <div class="processing-spinner">
+                      <el-icon size="20" class="loading-icon"><Loading /></el-icon>
+                    </div>
+                  </div>
+                  <div class="processing-text">生成中</div>
+                </div>
+                
+                <!-- 生成失败状态 (status === 3) -->
+                <div v-else-if="result.status === 3" class="failed-placeholder">
                   <div class="failed-icon-wrapper">
                     <el-icon size="32" class="failed-icon">
                       <VideoCamera v-if="result.type === 2" />
@@ -678,7 +710,8 @@
                   </div>
                   <div class="failed-text">生成失败</div>
                 </div>
-                <!-- 正常状态 -->
+                
+                <!-- 正常状态 (status === 2) -->
                 <template v-else>
                   <img v-if="result.type === 1 && result.assets?.length > 0 && result.assets[0]?.coverUrl" 
                        :src="result.assets[0]?.coverUrl" 
@@ -708,14 +741,59 @@
                 <span class="meta-tag model-tag" v-if="result.tags?.find(t => t.key === 'size')?.val">
                   {{ result.tags?.find(t => t.key === 'size')?.val }}画质
                 </span>
-                <span v-if="result.status === 3" class="meta-tag status-tag failed">生成失败</span>
+                <span v-if="result.status === 0" class="meta-tag status-tag queuing">排队中</span>
+                <span v-else-if="result.status === 1" class="meta-tag status-tag processing">生成中</span>
+                <span v-else-if="result.status === 3" class="meta-tag status-tag failed">生成失败</span>
                 <span class="meta-tag time-tag">{{ formatTime(result.createdAt || new Date(result.createTime).getTime()) }}</span>
               </div>
             </div>
             
-            <!-- 下部分：生成内容 - 根据 type 显示不同内容 -->
-            <!-- 失败状态显示 -->
-            <div v-if="result.status === 3" class="generation-images failed-content">
+            <!-- 下部分：生成内容 - 根据 status 显示不同内容 -->
+            <!-- 排队中状态显示 (status === 0) -->
+            <div v-if="result.status === 0" class="generation-images queuing-content">
+              <div class="queuing-message">
+                <div class="queuing-icon-large">
+                  <el-icon size="48">
+                    <VideoCamera v-if="result.type === 2" />
+                    <Picture v-else />
+                  </el-icon>
+                  <div class="clock-badge">
+                    <el-icon size="24"><Clock /></el-icon>
+                  </div>
+                </div>
+                <div class="queuing-info">
+                  <div class="queuing-title">{{ result.type === 2 ? '视频' : '图片' }}排队中</div>
+                  <div class="queuing-desc">正在等待处理，请稍候...</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 生成中状态显示 (status === 1) -->
+            <div v-else-if="result.status === 1" class="generation-images processing-content">
+              <div class="processing-message">
+                <div class="processing-icon-large">
+                  <el-icon size="48">
+                    <VideoCamera v-if="result.type === 2" />
+                    <Picture v-else />
+                  </el-icon>
+                  <div class="loading-badge">
+                    <el-icon size="24" class="rotating"><Loading /></el-icon>
+                  </div>
+                </div>
+                <div class="processing-info">
+                  <div class="processing-title">{{ result.type === 2 ? '视频' : '图片' }}生成中</div>
+                  <div class="processing-desc">正在努力创作中，请稍候...</div>
+                  <div class="processing-dots">
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                    <span class="dot"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 失败状态显示 (status === 3) -->
+            <div v-else-if="result.status === 3" class="generation-images failed-content">
               <div class="failed-message">
                 <div class="failed-icon-large">
                   <el-icon size="48">
@@ -733,7 +811,7 @@
               </div>
             </div>
             
-            <!-- 图片结果显示 -->
+            <!-- 图片结果显示 (status === 2) -->
             <div v-else-if="result.type === 1 && result.assets" class="generation-images" :class="`count-${result.assets.filter(a => a.type === 1).length}`">
               <div 
                 v-for="(asset, imgIndex) in result.assets.filter(a => a.type === 1)" 
@@ -2286,13 +2364,14 @@ const generateTask = async (taskId: string) => {
 
     task.status = 'completed'
     
-    // 3秒后从任务列表中移除已完成的任务
-    setTimeout(() => {
-      const index = generationTasks.value.findIndex(t => t.id === taskId)
-      if (index > -1) {
-        generationTasks.value.splice(index, 1)
-      }
-    }, 3000)
+    // 立即从任务列表中移除已完成的任务
+    const index = generationTasks.value.findIndex(t => t.id === taskId)
+    if (index > -1) {
+      generationTasks.value.splice(index, 1)
+    }
+    
+    // 刷新历史记录列表
+    await fetchGenerateResults(1, false)
 
   } catch (err) {
     console.error('生成失败:', err)
@@ -2300,13 +2379,11 @@ const generateTask = async (taskId: string) => {
     task.progressText = '生成失败'
     ElMessage.error('生成失败，请重试')
     
-    // 失败的任务也在3秒后移除
-    setTimeout(() => {
-      const index = generationTasks.value.findIndex(t => t.id === taskId)
-      if (index > -1) {
-        generationTasks.value.splice(index, 1)
-      }
-    }, 3000)
+    // 失败的任务立即移除
+    const index = generationTasks.value.findIndex(t => t.id === taskId)
+    if (index > -1) {
+      generationTasks.value.splice(index, 1)
+    }
   }
 }
 
@@ -4433,23 +4510,23 @@ onUnmounted(() => {
   position: relative;
   z-index: 1;
 }
+/* 多任务生成中状态 - 已移除独立容器，现在直接在 results-display 中 */
 
-/* 多任务生成中状态 */
-.generating-tasks {
+/* 生成中状态 - 插入动画 */
+.generation-card.generating {
+  background: transparent;
+  backdrop-filter: none;
+  border-radius: 0;
+  padding: 16px 0;
+  border: none;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px 40px 60px 40px;
+  gap: 16px;
   width: 100%;
-  max-width: none;
-  margin: 0;
-}
-
-/* 生成中状态 - 生成结果列表样式 */
-.generating-state {
-  width: 100%;
+  border-bottom: 1px solid rgba(74, 144, 226, 0.2);
+  margin-bottom: 24px;
   opacity: 1;
-  animation: slideInFromTop 0.3s ease-out;
+  animation: slideInFromTop 0.4s ease-out;
 }
 
 @keyframes slideInFromTop {
@@ -4461,21 +4538,6 @@ onUnmounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.generation-card.generating {
-  background: transparent;
-  backdrop-filter: none;
-  border-radius: 0;
-  padding: 16px 0;
-  border: none;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  margin-bottom: 24px;
-  opacity: 0.9;
 }
 
 /* 生成中的缩略图 */
@@ -4573,7 +4635,7 @@ onUnmounted(() => {
 }
 
 /* 状态标签 */
-.status-tag {
+.status-tag.generating {
   background: rgba(74, 144, 226, 0.2);
   border-color: rgba(74, 144, 226, 0.4);
   color: #4A90E2;
@@ -4953,6 +5015,320 @@ onUnmounted(() => {
 .failed-desc {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* 排队中状态样式 (status === 0) */
+.generation-card.generation-queuing {
+  border-bottom-color: rgba(255, 193, 7, 0.2);
+}
+
+.generation-thumbnail.queuing-thumbnail {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.2);
+}
+
+.queuing-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.queuing-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.queuing-icon {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.queuing-overlay {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 24px;
+  height: 24px;
+  background: #ffc107;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(26, 26, 46, 1);
+  animation: queuePulse 2s infinite;
+}
+
+@keyframes queuePulse {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+.clock-icon {
+  color: #ffffff;
+}
+
+.queuing-text {
+  font-size: 11px;
+  color: rgba(255, 193, 7, 0.9);
+  font-weight: 500;
+}
+
+.generation-images.queuing-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  background: rgba(255, 193, 7, 0.05);
+  border: 1px dashed rgba(255, 193, 7, 0.3);
+  border-radius: 12px;
+  padding: 40px 20px;
+}
+
+.queuing-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.queuing-icon-large {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 193, 7, 0.1);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 193, 7, 0.3);
+}
+
+.queuing-icon-large > .el-icon {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.clock-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  background: #ffc107;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid rgba(26, 26, 46, 1);
+  animation: queuePulse 2s infinite;
+}
+
+.clock-badge .el-icon {
+  color: #ffffff;
+}
+
+.queuing-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.queuing-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffc107;
+}
+
+.queuing-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.status-tag.queuing {
+  background: rgba(255, 193, 7, 0.2);
+  border-color: rgba(255, 193, 7, 0.4);
+  color: #ffc107;
+  animation: queuePulse 2s infinite;
+}
+
+/* 生成中状态样式 (status === 1) */
+.generation-card.generation-processing {
+  border-bottom-color: rgba(74, 144, 226, 0.2);
+}
+
+.generation-thumbnail.generating-thumbnail {
+  background: rgba(74, 144, 226, 0.1);
+  border: 1px solid rgba(74, 144, 226, 0.2);
+}
+
+.processing-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.processing-icon-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.processing-icon {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.processing-spinner {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  width: 24px;
+  height: 24px;
+  background: #4A90E2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(26, 26, 46, 1);
+}
+
+.loading-icon {
+  color: #ffffff;
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.processing-text {
+  font-size: 11px;
+  color: rgba(74, 144, 226, 0.9);
+  font-weight: 500;
+}
+
+.generation-images.processing-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  background: rgba(74, 144, 226, 0.05);
+  border: 1px dashed rgba(74, 144, 226, 0.3);
+  border-radius: 12px;
+  padding: 40px 20px;
+}
+
+.processing-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+
+.processing-icon-large {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: rgba(74, 144, 226, 0.1);
+  border-radius: 50%;
+  border: 2px solid rgba(74, 144, 226, 0.3);
+}
+
+.processing-icon-large > .el-icon {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.loading-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  background: #4A90E2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid rgba(26, 26, 46, 1);
+}
+
+.loading-badge .el-icon {
+  color: #ffffff;
+}
+
+.loading-badge .rotating {
+  animation: rotate 1s linear infinite;
+}
+
+.processing-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.processing-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #4A90E2;
+}
+
+.processing-desc {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.processing-dots {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.processing-dots .dot {
+  width: 6px;
+  height: 6px;
+  background: #4A90E2;
+  border-radius: 50%;
+  animation: dotPulse 1.5s infinite;
+}
+
+.processing-dots .dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.processing-dots .dot:nth-child(2) {
+  animation-delay: 0.3s;
+}
+
+.processing-dots .dot:nth-child(3) {
+  animation-delay: 0.6s;
+}
+
+.status-tag.processing {
+  background: rgba(74, 144, 226, 0.2);
+  border-color: rgba(74, 144, 226, 0.4);
+  color: #4A90E2;
+  animation: statusPulse 2s infinite;
 }
 
 /* 下部分：生成图 */
