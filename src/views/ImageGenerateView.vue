@@ -3,7 +3,7 @@
     <!-- 主要内容区域 -->
     <div class="main-content">
       <!-- 无内容时的居中输入区域 -->
-      <div v-if="currentImages.length === 0 && generationTasks.length === 0" class="centered-input-section">
+      <div v-if="historyResults.length === 0 && generationTasks.length === 0" class="centered-input-section">
         <!-- 主标题 -->
         <div class="page-header">
           <div class="header-content">
@@ -642,14 +642,18 @@
         </div>
 
         <!-- 生成结果 - 新布局 -->
-        <div v-else-if="currentImages.length > 0" class="results-display">
-          <!-- 生成内容卡片 -->
-          <div class="generation-card">
+        <div v-if="historyResults.length > 0" class="results-display" ref="resultsDisplayRef">
+          <!-- 遍历历史结果列表 -->
+          <div 
+            v-for="result in historyResults" 
+            :key="result.id"
+            class="generation-card"
+          >
             <!-- 上部分：缩略图和描述 -->
             <div class="generation-header">
               <div class="generation-thumbnail">
-                <img v-if="resultType === 'images'" :src="currentImages[0]?.url" alt="生成缩略图" class="thumbnail-image" />
-                <div v-else-if="resultType === 'video'" class="thumbnail-video-icon">
+                <img v-if="result.genType === 1 && result.images?.length > 0" :src="result.images[0]" alt="生成缩略图" class="thumbnail-image" />
+                <div v-else-if="result.genType === 2 && result.videoUrl" class="thumbnail-video-icon">
                   <div class="video-icon-wrapper">
                     <el-icon size="20"><VideoCamera /></el-icon>
                   </div>
@@ -657,37 +661,37 @@
                 </div>
               </div>
               <div class="generation-info">
-                <div class="generation-prompt">{{ prompt || '这是一段生成于千年前的成图的内容示例，它的主要作用是向用户展示出图像生成的强大功能，让用户能够直观地感受到AI生成图像的魅力和实用性。在实际使用时，这段文字会被替换为用户输入的具体描述内容，从而生成符合用户需求的个性化图像。' }}</div>
+                <div class="generation-prompt">{{ result.prompt || '暂无描述' }}</div>
               </div>
             </div>
             
             <!-- 中部分：模型标签等信息 -->
             <div class="generation-meta">
               <div class="meta-tags">
-                <span class="meta-tag model-tag">{{ currentModel?.name || 'Seedream 4.5' }}</span>
-                <span v-if="resultType === 'images'" class="meta-tag size-tag">{{ currentSize?.label || '9:16' }}</span>
-                <span v-else-if="resultType === 'video'" class="meta-tag size-tag">{{ getVideoConfigSummary() }}</span>
+                <span class="meta-tag model-tag">{{ result.aiDriver || 'AI模型' }}</span>
+                <span class="meta-tag size-tag">{{ result.genType === 1 ? '图片' : '视频' }}</span>
+                <span class="meta-tag time-tag">{{ formatTime(result.createdAt) }}</span>
               </div>
             </div>
             
-            <!-- 下部分：生成内容 - 根据 resultType 显示不同内容 -->
+            <!-- 下部分：生成内容 - 根据 genType 显示不同内容 -->
             <!-- 图片结果显示 -->
-            <div v-if="resultType === 'images'" class="generation-images" :class="`count-${currentImages.length}`">
+            <div v-if="result.genType === 1 && result.images" class="generation-images" :class="`count-${result.images.length}`">
               <div 
-                v-for="(image, index) in currentImages" 
-                :key="index"
+                v-for="(imageUrl, imgIndex) in result.images" 
+                :key="imgIndex"
                 class="generation-image-item"
-                @click="previewImage(image.url)"
+                @click="previewImage(imageUrl)"
               >
                 <div class="image-wrapper">
-                  <img :src="image.url" :alt="`生成的图片 ${index + 1}`" class="generated-image" />
+                  <img :src="imageUrl" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" />
                   <div class="image-overlay">
                     <div class="overlay-actions">
                       <el-button 
                         type="primary" 
                         size="small" 
                         circle
-                        @click.stop="downloadImage(image)"
+                        @click.stop="downloadImageUrl(imageUrl, result.id, imgIndex)"
                         class="action-btn"
                       >
                         <el-icon><Download /></el-icon>
@@ -698,18 +702,17 @@
               </div>
             </div>
 
-            <!-- 视频结果显示 - 与图片网格中单张图片相同大小 -->
-            <div v-else-if="resultType === 'video' && currentVideo" class="generation-images video-result-container">
-              <div class="generation-image-item video-result-item single-video" @click="previewVideo(currentVideo)">
+            <!-- 视频结果显示 -->
+            <div v-else-if="result.genType === 2 && result.videoUrl" class="generation-images video-result-container">
+              <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.videoUrl)">
                 <div class="image-wrapper video-wrapper">
                   <video 
-                    :src="currentVideo.url" 
+                    :src="result.videoUrl" 
                     class="generated-image generated-video"
                     muted
                     preload="metadata"
                     @mouseenter="handleVideoHover"
                     @mouseleave="handleVideoLeave"
-                    ref="videoThumbnailRef"
                   >
                   </video>
                   <div class="image-overlay video-overlay">
@@ -723,30 +726,44 @@
             
             <!-- 底部：操作按钮 -->
             <div class="generation-actions">
-              <el-button class="action-button edit-button" @click="editGeneration">
+              <el-button class="action-button edit-button" @click="editGeneration(result)">
                 <el-icon class="button-icon"><Edit /></el-icon>
                 <span>重新编辑</span>
               </el-button>
-              <el-button class="action-button regenerate-button" @click="regenerateAll">
+              <el-button class="action-button regenerate-button" @click="regenerateFromHistory(result)">
                 <el-icon class="button-icon"><Refresh /></el-icon>
                 <span>再次生成</span>
               </el-button>
-              <el-button v-if="resultType === 'video' && currentVideo" class="action-button download-button" @click="downloadVideo(currentVideo)">
+              <el-button v-if="result.genType === 2 && result.videoUrl" class="action-button download-button" @click="downloadVideoUrl(result.videoUrl, result.id)">
                 <el-icon class="button-icon"><Download /></el-icon>
                 <span>下载</span>
               </el-button>
-              <el-button class="action-button delete-button" @click="deleteGeneration">
+              <el-button class="action-button delete-button" @click="deleteHistoryItem(result.id)">
                 <el-icon class="button-icon"><Delete /></el-icon>
                 <span>删除</span>
               </el-button>
             </div>
           </div>
+          
+          <!-- 加载更多提示 -->
+          <div v-if="loadingMore" class="loading-more">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>加载中...</span>
+          </div>
+          
+          <!-- 没有更多数据提示 -->
+          <div v-if="!hasMore && historyResults.length > 0" class="no-more-data">
+            <span>没有更多数据了</span>
+          </div>
+          
+          <!-- 滚动哨兵元素 - 用于触发 Intersection Observer -->
+          <div v-if="hasMore && !loadingMore" class="scroll-sentinel" style="height: 1px;"></div>
         </div>
       </div>
     </div>
 
     <!-- 有内容时的底部悬浮输入面板 -->
-    <div v-if="currentImages.length > 0 || generationTasks.length > 0" class="floating-input-panel" :class="getPanelClass()">
+    <div v-if="historyResults.length > 0 || generationTasks.length > 0" class="floating-input-panel" :class="getPanelClass()">
       <div class="panel-container">
         <!-- 上半部分：上传和文本输入 -->
         <div class="panel-top-section">
@@ -1413,7 +1430,7 @@ import { getTosToken } from '../api/index'
 import { ElMessage } from 'element-plus'
 import {
   Picture, Plus, Download, FolderAdd, Clock, Close,
-  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay
+  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay, Loading
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
@@ -1496,6 +1513,17 @@ interface KeLingOption {
   description: string
 }
 
+// 历史结果数据接口
+interface HistoryResult {
+  id: string
+  prompt: string
+  genType: number // 1: 图片, 2: 视频
+  images?: string[] // 图片URL数组
+  videoUrl?: string // 视频URL
+  aiDriver: string // AI模型
+  createdAt: number
+}
+
 const prompt = ref('')
 const referenceImages = ref<UploadFile[]>([])
 const currentImages = ref<ImageResult[]>([])
@@ -1509,6 +1537,15 @@ const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
 // 控制提示词输入框字数限制
 const inputSize = ref(300)
+
+// 历史结果相关状态
+const historyResults = ref<HistoryResult[]>([])
+const currentPage = ref(1)
+const pageSize = ref(10)
+const loadingMore = ref(false)
+const hasMore = ref(true)
+const resultsDisplayRef = ref<HTMLElement | null>(null)
+const loadMoreObserver = ref<IntersectionObserver | null>(null)
 
 // 视频预览相关状态
 const videoPreviewVisible = ref(false)
@@ -2085,21 +2122,17 @@ const generateTask = async (taskId: string) => {
   }
 }
 
-const previewImage = (image: ImageResult) => {
-  previewImageUrl.value = image.url
-  previewImageData.value = image
+const previewImage = (imageUrl: string) => {
+  previewImageUrl.value = imageUrl
   previewVisible.value = true
 }
 
-const previewVideo = (video: VideoResult) => {
-  previewVideoUrl.value = video.url
-  previewVideoData.value = video
+const previewVideo = (videoUrl: string) => {
+  previewVideoUrl.value = videoUrl
   videoPreviewVisible.value = true
 }
 
 // 视频缩略图hover播放处理
-const videoThumbnailRef = ref<HTMLVideoElement>()
-
 const handleVideoHover = (event: Event) => {
   const video = event.target as HTMLVideoElement
   if (video) {
@@ -2119,6 +2152,28 @@ const handleVideoLeave = (event: Event) => {
 const downloadVideo = async (video: VideoResult) => {
   try {
     await downloadFile(video.url, `generated_video_${video.id}.mp4`)
+    ElMessage.success('开始下载视频')
+  } catch (error) {
+    console.error('下载视频失败:', error)
+    ElMessage.error('下载视频失败，请重试')
+  }
+}
+
+// 下载图片URL
+const downloadImageUrl = async (imageUrl: string, id: string, index: number) => {
+  try {
+    await downloadFile(imageUrl, `generated_image_${id}_${index + 1}.jpg`)
+    ElMessage.success('开始下载图片')
+  } catch (error) {
+    console.error('下载图片失败:', error)
+    ElMessage.error('下载图片失败，请重试')
+  }
+}
+
+// 下载视频URL
+const downloadVideoUrl = async (videoUrl: string, id: string) => {
+  try {
+    await downloadFile(videoUrl, `generated_video_${id}.mp4`)
     ElMessage.success('开始下载视频')
   } catch (error) {
     console.error('下载视频失败:', error)
@@ -2155,6 +2210,33 @@ const selectHistoryItem = (historyItem: ImageHistoryItem) => {
   showHistory.value = false
 }
 
+// 从历史记录重新编辑
+const editGeneration = (result: HistoryResult) => {
+  prompt.value = result.prompt
+  ElMessage.info('已加载历史记录，可以重新编辑')
+}
+
+// 从历史记录再次生成
+const regenerateFromHistory = (result: HistoryResult) => {
+  prompt.value = result.prompt
+  handleGenerate()
+}
+
+// 删除历史记录项
+const deleteHistoryItem = async (id: string) => {
+  try {
+    // 这里应该调用删除接口
+    // await deleteGenerateResult(id)
+    
+    // 从列表中移除
+    historyResults.value = historyResults.value.filter(item => item.id !== id)
+    ElMessage.success('已删除')
+  } catch (error) {
+    console.error('删除失败:', error)
+    ElMessage.error('删除失败，请重试')
+  }
+}
+
 //获取下拉框配置信息 genType=1 图片生成 genType=2 视频生成
 const fetchModelConfig = async (aiDriver?: string) => {
   let genType=1; // 1 图片生成 2 视频生成
@@ -2166,7 +2248,7 @@ const fetchModelConfig = async (aiDriver?: string) => {
   try {
     const modelCofig = await getImgModelConfig({ genType: genType,aiDriver:aiDriver||'' });
     if(modelCofig){
-      const config = modelCofig.data;
+      const config = modelCofig.data as Record<string, any>;
       models.value = config.supports||[];
       if(config){
         // 根据 genType 设置不同的配置
@@ -2232,15 +2314,50 @@ const fetchModelConfig = async (aiDriver?: string) => {
 }
 fetchModelConfig()
 //获取列表
-const fetchGenerateResults = async () => {
+const fetchGenerateResults = async (page: number = 1, append: boolean = false) => {
+  if (loadingMore.value) return
+  
   try {
-    const results = await getGenerateResults({ page: 1, pageSize: 10 });
-    console.log('生成结果列表:', results);
+    loadingMore.value = true
+    const results = await getGenerateResults({ page, pageSize: pageSize.value })
+    
+    if (results && results.data) {
+      const { list, total } = results.data
+      
+      // 处理返回的数据
+      const formattedResults: HistoryResult[] = list.map((item: Record<string, any>) => ({
+        id: item.id || item._id,
+        prompt: item.prompt || '',
+        genType: item.genType || 1,
+        images: item.images || [],
+        videoUrl: item.videoUrl || '',
+        aiDriver: item.aiDriver || 'AI模型',
+        createdAt: item.createdAt || Date.now()
+      }))
+      
+      if (append) {
+        historyResults.value = [...historyResults.value, ...formattedResults]
+      } else {
+        historyResults.value = formattedResults
+      }
+      
+      // 判断是否还有更多数据
+      hasMore.value = historyResults.value.length < total
+      
+      // 数据加载完成后，重新设置 Intersection Observer
+      setTimeout(() => {
+        setupIntersectionObserver()
+      }, 500)
+    }
   } catch (error) {
-    console.error('获取生成结果失败：', error);
-    ElMessage.error('获取生成结果失败');
+    console.error('获取生成结果失败：', error)
+    ElMessage.error('获取生成结果失败')
+  } finally {
+    loadingMore.value = false
   }
 }
+
+// 初始加载
 fetchGenerateResults()
 
 // 新增方法
@@ -2253,26 +2370,18 @@ const regenerateAll = () => {
   handleGenerate()
 }
 
-const editGeneration = () => {
-  // 重新编辑：清空当前结果，回到编辑状态
-  // 保持当前的 prompt 和参数设置
-  ElMessage.info('返回编辑模式')
-}
-
-const deleteGeneration = () => {
-  // 删除当前生成结果
-  currentImages.value = []
-  currentVideo.value = null
-  resultType.value = 'images' // 重置为默认类型
-  ElMessage.success('已删除生成结果')
-}
-
 // 滚动监听函数
 const handleScroll = () => {
-  const mainContent = document.querySelector('.main-content')
-  if (!mainContent) return
-
-  const currentScrollTop = mainContent.scrollTop
+  // 尝试获取滚动信息，优先使用 .main-content，如果不可滚动则使用 window
+  const mainContent = document.querySelector('.main-content') as HTMLElement
+  
+  let currentScrollTop = 0
+  
+  if (mainContent && mainContent.scrollHeight > mainContent.clientHeight) {
+    currentScrollTop = mainContent.scrollTop
+  } else {
+    currentScrollTop = window.scrollY || document.documentElement.scrollTop
+  }
   
   // 判断滚动方向
   if (currentScrollTop > lastScrollTop.value) {
@@ -2298,30 +2407,108 @@ const handleScroll = () => {
 
 // 计算面板状态
 const getPanelClass = () => {
-  if (!currentImages.value.length && !generationTasks.value.length) return ''
+  // 只有当有历史结果或生成任务时才显示面板
+  if (!historyResults.value.length && !generationTasks.value.length) return ''
   
-  if (isScrolling.value && scrollDirection.value === 'up') {
+  // 向下滚动时收缩，向上滚动或停止滚动时展开
+  if (isScrolling.value && scrollDirection.value === 'down') {
     return 'collapsed'
-  } else if (!isScrolling.value || scrollDirection.value === 'down') {
+  } else if (!isScrolling.value || scrollDirection.value === 'up') {
     return 'expanded'
   }
   
   return 'expanded'
 }
 
-// 组件挂载时添加滚动监听
+// 组件挂载时添加滚动监听和 Intersection Observer
 onMounted(() => {
+  // 监听多个可能的滚动容器
   const mainContent = document.querySelector('.main-content')
+  const contentBody = document.querySelector('.content-body')
+  const layoutMainContent = document.querySelector('.main-layout .main-content')
+  
   if (mainContent) {
     mainContent.addEventListener('scroll', handleScroll, { passive: true })
   }
+  
+  if (contentBody) {
+    contentBody.addEventListener('scroll', handleScroll, { passive: true })
+  }
+  
+  if (layoutMainContent) {
+    layoutMainContent.addEventListener('scroll', handleScroll, { passive: true })
+  }
+  
+  window.addEventListener('scroll', handleScroll, { passive: true })
+  
+  // 设置 Intersection Observer
+  setTimeout(() => {
+    setupIntersectionObserver()
+  }, 1000)
 })
 
-// 组件卸载时移除滚动监听
+// 设置 Intersection Observer 监听底部元素
+const setupIntersectionObserver = () => {
+  // 断开旧的 Observer
+  if (loadMoreObserver.value) {
+    loadMoreObserver.value.disconnect()
+  }
+  
+  // 查找哨兵元素、"加载更多"或"没有更多数据"的元素
+  const sentinelEl = document.querySelector('.scroll-sentinel')
+  const loadingMoreEl = document.querySelector('.loading-more')
+  const noMoreDataEl = document.querySelector('.no-more-data')
+  const targetEl = sentinelEl || loadingMoreEl || noMoreDataEl
+  
+  if (!targetEl) {
+    return
+  }
+  
+  // 创建 Intersection Observer
+  loadMoreObserver.value = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && hasMore.value && !loadingMore.value) {
+          currentPage.value++
+          fetchGenerateResults(currentPage.value, true)
+        }
+      })
+    },
+    {
+      root: null,
+      rootMargin: '200px',
+      threshold: 0
+    }
+  )
+  
+  loadMoreObserver.value.observe(targetEl)
+}
+
+// 组件卸载时移除滚动监听和 Observer
 onUnmounted(() => {
   const mainContent = document.querySelector('.main-content')
+  const contentBody = document.querySelector('.content-body')
+  const layoutMainContent = document.querySelector('.main-layout .main-content')
+  
   if (mainContent) {
     mainContent.removeEventListener('scroll', handleScroll)
+  }
+  
+  if (contentBody) {
+    contentBody.removeEventListener('scroll', handleScroll)
+  }
+  
+  if (layoutMainContent) {
+    layoutMainContent.removeEventListener('scroll', handleScroll)
+  }
+  
+  // 移除 window 滚动监听
+  window.removeEventListener('scroll', handleScroll)
+  
+  // 断开 Intersection Observer
+  if (loadMoreObserver.value) {
+    loadMoreObserver.value.disconnect()
+    loadMoreObserver.value = null
   }
   
   if (scrollTimer.value) {
@@ -3354,13 +3541,14 @@ onUnmounted(() => {
 /* 主要内容区域 */
 .main-content {
   width: 100%;
-  height: 100%;
+  flex: 1;
   margin: 0 auto;
   padding: 0 40px;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   overflow-x: hidden;
+  min-height: 0; /* 重要：允许 flex 子元素滚动 */
 }
 
 /* 无内容时的居中输入区域 */
@@ -3978,7 +4166,33 @@ onUnmounted(() => {
 
 .generation-card:last-child {
   border-bottom: none;
-  margin-bottom: 60px; /* 增加最后一个卡片的底部间距 */
+  margin-bottom: 24px;
+}
+
+/* 加载更多提示 */
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+.loading-more .el-icon {
+  font-size: 18px;
+}
+
+/* 没有更多数据提示 */
+.no-more-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  margin-bottom: 40px;
 }
 
 /* 上部分：缩略图和描述 */
@@ -4052,6 +4266,12 @@ onUnmounted(() => {
   background: rgba(74, 144, 226, 0.3);
   border-color: rgba(74, 144, 226, 0.5);
   color: #ffffff;
+}
+
+.time-tag {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 /* 下部分：生成图 */
