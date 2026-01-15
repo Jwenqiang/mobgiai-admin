@@ -523,7 +523,33 @@
                       </el-button>
                     </div>
                   </div>
-                  
+                  <div class="config-group" v-if="keepOriginalAudioOptions.length > 0">
+                    <div class="config-title">保留视频原声</div>
+                    <div class="audio-options">
+                      <el-button 
+                        v-for="option in keepOriginalAudioOptions"
+                        :key="option.value"
+                        :class="['audio-btn', { active: keepOriginalAudio === option.value }]"
+                        @click="selectKeepOriginalAudio(option)"
+                      >
+                        {{ option.label }}
+                      </el-button>
+                    </div>
+                  </div>
+
+                  <div class="config-group" v-if="generationModes.length > 0">
+                    <div class="config-title">生成模式</div>
+                    <div class="audio-options">
+                      <el-button 
+                        v-for="mode in generationModes"
+                        :key="mode.value"
+                        :class="['audio-btn', { active: generationMode === mode.value }]"
+                        @click="selectGenerationMode(mode)"
+                      >
+                        {{ mode.label }}
+                      </el-button>
+                    </div>
+                  </div>
                   <!-- <div class="selector-footer">
                     <el-button 
                       type="primary" 
@@ -1192,6 +1218,34 @@
                 </div>
 
                 <div class="config-group">
+                  <div class="config-title">保留视频原声</div>
+                  <div class="audio-options">
+                    <el-button 
+                      v-for="option in keepOriginalAudioOptions"
+                      :key="option.value"
+                      :class="['audio-btn', { active: keepOriginalAudio === option.value }]"
+                      @click="selectKeepOriginalAudio(option)"
+                    >
+                      {{ option.label }}
+                    </el-button>
+                  </div>
+                </div>
+
+                <div class="config-group" v-if="generationModes.length > 0">
+                  <div class="config-title">生成模式</div>
+                  <div class="audio-options">
+                    <el-button 
+                      v-for="mode in generationModes"
+                      :key="mode.value"
+                      :class="['audio-btn', { active: generationMode === mode.value }]"
+                      @click="selectGenerationMode(mode)"
+                    >
+                      {{ mode.label }}
+                    </el-button>
+                  </div>
+                </div>
+
+                <div class="config-group">
                   <div class="config-title">选择比例</div>
                   <div class="ratio-grid">
                     <div 
@@ -1436,6 +1490,11 @@ interface GenerationTask {
   images: ImageResult[]
   createdAt: number
 }
+interface KeLingOption {
+  value: string
+  label: string
+  description: string
+}
 
 const prompt = ref('')
 const referenceImages = ref<UploadFile[]>([])
@@ -1537,6 +1596,8 @@ const enableAudio = ref(false)
 const selectedQuality = ref('720p')
 const selectedDuration = ref('5')
 const selectedRatio = ref('smart')
+const keepOriginalAudio = ref('') // 保留视频原声
+const generationMode = ref('std') // 生成模式：std-标准模式, pro-专家模式
 
 // 视频上传相关状态（与VideoGenerateView保持一致）
 const firstFrameImage = ref('')
@@ -1593,11 +1654,16 @@ const videoQualities = ref([
 ])
 
 // 视频时长选项
-const videoDurations = ref([
-  { value: '5', label: '5s' },
-  { value: '10', label: '10s' },
-  { value: '15', label: '15s' }
+const videoDurations = ref<KeLingOption[]>([])
+
+// 生成模式选项
+const generationModes = ref([
+  { value: 'std', label: '标准模式' },
+  { value: 'pro', label: '专家模式' }
 ])
+
+// 保留原声选项
+const keepOriginalAudioOptions = ref<KeLingOption[]>([])
 
 // 方法
 const selectModel = (model: Model) => {
@@ -1665,6 +1731,14 @@ const selectAudio = (enabled: boolean) => {
   enableAudio.value = enabled
 }
 
+const selectKeepOriginalAudio = (option: { value: string; label: string }) => {
+  keepOriginalAudio.value = option.value
+}
+
+const selectGenerationMode = (mode: { value: string; label: string }) => {
+  generationMode.value = mode.value
+}
+
 const selectRatio = (ratio: { value: string; label: string }) => {
   selectedRatio.value = ratio.value
 }
@@ -1680,11 +1754,13 @@ const selectDuration = (duration: { value: string; label: string }) => {
 // 生成视频配置摘要文本
 const getVideoConfigSummary = () => {
   const audioText = enableAudio.value ? '有声' : '无声'
-  const ratioText = videoRatios.value.find(r => r.value === selectedRatio.value)?.label || '16:9'
-  const qualityText = videoQualities.value.find(q => q.value === selectedQuality.value)?.label || '720P'
-  const durationText = videoDurations.value.find(d => d.value === selectedDuration.value)?.label || '5s'
-  
-  return `${audioText} | ${ratioText} | ${qualityText} | ${durationText}`
+  const ratioText = videoRatios.value.find(r => r.value === selectedRatio.value)?.label || ''
+  const qualityText = videoQualities.value.find(q => q.value === selectedQuality.value)?.label || ''
+  const durationText = videoDurations.value.find(d => d.value === selectedDuration.value)?.label || ''
+  const keepAudioText = keepOriginalAudioOptions.value.find(o => o.value === keepOriginalAudio.value)?.label || ''
+  const modeText = generationModes.value.find(m => m.value === generationMode.value)?.label || ''
+
+  return `${hasEnableAudio.value?audioText+' | ':''} ${ratioText?ratioText+' | ':''} ${qualityText?qualityText+' | ':''} ${durationText?durationText+' | ':''} ${keepAudioText?keepAudioText+' | ':''} ${modeText}`
 }
 
 // 获取最大图片上传数量
@@ -2127,16 +2203,22 @@ const fetchModelConfig = async (aiDriver?: string) => {
           videoModels.value = config.supports||[];
           hasEnableAudio.value=config.optionsInfo.optionsConf.generateAudio?.name?true:false;
           // 视频比例选项
-          videoRatios.value = config.optionsInfo.optionsConf.ratio?.conf.select||[];
+          videoRatios.value = config.optionsInfo.optionsConf.aspectRatio?.conf.select||[];
           //分辨率选项
           videoQualities.value = config.optionsInfo.optionsConf.resolution?.conf.select||[];
           // 时长选项
           videoDurations.value = config.optionsInfo.optionsConf.duration?.conf.select||[];
+          generationModes.value = config.optionsInfo.optionsConf.mode?.conf.select||[];
+          keepOriginalAudioOptions.value = config.optionsInfo.optionsConf.keepOriginalSound?.conf.select||[];
           // 默认选中的选项
           enableAudio.value=config.optionsInfo.optionsDef.generateAudio?.value==true?true:false;
-          selectedRatio.value = config.optionsInfo.optionsDef.ratio?.value;
+          selectedRatio.value = config.optionsInfo.optionsDef.aspectRatio?.value;
           selectedQuality.value = config.optionsInfo.optionsDef.resolution?.value;
           selectedDuration.value = config.optionsInfo.optionsDef.duration?.value;
+          //默认生成模式
+          generationMode.value = config.optionsInfo.optionsDef.mode?.value;
+          //默认保留原声选项
+          keepOriginalAudio.value = config.optionsInfo.optionsDef.keepOriginalSound?.value;
         }
         // 当前选中的模型
         currentModel.value = config.currentModel;
