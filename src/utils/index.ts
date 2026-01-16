@@ -155,7 +155,9 @@ export const downloadFile = async (
     const response = await fetch(url, {
       method: options?.method || 'GET',
       headers: options?.headers || {},
-      body: options?.body
+      body: options?.body,
+      mode: 'cors', // 允许跨域
+      credentials: 'omit' // 不发送凭证
     })
     
     if (!response.ok) {
@@ -163,13 +165,48 @@ export const downloadFile = async (
     }
     
     const blob = await response.blob()
-    const downloadUrl = URL.createObjectURL(blob)
+    
+    // 确保 blob 有正确的 MIME 类型
+    let finalBlob = blob
+    if (filename) {
+      const ext = filename.split('.').pop()?.toLowerCase()
+      let mimeType = blob.type
+      
+      // 根据文件扩展名确定正确的 MIME 类型
+      const mimeTypes: Record<string, string> = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+        'bmp': 'image/bmp',
+        'svg': 'image/svg+xml',
+        'mp4': 'video/mp4',
+        'webm': 'video/webm',
+        'avi': 'video/avi',
+        'mov': 'video/quicktime'
+      }
+      
+      // 如果 blob 没有正确的 MIME 类型或是通用类型，根据文件扩展名设置
+      if (!mimeType || mimeType === 'application/octet-stream' || mimeType === 'binary/octet-stream') {
+        if (ext && mimeTypes[ext]) {
+          mimeType = mimeTypes[ext]
+          // 创建新的 blob 并设置正确的 MIME 类型
+          finalBlob = new Blob([blob], { type: mimeType })
+          console.log(`设置 MIME 类型: ${mimeType}`)
+        }
+      }
+    }
+    
+    const downloadUrl = URL.createObjectURL(finalBlob)
     
     // 从响应头或URL中获取文件名
     const finalFilename = filename || 
       response.headers.get('content-disposition')?.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)?.[1]?.replace(/['"]/g, '') ||
       url.split('/').pop()?.split('?')[0] ||
       'download'
+    
+    console.log(`下载文件: ${finalFilename}, MIME: ${finalBlob.type}, 大小: ${finalBlob.size} bytes`)
     
     // 创建下载链接
     const link = document.createElement('a')
@@ -181,9 +218,11 @@ export const downloadFile = async (
     document.body.appendChild(link)
     link.click()
     
-    // 清理
-    document.body.removeChild(link)
-    URL.revokeObjectURL(downloadUrl)
+    // 延迟清理，确保下载开始
+    setTimeout(() => {
+      document.body.removeChild(link)
+      URL.revokeObjectURL(downloadUrl)
+    }, 100)
     
   } catch (error) {
     console.warn('Fetch download failed, trying fallback method:', error)
@@ -200,7 +239,10 @@ export const downloadFile = async (
     
     document.body.appendChild(link)
     link.click()
-    document.body.removeChild(link)
+    
+    setTimeout(() => {
+      document.body.removeChild(link)
+    }, 100)
   }
 }
 

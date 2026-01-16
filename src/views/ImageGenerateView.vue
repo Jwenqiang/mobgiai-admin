@@ -875,10 +875,10 @@
                 v-for="(asset, imgIndex) in result.assets.filter(a => a.type === 1)" 
                 :key="asset.id"
                 class="generation-image-item"
-                @click="previewImage(asset.materialUrl || asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)"
+                @click="previewImage(asset.materialUrl||asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)"
               >
                 <div class="image-wrapper">
-                  <img :src="asset.materialUrl || asset.coverUrl" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" />
+                  <img :src="asset.coverUrl||asset.materialUrl" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" />
                   <div class="image-overlay">
                     <div class="overlay-actions">
                       <el-button 
@@ -2509,6 +2509,11 @@ const handleGenerate = async () => {
   // 添加到任务列表
   generationTasks.value.push(newTask)
   
+  // 滚动到顶部 - 使用更长的延迟确保 DOM 更新
+  setTimeout(() => {
+    scrollToTop()
+  }, 100)
+  
   // 组装请求参数
   const requestTask = buildGenerateRequestTask()
   
@@ -2827,7 +2832,32 @@ const handleVideoLeave = (event: Event) => {
 
 const downloadVideo = async (video: VideoResult) => {
   try {
-    await downloadFile(video.url, `generated_video_${video.id}.mp4`)
+    // 优先使用 previewVideoUrl（预览窗口显示的实际 URL）
+    let videoUrl = previewVideoUrl.value
+    
+    // 如果没有 previewVideoUrl，则从 video 对象中获取
+    if (!videoUrl) {
+      videoUrl = (video as any).url || (video as any).materialUrl
+    }
+    
+    if (!videoUrl) {
+      console.error('视频 URL 不存在:', video)
+      ElMessage.error('视频 URL 不存在，无法下载')
+      return
+    }
+    
+    console.log('开始下载视频:', videoUrl)
+    
+    // 从 URL 中提取文件扩展名
+    const urlParts = videoUrl.split('?')[0]
+    const urlPath = urlParts.split('/')
+    const urlFilename = urlPath[urlPath.length - 1]
+    const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'mp4'
+    
+    const filename = `generated_video_${video.id}.${ext}`
+    console.log('下载文件名:', filename, '扩展名:', ext)
+    
+    await downloadFile(videoUrl, filename)
     ElMessage.success('开始下载视频')
   } catch (error) {
     console.error('下载视频失败:', error)
@@ -2838,22 +2868,34 @@ const downloadVideo = async (video: VideoResult) => {
 // 下载图片URL
 const downloadImageUrl = async (imageUrl: string, id: string, index: number) => {
   try {
-    await downloadFile(imageUrl, `generated_image_${id}_${index + 1}.jpg`)
-    ElMessage.success('开始下载图片')
+    console.log('开始下载图片:', imageUrl)
+    
+    // 从 URL 中提取文件扩展名
+    const urlParts = imageUrl.split('?')[0] // 移除查询参数
+    const urlPath = urlParts.split('/')
+    const urlFilename = urlPath[urlPath.length - 1]
+    const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'jpg'
+    
+    const filename = `generated_image_${id}_${index + 1}.${ext}`
+    console.log('下载文件名:', filename)
+    
+    await downloadFile(imageUrl, filename)
+    ElMessage.success('图片下载成功')
   } catch (error) {
     console.error('下载图片失败:', error)
-    ElMessage.error('下载图片失败，请重试')
+    ElMessage.error('下载图片失败，请检查网络连接或稍后重试')
   }
 }
 
 // 下载视频URL
 const downloadVideoUrl = async (videoUrl: string, id: string) => {
   try {
+    console.log('开始下载视频:', videoUrl)
     await downloadFile(videoUrl, `generated_video_${id}.mp4`)
-    ElMessage.success('开始下载视频')
+    ElMessage.success('视频下载成功')
   } catch (error) {
     console.error('下载视频失败:', error)
-    ElMessage.error('下载视频失败，请重试')
+    ElMessage.error('下载视频失败，请检查网络连接或稍后重试')
   }
 }
 
@@ -2864,11 +2906,36 @@ const saveVideoToAssets = (video: VideoResult) => {
 
 const downloadImage = async (image: ImageResult) => {
   try {
-    await downloadFile(image.url, `generated_image_${image.id}.jpg`)
-    ElMessage.success('开始下载图片')
+    // 优先使用 previewImageUrl（预览窗口显示的实际 URL）
+    let imageUrl = previewImageUrl.value
+    
+    // 如果没有 previewImageUrl，则从 image 对象中获取
+    if (!imageUrl) {
+      imageUrl = (image as any).url || (image as any).materialUrl
+    }
+    
+    if (!imageUrl) {
+      console.error('图片 URL 不存在:', image)
+      ElMessage.error('图片 URL 不存在，无法下载')
+      return
+    }
+    
+    console.log('开始下载图片:', imageUrl)
+    
+    // 从 URL 中提取文件扩展名
+    const urlParts = imageUrl.split('?')[0] // 移除查询参数
+    const urlPath = urlParts.split('/')
+    const urlFilename = urlPath[urlPath.length - 1]
+    const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'jpg'
+    
+    const filename = `generated_image_${image.id}.${ext}`
+    console.log('下载文件名:', filename, '扩展名:', ext)
+    
+    await downloadFile(imageUrl, filename)
+    ElMessage.success('图片下载成功')
   } catch (error) {
     console.error('下载图片失败:', error)
-    ElMessage.error('下载图片失败，请重试')
+    ElMessage.error('下载图片失败，请检查网络连接或稍后重试')
   }
 }
 
@@ -3169,6 +3236,11 @@ const pollGenerateStatus = async () => {
           
           // 插入到结果列表头部
           historyResults.value.unshift(newResult)
+          
+          // 滚动到顶部 - 使用更长的延迟确保 DOM 更新
+          setTimeout(() => {
+            scrollToTop()
+          }, 100)
         }
       }
       
@@ -3191,6 +3263,41 @@ const clearAllImages = () => {
 
 const regenerateAll = () => {
   handleGenerate()
+}
+
+// 滚动到顶部函数
+const scrollToTop = () => {
+  // 从结果列表元素开始，向上查找所有可滚动的父元素
+  let element = resultsDisplayRef.value?.parentElement
+  const scrollableElements: HTMLElement[] = []
+  
+  while (element) {
+    if (element.scrollHeight > element.clientHeight) {
+      scrollableElements.push(element)
+    }
+    element = element.parentElement
+  }
+  
+  // 滚动所有找到的可滚动元素到顶部（使用平滑滚动）
+  if (scrollableElements.length > 0) {
+    scrollableElements.forEach((el) => {
+      el.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    })
+  } else {
+    // 如果没找到，尝试预定义的容器
+    const mainContent = document.querySelector('.main-content') as HTMLElement
+    const contentBody = document.querySelector('.content-body') as HTMLElement
+    
+    if (mainContent) {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    if (contentBody) {
+      contentBody.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 }
 
 // 滚动监听函数
@@ -4732,6 +4839,14 @@ onUnmounted(() => {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0; /* 重要：允许 flex 子元素滚动 */
+  scroll-behavior: smooth; /* 启用平滑滚动 */
+}
+
+/* 快速滚动动画 */
+@media (prefers-reduced-motion: no-preference) {
+  .main-content {
+    scroll-behavior: smooth;
+  }
 }
 
 /* 无内容时的居中输入区域 */

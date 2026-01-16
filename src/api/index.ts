@@ -110,7 +110,7 @@ interface TosTokenResponse {
 export const getTosToken = async () => {
   try {
     console.log('开始请求TOS配置...');
-    const response = await post<TosTokenResponse>('/api/v1/misc/get_sts_token');
+    const response = await get<TosTokenResponse>('/api/v1/misc/sts_token');
     console.log('TOS配置API响应:', response);
     
     // 检查响应数据结构
