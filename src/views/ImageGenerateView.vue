@@ -3153,16 +3153,28 @@ const pollGenerateStatus = async () => {
           if (taskIndex > -1) {
             generationTasks.value.splice(taskIndex, 1)
           }
+          
+          // 动态将完成的结果插入到列表头部，不刷新列表接口
+          const newResult: HistoryResult = {
+            id: statusItem.id || inputId,
+            type: statusItem.type || 1,
+            status: statusItem.status,
+            createTime: statusItem.createTime || new Date().toISOString(),
+            assets: statusItem.assets,
+            tags: statusItem.tags || [],
+            prompt: statusItem.prompt,
+            genType: statusItem.genType,
+            aiDriver: statusItem.aiDriver
+          }
+          
+          // 插入到结果列表头部
+          historyResults.value.unshift(newResult)
         }
       }
       
-      // 如果所有 inputId 都已完成，刷新列表
+      // 如果所有 inputId 都已完成，停止轮询
       if (pendingInputIds.value.size === 0) {
         stopPolling()
-        await fetchGenerateResults(1, false)
-      } else {
-        // 部分完成也刷新列表
-        await fetchGenerateResults(1, false)
       }
     }
   } catch (error) {
