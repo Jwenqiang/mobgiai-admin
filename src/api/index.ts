@@ -27,16 +27,16 @@ const createFullUrlRequest = (fullUrl: string) => {
 };
 
 // 通用 GET 请求
-export const get = <T = unknown>(url: string, params?: object): Promise<T> => {
+export const get = <T = unknown>(url: string, params?: object, allowRepeat?: boolean, timeout?: number): Promise<T> => {
   // 如果是完整URL，使用独立请求
   if (isFullUrl(url)) {
     return createFullUrlRequest(url) as Promise<T>;
   }
-  return request({ url, method: 'get', params });
+  return request({ url, method: 'get', params, allowRepeat, timeout });
 };
 
 // 通用 POST 请求
-export const post = <T = unknown>(url: string, data?: object): Promise<T> => {
+export const post = <T = unknown>(url: string, data?: object, allowRepeat?: boolean): Promise<T> => {
   // 如果是完整URL，使用独立的axios实例
   if (isFullUrl(url)) {
     const instance = axios.create({
@@ -54,7 +54,7 @@ export const post = <T = unknown>(url: string, data?: object): Promise<T> => {
     
     return instance({ url, method: 'post', data }) as Promise<T>;
   }
-  return request({ url, method: 'post', data });
+  return request({ url, method: 'post', data, allowRepeat });
 };
 
 // 图片上传（10分钟超时）
@@ -69,11 +69,11 @@ export const post = <T = unknown>(url: string, data?: object): Promise<T> => {
 
 // 登录接口
 export const login = (data: { mobile: string; code: string }) => {
-  return post('/api/v1/user/login', data);
+  return post('/api/v1/user_auth/login', data);
 };
 // 登出接口
 export const logout = () => {
-  return get('/api/v1/user/logout');
+  return get('/api/v1/user_/logout');
 };
 // 验证码接口
 export const getCode = (data: { mobile: string }) => {
@@ -110,7 +110,7 @@ interface TosTokenResponse {
 export const getTosToken = async () => {
   try {
     console.log('开始请求TOS配置...');
-    const response = await post<TosTokenResponse>('/api/v1/tos/get_sts_token');
+    const response = await post<TosTokenResponse>('/api/v1/misc/get_sts_token');
     console.log('TOS配置API响应:', response);
     
     // 检查响应数据结构

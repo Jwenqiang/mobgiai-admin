@@ -1747,7 +1747,7 @@ import {
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
-import { getImgModelConfig, getGenerateResults, postAIGenerate } from '../api/generate'
+import { getImgModelConfig, getGenerateResults, postAIGenerate, getGenerateStatus } from '../api/generate'
 
 interface UploadFile {
   uid: string
@@ -1821,6 +1821,7 @@ interface GenerationTask {
   progressText: string
   images: ImageResult[]
   createdAt: number
+  inputId?: number // 添加 inputId 字段
 }
 
 interface GenerationObj {
@@ -1906,6 +1907,8 @@ const previewVideoData = ref<VideoResult | null>(null)
 const generationTasks = ref<GenerationTask[]>([])
 const maxConcurrentTasks = ref(5)
 const generationCooldown = ref(60000) // 1分钟冷却时间
+const pollingTimer = ref<number | null>(null) // 轮询定时器
+const pendingInputIds = ref<Set<number>>(new Set()) // 待轮询的 inputId 集合
 
 // 滚动相关状态
 const isScrolling = ref(false)
@@ -2509,11 +2512,8 @@ const handleGenerate = async () => {
   // 组装请求参数
   const requestTask = buildGenerateRequestTask()
   
-  // 调用生成接口
-  await sendGenerateRequest(requestTask)
-  
-  // 开始生成过程
-  generateTask(taskId)
+  // 调用生成接口，传入 taskId
+  await sendGenerateRequest(requestTask, taskId)
   
   ElMessage.success('已添加到生成队列')
 }
@@ -3005,42 +3005,44 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
       const { list, total } = results.data
       
       // 处理返回的数据
-      const formattedResults: HistoryResult[] = list.map((item: {
-        id: number
-        type: number
-        status: number
-        createTime: string
-        assets?: Asset[]
-        tags?: Tag[]
-      }) => {
-        // 从tags中提取prompt和aiDriver
-        const promptTag = item.tags?.find((tag) => tag.key === 'prompt')
-        const aiDriverTag = item.tags?.find((tag) => tag.key === 'aiDriver')
-        
-        // 提取图片URLs
-        const images = item.assets
-          ?.filter((asset) => asset.type === 1)
-          .map((asset) => asset.materialUrl || asset.coverUrl) || []
-        
-        // 提取视频URL
-        const videoUrl = item.assets?.find((asset) => asset.type === 2)?.materialUrl || ''
-        
-        return {
-          id: item.id,
-          type: item.type,
-          status: item.status,
-          createTime: item.createTime,
-          assets: item.assets || [],
-          tags: item.tags || [],
-          // 兼容字段
-          prompt: promptTag?.val || '',
-          genType: item.type,
-          images: images,
-          videoUrl: videoUrl,
-          aiDriver: aiDriverTag?.val || 'AI模型',
-          createdAt: new Date(item.createTime).getTime()
-        }
-      })
+      const formattedResults: HistoryResult[] = list
+        .filter((item: { status: number }) => item.status === 2) // 只显示已完成的任务
+        .map((item: {
+          id: number
+          type: number
+          status: number
+          createTime: string
+          assets?: Asset[]
+          tags?: Tag[]
+        }) => {
+          // 从tags中提取prompt和aiDriver
+          const promptTag = item.tags?.find((tag) => tag.key === 'prompt')
+          const aiDriverTag = item.tags?.find((tag) => tag.key === 'aiDriver')
+          
+          // 提取图片URLs
+          const images = item.assets
+            ?.filter((asset) => asset.type === 1)
+            .map((asset) => asset.materialUrl || asset.coverUrl) || []
+          
+          // 提取视频URL
+          const videoUrl = item.assets?.find((asset) => asset.type === 2)?.materialUrl || ''
+          
+          return {
+            id: item.id,
+            type: item.type,
+            status: item.status,
+            createTime: item.createTime,
+            assets: item.assets || [],
+            tags: item.tags || [],
+            // 兼容字段
+            prompt: promptTag?.val || '',
+            genType: item.type,
+            images: images,
+            videoUrl: videoUrl,
+            aiDriver: aiDriverTag?.val || 'AI模型',
+            createdAt: new Date(item.createTime).getTime()
+          }
+        })
       
       if (append) {
         historyResults.value = [...historyResults.value, ...formattedResults]
@@ -3048,7 +3050,7 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
         historyResults.value = formattedResults
       }
       
-      // 判断是否还有更多数据
+      // 判断是否还有更多数据（基于已完成任务的数量）
       hasMore.value = historyResults.value.length < total
       
       // 数据加载完成后，重新设置 Intersection Observer
@@ -3071,15 +3073,100 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
 // 初始加载
 fetchGenerateResults()
 //生成接口调用
-const sendGenerateRequest = async (task: GenerationObj) => {
+const sendGenerateRequest = async (task: GenerationObj, taskId: string) => {
   try {
     // 这里调用实际的生成接口
     const response = await postAIGenerate(task)
     console.log('生成请求成功:', response)
+    
+    // 如果响应中包含 inputId，保存到任务中并添加到轮询列表
+    if (response && response.data && response.data.inputId) {
+      const inputId = response.data.inputId
+      const generationTask = generationTasks.value.find(t => t.id === taskId)
+      if (generationTask) {
+        generationTask.inputId = inputId
+      }
+      
+      // 添加到待轮询的 inputId 集合
+      pendingInputIds.value.add(inputId)
+      
+      // 启动轮询（如果还没有启动）
+      startPolling()
+    }
+    
     return response
   } catch (error) {
     console.error('生成请求失败:', error)
-    ElMessage.error('生成请求失败，请重试')
+    ElMessage.error(error.msg)
+  }
+}
+
+// 启动轮询
+const startPolling = () => {
+  // 如果已经有轮询在运行，不重复启动
+  if (pollingTimer.value) return
+  
+  // 如果没有待轮询的 inputId，不启动
+  if (pendingInputIds.value.size === 0) return
+  
+  pollingTimer.value = window.setInterval(async () => {
+    await pollGenerateStatus()
+  }, 10000) // 每10秒轮询一次
+}
+
+// 停止轮询
+const stopPolling = () => {
+  if (pollingTimer.value) {
+    clearInterval(pollingTimer.value)
+    pollingTimer.value = null
+  }
+}
+
+// 轮询生成状态
+const pollGenerateStatus = async () => {
+  if (pendingInputIds.value.size === 0) {
+    stopPolling()
+    return
+  }
+  
+  try {
+    // 将 Set 转换为逗号分隔的字符串
+    const userInputIds = Array.from(pendingInputIds.value).join(',')
+    
+    // 调用状态查询接口
+    const response = await getGenerateStatus({ userInputIds })
+    
+    if (response && response.data && response.data.list) {
+      const statusList = response.data.list
+      
+      // 遍历返回的状态列表
+      for (const statusItem of statusList) {
+        const inputId = statusItem.userInputId
+        
+        // 如果状态为成功（status === 2 表示成功）且有资源数据
+        if (statusItem.status === 2 && statusItem.assets && statusItem.assets.length > 0) {
+          // 从待轮询列表中移除
+          pendingInputIds.value.delete(inputId)
+          
+          // 从任务列表中移除对应的任务
+          const taskIndex = generationTasks.value.findIndex(t => t.inputId === inputId)
+          if (taskIndex > -1) {
+            generationTasks.value.splice(taskIndex, 1)
+          }
+        }
+      }
+      
+      // 如果所有 inputId 都已完成，刷新列表
+      if (pendingInputIds.value.size === 0) {
+        stopPolling()
+        await fetchGenerateResults(1, false)
+      } else {
+        // 部分完成也刷新列表
+        await fetchGenerateResults(1, false)
+      }
+    }
+  } catch (error) {
+    console.error('轮询状态失败:', error)
   }
 }
 
@@ -3234,6 +3321,9 @@ onUnmounted(() => {
     loadMoreObserver.value.disconnect()
     loadMoreObserver.value = null
   }
+  
+  // 清理轮询定时器
+  stopPolling()
   
   if (scrollTimer.value) {
     clearTimeout(scrollTimer.value)

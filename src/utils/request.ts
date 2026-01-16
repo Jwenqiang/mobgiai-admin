@@ -8,6 +8,13 @@ import axios, {
 } from 'axios';
 import { ElMessage } from 'element-plus';
 
+// 扩展 AxiosRequestConfig，添加 allowRepeat 配置项
+declare module 'axios' {
+  export interface AxiosRequestConfig {
+    allowRepeat?: boolean; // 是否允许重复请求
+  }
+}
+
 // 存储请求标识，用于取消请求
 const pendingMap = new Map<string, Canceler>();
 
@@ -27,16 +34,20 @@ const service = axios.create({
 // 请求拦截器：添加 token + 取消重复请求
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // 1. 取消重复请求
-    const pendingKey = getPendingKey(config);
-    if (pendingMap.has(pendingKey)) {
-      pendingMap.get(pendingKey)?.(); // 取消之前的请求
-      pendingMap.delete(pendingKey);
+    // 1. 如果配置了 allowRepeat: true，则跳过重复请求检查
+    if (!config.allowRepeat) {
+      const pendingKey = getPendingKey(config);
+      if (pendingMap.has(pendingKey)) {
+        // 给出友好提示
+        ElMessage.warning('请求正在处理中，请勿重复提交');
+        pendingMap.get(pendingKey)?.(); // 取消之前的请求
+        pendingMap.delete(pendingKey);
+      }
+      // 2. 添加当前请求到 pendingMap
+      config.cancelToken = new axios.CancelToken((cancel) => {
+        pendingMap.set(pendingKey, cancel);
+      });
     }
-    // 2. 添加当前请求到 pendingMap
-    config.cancelToken = new axios.CancelToken((cancel) => {
-      pendingMap.set(pendingKey, cancel);
-    });
     // 3. 添加 token
     const token = localStorage.getItem('token');
     if (token && config.headers) {
@@ -53,9 +64,11 @@ service.interceptors.request.use(
 // 响应拦截器：统一处理结果 + 清除 pending 请求
 service.interceptors.response.use(
   (response: AxiosResponse) => {
-    // 清除当前请求的 pending 标识
-    const pendingKey = getPendingKey(response.config);
-    pendingMap.delete(pendingKey);
+    // 清除当前请求的 pending 标识（仅当未配置 allowRepeat 时）
+    if (!response.config.allowRepeat) {
+      const pendingKey = getPendingKey(response.config);
+      pendingMap.delete(pendingKey);
+    }
 
     // const { code, msg, data } = response.data;
     const resData = response.data;
@@ -71,8 +84,8 @@ service.interceptors.response.use(
     }
   },
   (error: AxiosError) => {
-    // 清除当前请求的 pending 标识
-    if (error.config) {
+    // 清除当前请求的 pending 标识（仅当未配置 allowRepeat 时）
+    if (error.config && !error.config.allowRepeat) {
       const pendingKey = getPendingKey(error.config);
       pendingMap.delete(pendingKey);
     }
