@@ -668,8 +668,9 @@
                   </el-icon>
                   {{ task.type === 2 || currentGenerateMode?.value === 'video' ? '视频' : '图片' }}
                 </span>
-                <span class="meta-tag model-tag">{{ task.model?.name || 'Seedream 4.5' }}</span>
-                <span class="meta-tag size-tag">{{ task.size?.label || '9:16' }}</span>
+                <span class="meta-tag model-tag">{{ task.model?.name }}</span>
+                <span class="meta-tag size-tag">比例：{{ task.aspectRatio?.label }}</span>
+                <span class="meta-tag size-tag">{{ task.size?.label }}</span>
                 <span class="meta-tag status-tag generating" 
                       :class="{ 'video-generating': task.type === 2 || currentGenerateMode?.value === 'video' }">
                   {{ task.progressText }}
@@ -794,6 +795,9 @@
                 </span>
                 <span class="meta-tag model-tag" v-if="result.tags?.find(t => t.key === 'size')?.val">
                   {{ result.tags?.find(t => t.key === 'size')?.val }}画质
+                </span>
+                <span class="meta-tag model-tag" v-if="result.tags?.find(t => t.key === 'aspectRatio')?.val">
+                 尺寸比例:{{ result.tags?.find(t => t.key === 'aspectRatio')?.val }}
                 </span>
                 <span v-if="result.status === 0" class="meta-tag status-tag queuing">排队中</span>
                 <span v-else-if="result.status === 1" class="meta-tag status-tag processing">生成中</span>
@@ -1743,13 +1747,14 @@ import {
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
-import { getImgModelConfig, getGenerateResults } from '../api/generate'
+import { getImgModelConfig, getGenerateResults, postAIGenerate } from '../api/generate'
 
 interface UploadFile {
   uid: string
   name: string
   url: string
-  raw: File
+  raw: File,
+  val?: string
 }
 
 interface ImageResult {
@@ -1809,12 +1814,23 @@ interface GenerationTask {
   size: Size
   resolution: Resolution
   imageCount: ImageCount
+  aspectRatio?: Size
   referenceImages: UploadFile[]
   status: 'generating' | 'completed' | 'failed'
   progress: number
   progressText: string
   images: ImageResult[]
   createdAt: number
+}
+
+interface GenerationObj {
+  type: number // 1: 图片, 2: 视频
+  aiDriver: string
+  tags: Array<{
+    key: string
+    val: string
+    type?: number
+  }>
 }
 interface KeLingOption {
   value: string
@@ -1965,10 +1981,13 @@ const generationMode = ref('std') // 生成模式：std-标准模式, pro-专家
 
 // 视频上传相关状态（与VideoGenerateView保持一致）
 const firstFrameImage = ref('')
+const firstFrameImageVal = ref('') // 首帧图的uploadFileName
 const lastFrameImage = ref('')
+const lastFrameImageVal = ref('') // 尾帧图的uploadFileName
 const referenceVideo = ref('')
 const referenceVideoVal = ref('')
 const videoReferenceImages = ref(['', '', '', '']) // 4张参考图片
+const videoReferenceImagesVal = ref(['', '', '', '']) // 4张参考图片的uploadFileName
 const videoUploadProgress = ref(0) // 视频上传进度 0-100
 const isVideoUploading = ref(false) // 视频是否正在上传
 
@@ -2139,36 +2158,101 @@ const getMaxImageCount = () => {
 }
 
 // 视频上传处理方法
-const handleFirstFrameUpload = (file: File) => {
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    firstFrameImage.value = e.target?.result as string
+const handleFirstFrameUpload = async (file: File) => {
+  if (!file.type.includes('image')) {
+    ElMessage.warning("请选择正确的图片文件");
+    return false;
   }
-  reader.readAsDataURL(file)
-  return false // 阻止自动上传
+  
+  try {
+    console.log('开始上传首帧图到TOS...');
+    const tosConfig = await getTosToken();
+    
+    if (!tosConfig) {
+      throw new Error('未获取到TOS配置');
+    }
+    
+    // 调用图片上传方法
+    const imageData = await uploadImageToTOS(file, tosConfig);
+    const imageUrl = imageData.imageUrl;
+    const uploadFileName = imageData.uploadFileName;
+    
+    firstFrameImage.value = imageUrl;
+    firstFrameImageVal.value = uploadFileName;
+    
+    console.log('首帧图上传成功！地址：', imageUrl);
+    ElMessage.success('首帧图上传成功');
+  } catch (error: unknown) {
+    console.error('首帧图上传失败：', error);
+    ElMessage.error('首帧图上传失败：' + (error as Error).message);
+  }
+  
+  return false; // 阻止自动上传
 }
 
-const handleLastFrameUpload = (file: File) => {
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    lastFrameImage.value = e.target?.result as string
+const handleLastFrameUpload = async (file: File) => {
+  if (!file.type.includes('image')) {
+    ElMessage.warning("请选择正确的图片文件");
+    return false;
   }
-  reader.readAsDataURL(file)
-  return false // 阻止自动上传
+  
+  try {
+    console.log('开始上传尾帧图到TOS...');
+    const tosConfig = await getTosToken();
+    
+    if (!tosConfig) {
+      throw new Error('未获取到TOS配置');
+    }
+    
+    // 调用图片上传方法
+    const imageData = await uploadImageToTOS(file, tosConfig);
+    const imageUrl = imageData.imageUrl;
+    const uploadFileName = imageData.uploadFileName;
+    
+    lastFrameImage.value = imageUrl;
+    lastFrameImageVal.value = uploadFileName;
+    
+    console.log('尾帧图上传成功！地址：', imageUrl);
+    ElMessage.success('尾帧图上传成功');
+  } catch (error: unknown) {
+    console.error('尾帧图上传失败：', error);
+    ElMessage.error('尾帧图上传失败：' + (error as Error).message);
+  }
+  
+  return false; // 阻止自动上传
 }
 
 const swapFrameImages = () => {
   const temp = firstFrameImage.value
+  const tempVal = firstFrameImageVal.value
+  
   firstFrameImage.value = lastFrameImage.value
+  firstFrameImageVal.value = lastFrameImageVal.value
+  
   lastFrameImage.value = temp
+  lastFrameImageVal.value = tempVal
+  
   ElMessage.success('首帧图和尾帧图已交换')
 }
 
 const handleVideoUpload = async (file: File) => {
-  // const url = URL.createObjectURL(file)
-  // 上传到火山引擎tos上
   console.log(file,"上传的视频")
-  if (!file) return;
+  if (!file) return false;
+  
+  // 检查视频时长
+  try {
+    const duration = await getVideoDuration(file);
+    console.log('视频时长：', duration, '秒');
+    
+    if (duration > 10) {
+      ElMessage.warning('视频时长不能超过10秒');
+      return false;
+    }
+  } catch (error) {
+    console.error('获取视频时长失败：', error);
+    ElMessage.error('无法读取视频信息，请确保文件格式正确');
+    return false;
+  }
   
   // 重置上传状态
   isVideoUploading.value = true;
@@ -2202,21 +2286,66 @@ const handleVideoUpload = async (file: File) => {
     videoUploadProgress.value = 0;
   }
   
-  // referenceVideo.value = url
   return false // 阻止自动上传
 }
 
-const handleReferenceImageUpload = (file: File) => {
+// 获取视频时长的辅助函数
+const getVideoDuration = (file: File): Promise<number> => {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    
+    video.onloadedmetadata = () => {
+      window.URL.revokeObjectURL(video.src);
+      resolve(video.duration);
+    };
+    
+    video.onerror = () => {
+      window.URL.revokeObjectURL(video.src);
+      reject(new Error('无法加载视频'));
+    };
+    
+    video.src = URL.createObjectURL(file);
+  });
+}
+
+const handleReferenceImageUpload = async (file: File) => {
+  if (!file.type.includes('image')) {
+    ElMessage.warning("请选择正确的图片文件");
+    return false;
+  }
+  
   // 找到第一个空位置
   const emptyIndex = videoReferenceImages.value.findIndex(img => !img)
-  if (emptyIndex !== -1) {
-    const url = URL.createObjectURL(file)
-    videoReferenceImages.value[emptyIndex] = url
-    ElMessage.success(`第${emptyIndex + 1}张参考图片上传成功`)
-  } else {
+  if (emptyIndex === -1) {
     ElMessage.warning('最多只能上传4张参考图片')
+    return false;
   }
-  return false // 阻止自动上传
+  
+  try {
+    console.log('开始上传参考图片到TOS...');
+    const tosConfig = await getTosToken();
+    
+    if (!tosConfig) {
+      throw new Error('未获取到TOS配置');
+    }
+    
+    // 调用图片上传方法
+    const imageData = await uploadImageToTOS(file, tosConfig);
+    const imageUrl = imageData.imageUrl;
+    const uploadFileName = imageData.uploadFileName;
+    
+    videoReferenceImages.value[emptyIndex] = imageUrl;
+    videoReferenceImagesVal.value[emptyIndex] = uploadFileName;
+    
+    console.log(`第${emptyIndex + 1}张参考图片上传成功！地址：`, imageUrl);
+    ElMessage.success(`第${emptyIndex + 1}张参考图片上传成功`);
+  } catch (error: unknown) {
+    console.error('参考图片上传失败：', error);
+    ElMessage.error('参考图片上传失败：' + (error as Error).message);
+  }
+  
+  return false; // 阻止自动上传
 }
 
 const removeReferenceImage = (index: number) => {
@@ -2227,6 +2356,7 @@ const removeReferenceImage = (index: number) => {
   
   if (actualIndex !== -1) {
     videoReferenceImages.value[actualIndex] = ''
+    videoReferenceImagesVal.value[actualIndex] = ''
     ElMessage.success('参考图片已删除')
   }
 }
@@ -2304,12 +2434,15 @@ const handleImageUpload = async (uploadFile: any) => {
       throw new Error('未获取到TOS配置');
     }
     // 调用图片上传方法
-    const imageUrl = await uploadImageToTOS(file, tosConfig);
+    const imageData = await uploadImageToTOS(file, tosConfig);
+    const imageUrl = imageData.imageUrl;
+    const imageuploadFileName = imageData.uploadFileName;
     const img: UploadFile = {
       uid: uploadFile.uid || Date.now().toString(),
       name: uploadFile.name || 'image.jpg',
       url: imageUrl,
-      raw: file
+      raw: file,
+      val: imageuploadFileName
     }
     referenceImages.value.push(img);
     console.log('图片上传成功！地址：', imageUrl);
@@ -2373,10 +2506,182 @@ const handleGenerate = async () => {
   // 添加到任务列表
   generationTasks.value.push(newTask)
   
+  // 组装请求参数
+  const requestTask = buildGenerateRequestTask()
+  
+  // 调用生成接口
+  await sendGenerateRequest(requestTask)
+  
   // 开始生成过程
   generateTask(taskId)
   
   ElMessage.success('已添加到生成队列')
+}
+
+// 组装生成请求参数
+const buildGenerateRequestTask = () => {
+  const tags: any[] = []
+  
+  // 根据生成模式决定type: 1=图片, 2=视频
+  const type = currentGenerateMode.value?.value === 'video' ? 2 : 1
+  
+  if (type === 1) {
+    // 图片生成参数
+    // 比例
+    if (currentSize.value) {
+      tags.push({
+        key: 'aspectRatio',
+        val: currentSize.value.value
+      })
+    }
+    
+    // 分辨率
+    if (currentResolution.value) {
+      tags.push({
+        key: 'size',
+        val: currentResolution.value.value
+      })
+    }
+    
+    // 图片张数
+    if (currentImageCount.value) {
+      tags.push({
+        key: 'genImageNum',
+        val: currentImageCount.value.value.toString()
+      })
+    }
+    
+    // 提示词
+    tags.push({
+      key: 'prompt',
+      val: prompt.value
+    })
+    
+    // 参考图片（图片生成模式）- 统一使用 key: "images"，val 使用 uploadFileName
+    if (referenceImages.value && referenceImages.value.length > 0) {
+      referenceImages.value.forEach((img) => {
+        if (img.val) {
+          tags.push({
+            key: 'images',
+            val: img.val, // 使用 val (uploadFileName) 而不是 url
+            type: 1
+          })
+        }
+      })
+    }
+  } else {
+    // 视频生成参数
+    // 比例
+    if (selectedRatio.value) {
+      tags.push({
+        key: 'aspectRatio',
+        val: selectedRatio.value
+      })
+    }
+    
+    // 分辨率
+    if (selectedQuality.value) {
+      tags.push({
+        key: 'resolution',
+        val: selectedQuality.value
+      })
+    }
+    
+    // 时长
+    if (selectedDuration.value) {
+      tags.push({
+        key: 'duration',
+        val: selectedDuration.value.toString()
+      })
+    }
+    
+    // 生成声音
+    if (hasEnableAudio.value && enableAudio.value) {
+      tags.push({
+        key: 'generateAudio',
+        val: enableAudio.value
+      })
+    }
+    
+    // 生成模式
+    if (generationMode.value) {
+      tags.push({
+        key: 'mode',
+        val: generationMode.value
+      })
+    }
+    
+    // 保留原声
+    if (keepOriginalAudio.value) {
+      tags.push({
+        key: 'keepOriginalSound',
+        val: keepOriginalAudio.value
+      })
+    }
+    
+    // 可灵参考类型
+    if (keLingOptions.value.length > 0 && selectedKeLingOption.value) {
+      const option = keLingOptions.value.find(opt => opt.label === selectedKeLingOption.value)
+      if (option) {
+        tags.push({
+          key: 'referType',
+          val: option.value
+        })
+      }
+    }
+    
+    // 首帧图
+    if (firstFrameImageVal.value) {
+      tags.push({
+        key: 'imageFirst',
+        val: firstFrameImageVal.value,
+        type: 1
+      })
+    }
+    
+    // 尾帧图
+    if (lastFrameImageVal.value) {
+      tags.push({
+        key: 'imageTail',
+        val: lastFrameImageVal.value,
+        type: 1
+      })
+    }
+    
+    // 参考视频
+    if (referenceVideoVal.value) {
+      tags.push({
+        key: 'uploadVideo',
+        val: referenceVideoVal.value,
+        type: 2
+      })
+    }
+    
+    // 参考图片（多模态）- 统一使用 key: "images"
+    if (videoReferenceImagesVal.value && videoReferenceImagesVal.value.length > 0) {
+      videoReferenceImagesVal.value.forEach((imgVal) => {
+        if (imgVal) {
+          tags.push({
+            key: 'images',
+            val: imgVal,
+            type: 1
+          })
+        }
+      })
+    }
+    
+    // 提示词
+    tags.push({
+      key: 'prompt',
+      val: prompt.value
+    })
+  }
+  
+  return {
+    type,
+    aiDriver: currentModel.value?.aiDriver || '',
+    tags
+  }
 }
 
 // 新增：单个任务生成函数
@@ -2765,6 +3070,19 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
 
 // 初始加载
 fetchGenerateResults()
+//生成接口调用
+const sendGenerateRequest = async (task: GenerationObj) => {
+  try {
+    // 这里调用实际的生成接口
+    const response = await postAIGenerate(task)
+    console.log('生成请求成功:', response)
+    return response
+  } catch (error) {
+    console.error('生成请求失败:', error)
+    ElMessage.error('生成请求失败，请重试')
+  }
+}
+
 
 // 新增方法
 const clearAllImages = () => {
@@ -7013,7 +7331,7 @@ onUnmounted(() => {
   }
   
   .floating-input-panel {
-    max-width: 714px;
+    max-width: 728px;
     left: 50%;
     transform: translateX(-50%);
     bottom: 100px;

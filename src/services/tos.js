@@ -210,9 +210,9 @@ export const uploadImageToTOS = async function uploadImageToTOS(file, tosConfig)
 
     client.putObject(uploadParams).then((data) => {
       console.log('图片上传成功：', data);
-      const imageUrl = data.url || `${tosConfig.PublicDomain}/${uploadFileName}`;
+      const imageUrl = data.url || `${tosConfig.publicDomain}${uploadFileName}`;
       console.log('最终图片地址：', imageUrl);
-      resolve(imageUrl);
+      resolve({ imageUrl, uploadFileName });
     }).catch((err) => {
       console.error('图片上传失败：', err);
       
