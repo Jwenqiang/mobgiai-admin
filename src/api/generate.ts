@@ -16,3 +16,7 @@ export const postAIGenerate = (data:object) => {
 export const getGenerateStatus = (params:object) => {
   return get('/api/v1/user_input/status', params, true, 0);
 }
+//再次生成接口
+export const postAIGenerateRetry = (data:object) => {
+  return post('/api/v1/user_input/retry', data);
+}

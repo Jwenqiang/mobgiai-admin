@@ -79,8 +79,11 @@ service.interceptors.response.use(
     if (resData.code === 200 || resData.code === 0) {  // 通常后端用0表示成功
       return resData;
     } else {
-      // ElMessage.error(resData.msg || '接口请求失败');
-      return Promise.reject(new Error(resData.msg));
+      // 显示错误提示
+      const errorMsg = resData.msg || '接口请求失败';
+      // ElMessage.error(errorMsg);
+      // 返回一个包含错误信息的rejected Promise
+      return Promise.reject({ msg: errorMsg, code: resData.code, data: resData });
     }
   },
   (error: AxiosError) => {
@@ -92,10 +95,13 @@ service.interceptors.response.use(
     // 区分取消请求和其他错误
     if (axios.isCancel(error)) {
       console.log('请求已取消：', error.message);
-      return Promise.reject(new Error('请求已取消'));
+      return Promise.reject({ msg: '请求已取消', cancelled: true });
     }
-    // ElMessage.error(error.message || '网络异常');
-    return Promise.reject(error);
+    
+    // 处理网络错误
+    const errorMsg = error.message || '网络异常';
+    // ElMessage.error(errorMsg);
+    return Promise.reject({ msg: errorMsg, error });
   }
 );
 

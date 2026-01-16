@@ -1747,7 +1747,7 @@ import {
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile } from '../utils'
-import { getImgModelConfig, getGenerateResults, postAIGenerate, getGenerateStatus } from '../api/generate'
+import { getImgModelConfig, getGenerateResults, postAIGenerate, getGenerateStatus,postAIGenerateRetry } from '../api/generate'
 
 interface UploadFile {
   uid: string
@@ -1821,7 +1821,8 @@ interface GenerationTask {
   progressText: string
   images: ImageResult[]
   createdAt: number
-  inputId?: number // 添加 inputId 字段
+  userInputId?: number // 添加 userInputId 字段
+  type?: number // 添加 type 字段：1: 图片, 2: 视频
 }
 
 interface GenerationObj {
@@ -1855,6 +1856,7 @@ interface Tag {
   name: string
   key: string
   val: string
+  type?: number // 添加可选的 type 字段：1=图片, 2=视频
 }
 
 interface HistoryResult {
@@ -1908,7 +1910,7 @@ const generationTasks = ref<GenerationTask[]>([])
 const maxConcurrentTasks = ref(5)
 const generationCooldown = ref(60000) // 1分钟冷却时间
 const pollingTimer = ref<number | null>(null) // 轮询定时器
-const pendingInputIds = ref<Set<number>>(new Set()) // 待轮询的 inputId 集合
+const pendingUserInputIds = ref<Set<number>>(new Set()) // 待轮询的 userInputId 集合
 
 // 滚动相关状态
 const isScrolling = ref(false)
@@ -2519,8 +2521,6 @@ const handleGenerate = async () => {
   
   // 调用生成接口，传入 taskId
   await sendGenerateRequest(requestTask, taskId)
-  
-  ElMessage.success('已添加到生成队列')
 }
 
 // 组装生成请求参数
@@ -2954,15 +2954,328 @@ const selectHistoryItem = (historyItem: ImageHistoryItem) => {
 }
 
 // 从历史记录重新编辑
-const editGeneration = (result: HistoryResult) => {
+const editGeneration = async (result: HistoryResult) => {
+  // 1. 填充提示词
   prompt.value = result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || ''
-  ElMessage.info('已加载历史记录，可以重新编辑')
+  
+  // 2. 设置生成模式（图片或视频）
+  const genMode = result.type === 2 ? generateModes.value[1] : generateModes.value[0]
+  currentGenerateMode.value = genMode
+  
+  // 3. 查找并设置模型
+  const aiDriverTag = result.tags?.find(t => t.key === 'aiDriver')?.val
+  if (aiDriverTag) {
+    // 先加载该模型的配置
+    await fetchModelConfig(aiDriverTag)
+    
+    // 然后设置当前模型
+    const targetModel = models.value.find(m => m.aiDriver === aiDriverTag)
+    if (targetModel) {
+      currentModel.value = targetModel
+    }
+  }
+  
+  // 4. 根据类型填充不同的参数
+  if (result.type === 1) {
+    // 图片生成参数
+    
+    // 设置比例
+    const aspectRatioTag = result.tags?.find(t => t.key === 'aspectRatio')?.val
+    if (aspectRatioTag) {
+      const targetSize = imageSizes.value.find(s => s.value === aspectRatioTag)
+      if (targetSize) {
+        currentSize.value = targetSize
+      }
+    }
+    
+    // 设置分辨率
+    const sizeTag = result.tags?.find(t => t.key === 'size')?.val
+    if (sizeTag) {
+      const targetResolution = resolutions.value.find(r => r.value === sizeTag)
+      if (targetResolution) {
+        currentResolution.value = targetResolution
+      }
+    }
+    
+    // 设置图片张数
+    const genImageNumTag = result.tags?.find(t => t.key === 'genImageNum')?.val
+    if (genImageNumTag) {
+      const targetCount = imageCounts.value.find(c => c.value === parseInt(genImageNumTag))
+      if (targetCount) {
+        currentImageCount.value = targetCount
+      }
+    }
+    
+    // 填充参考图片
+    referenceImages.value = []
+    const imageTags = result.tags?.filter(t => t.key === 'images' && t.type === 1) || []
+    const imageAssets = result.assets?.filter(a => a.type === 1) || []
+    
+    console.log('开始恢复参考图片:', { imageTags, imageAssets })
+    
+    imageTags.forEach((imgTag, index) => {
+      if (imgTag.val) {
+        // 尝试通过文件名匹配找到对应的资源
+        let matchingAsset = imageAssets.find(asset => {
+          const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
+          return assetFileName.includes(imgTag.val) || imgTag.val.includes(assetFileName)
+        })
+        
+        // 如果没有找到匹配的，使用索引匹配
+        if (!matchingAsset && imageAssets[index]) {
+          matchingAsset = imageAssets[index]
+        }
+        
+        if (matchingAsset) {
+          const imageUrl = matchingAsset.coverUrl || matchingAsset.materialUrl || ''
+          if (imageUrl) {
+            // 创建一个临时的 File 对象用于满足 UploadFile 的 raw 属性要求
+            const blob = new Blob([''], { type: 'image/jpeg' })
+            const file = new File([blob], imgTag.val, { type: 'image/jpeg' })
+            
+            referenceImages.value.push({
+              uid: Date.now().toString() + Math.random(),
+              name: imgTag.val,
+              url: imageUrl,
+              raw: file,
+              val: imgTag.val
+            })
+            
+            console.log(`参考图片${index + 1}已恢复:`, imageUrl)
+          }
+        }
+      }
+    })
+    
+    console.log('图片生成参数已恢复:', {
+      referenceImages: referenceImages.value.map(img => img.url)
+    })
+    
+  } else if (result.type === 2) {
+    // 视频生成参数
+    
+    // 设置比例
+    const aspectRatioTag = result.tags?.find(t => t.key === 'aspectRatio')?.val
+    if (aspectRatioTag) {
+      selectedRatio.value = aspectRatioTag
+    }
+    
+    // 设置分辨率
+    const resolutionTag = result.tags?.find(t => t.key === 'resolution')?.val
+    if (resolutionTag) {
+      selectedQuality.value = resolutionTag
+    }
+    
+    // 设置时长
+    const durationTag = result.tags?.find(t => t.key === 'duration')?.val
+    if (durationTag) {
+      selectedDuration.value = durationTag
+    }
+    
+    // 设置生成声音
+    const generateAudioTag = result.tags?.find(t => t.key === 'generateAudio')?.val
+    if (generateAudioTag) {
+      enableAudio.value = generateAudioTag
+    }
+    
+    // 设置生成模式
+    const modeTag = result.tags?.find(t => t.key === 'mode')?.val
+    if (modeTag) {
+      generationMode.value = modeTag
+    }
+    
+    // 设置保留原声
+    const keepOriginalSoundTag = result.tags?.find(t => t.key === 'keepOriginalSound')?.val
+    if (keepOriginalSoundTag) {
+      keepOriginalAudio.value = keepOriginalSoundTag
+    }
+    
+    // 设置可灵参考类型
+    const referTypeTag = result.tags?.find(t => t.key === 'referType')?.val
+    if (referTypeTag) {
+      const targetOption = keLingOptions.value.find(opt => opt.value === referTypeTag)
+      if (targetOption) {
+        selectedKeLingOption.value = targetOption.label
+        selectedKeLingOptionVal.value = targetOption.value
+      }
+    }
+    
+    // 清空视频相关的上传数据
+    firstFrameImage.value = ''
+    firstFrameImageVal.value = ''
+    lastFrameImage.value = ''
+    lastFrameImageVal.value = ''
+    referenceVideo.value = ''
+    referenceVideoVal.value = ''
+    videoReferenceImages.value = ['', '', '', '']
+    videoReferenceImagesVal.value = ['', '', '', '']
+    
+    // 获取所有图片和视频资源
+    const imageAssets = result.assets?.filter(a => a.type === 1) || []
+    const videoAssets = result.assets?.filter(a => a.type === 2) || []
+    
+    // 填充首帧图
+    const imageFirstTag = result.tags?.find(t => t.key === 'imageFirst')
+    if (imageFirstTag && imageFirstTag.val) {
+      firstFrameImageVal.value = imageFirstTag.val
+      // 查找匹配的图片资源
+      const matchingAsset = imageAssets.find(asset => {
+        const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
+        return assetFileName.includes(imageFirstTag.val) || imageFirstTag.val.includes(assetFileName)
+      })
+      if (matchingAsset) {
+        firstFrameImage.value = matchingAsset.coverUrl || matchingAsset.materialUrl || ''
+        console.log('首帧图已恢复:', firstFrameImage.value)
+      }
+    }
+    
+    // 填充尾帧图
+    const imageTailTag = result.tags?.find(t => t.key === 'imageTail')
+    if (imageTailTag && imageTailTag.val) {
+      lastFrameImageVal.value = imageTailTag.val
+      // 查找匹配的图片资源（排除已用作首帧的）
+      const matchingAsset = imageAssets.find(asset => {
+        const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
+        const isNotFirstFrame = asset.materialUrl !== firstFrameImage.value
+        return isNotFirstFrame && (assetFileName.includes(imageTailTag.val) || imageTailTag.val.includes(assetFileName))
+      })
+      if (matchingAsset) {
+        lastFrameImage.value = matchingAsset.coverUrl || matchingAsset.materialUrl || ''
+        console.log('尾帧图已恢复:', lastFrameImage.value)
+      }
+    }
+    
+    // 填充参考视频
+    const uploadVideoTag = result.tags?.find(t => t.key === 'uploadVideo')
+    if (uploadVideoTag && uploadVideoTag.val) {
+      referenceVideoVal.value = uploadVideoTag.val
+      // 查找匹配的视频资源
+      const matchingVideoAsset = videoAssets.find(asset => {
+        const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
+        return assetFileName.includes(uploadVideoTag.val) || uploadVideoTag.val.includes(assetFileName)
+      })
+      if (matchingVideoAsset) {
+        referenceVideo.value = matchingVideoAsset.materialUrl || ''
+        console.log('参考视频已恢复:', referenceVideo.value)
+      }
+    }
+    
+    // 填充参考图片（多模态）
+    const videoImageTags = result.tags?.filter(t => t.key === 'images' && t.type === 1) || []
+    
+    // 创建一个已使用的资源集合，避免重复使用
+    const usedAssetUrls = new Set<string>()
+    if (firstFrameImage.value) usedAssetUrls.add(firstFrameImage.value)
+    if (lastFrameImage.value) usedAssetUrls.add(lastFrameImage.value)
+    
+    videoImageTags.forEach((imgTag, tagIndex) => {
+      if (tagIndex < 4 && imgTag.val) {
+        videoReferenceImagesVal.value[tagIndex] = imgTag.val
+        
+        // 查找匹配的图片资源（排除已使用的）
+        const matchingAsset = imageAssets.find(asset => {
+          const assetUrl = asset.coverUrl || asset.materialUrl || ''
+          const assetFileName = assetUrl.split('/').pop()?.split('?')[0] || ''
+          const isNotUsed = !usedAssetUrls.has(assetUrl)
+          return isNotUsed && (assetFileName.includes(imgTag.val) || imgTag.val.includes(assetFileName))
+        })
+        
+        if (matchingAsset) {
+          const imageUrl = matchingAsset.coverUrl || matchingAsset.materialUrl || ''
+          videoReferenceImages.value[tagIndex] = imageUrl
+          usedAssetUrls.add(imageUrl)
+          console.log(`参考图片${tagIndex + 1}已恢复:`, imageUrl)
+        }
+      }
+    })
+    
+    console.log('视频生成参数已恢复:', {
+      firstFrame: firstFrameImage.value,
+      lastFrame: lastFrameImage.value,
+      video: referenceVideo.value,
+      referenceImages: videoReferenceImages.value.filter(img => img)
+    })
+  }
+  
+  // 5. 滚动到顶部，让用户看到输入区域
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, 100)
+  
+  ElMessage.success('已加载历史记录，可以重新编辑')
 }
 
 // 从历史记录再次生成
-const regenerateFromHistory = (result: HistoryResult) => {
-  prompt.value = result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || ''
-  handleGenerate()
+const regenerateFromHistory = async (result: HistoryResult) => {
+  // 检查是否超过最大并发数
+  if (generationTasks.value.length >= maxConcurrentTasks.value) {
+    ElMessage.warning(`最多只能同时生成${maxConcurrentTasks.value}个任务`)
+    return
+  }
+
+  // 创建新的生成任务（用于显示在任务队列中）
+  const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  const now = Date.now()
+  
+  const newTask: GenerationTask = {
+    id: taskId,
+    prompt: result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '',
+    model: currentModel.value,
+    size: currentSize.value,
+    resolution: currentResolution.value,
+    imageCount: currentImageCount.value,
+    referenceImages: [],
+    status: 'generating',
+    progress: 0,
+    progressText: '正在重新生成...',
+    images: [],
+    createdAt: now,
+    type: result.type || 1
+  }
+
+  // 添加到任务列表
+  generationTasks.value.push(newTask)
+  
+  // 滚动到顶部
+  setTimeout(() => {
+    scrollToTop()
+  }, 100)
+
+  try {
+    // 调用再次生成接口，传入结果的id到userInputId
+    const response = await postAIGenerateRetry({ userInputId: result.id })
+    console.log('再次生成请求成功:', response)
+    
+    // 如果响应中包含 userInputId，保存到任务中并添加到轮询列表
+    if (response && response.data && response.data.userInputId) {
+      const userInputId = response.data.userInputId
+      const generationTask = generationTasks.value.find(t => t.id === taskId)
+      if (generationTask) {
+        generationTask.userInputId = userInputId
+      }
+      
+      // 添加到待轮询的 userInputId 集合
+      pendingUserInputIds.value.add(userInputId)
+      
+      // 启动轮询（如果还没有启动）
+      startPolling()
+      
+      // 显示成功提示
+      ElMessage.success('已添加到生成队列')
+    }
+  } catch (error: any) {
+    console.error('再次生成请求失败:', error)
+    
+    // 从任务列表中移除失败的任务
+    const taskIndex = generationTasks.value.findIndex(t => t.id === taskId)
+    if (taskIndex > -1) {
+      generationTasks.value.splice(taskIndex, 1)
+    }
+    
+    // 显示错误信息
+    const errorMsg = error?.msg || error?.message || '再次生成请求失败'
+    ElMessage.error(errorMsg)
+  }
 }
 
 // 删除历史记录项
@@ -3146,25 +3459,40 @@ const sendGenerateRequest = async (task: GenerationObj, taskId: string) => {
     const response = await postAIGenerate(task)
     console.log('生成请求成功:', response)
     
-    // 如果响应中包含 inputId，保存到任务中并添加到轮询列表
-    if (response && response.data && response.data.inputId) {
-      const inputId = response.data.inputId
+    // 如果响应中包含 userInputId，保存到任务中并添加到轮询列表
+    if (response && response.data && response.data.userInputId) {
+      const userInputId = response.data.userInputId
       const generationTask = generationTasks.value.find(t => t.id === taskId)
       if (generationTask) {
-        generationTask.inputId = inputId
+        generationTask.userInputId = userInputId
       }
       
-      // 添加到待轮询的 inputId 集合
-      pendingInputIds.value.add(inputId)
+      // 添加到待轮询的 userInputId 集合
+      pendingUserInputIds.value.add(userInputId)
       
       // 启动轮询（如果还没有启动）
       startPolling()
+      
+      // 显示成功提示
+      ElMessage.success('已添加到生成队列')
     }
     
     return response
-  } catch (error) {
+  } catch (error: any) {
     console.error('生成请求失败:', error)
-    ElMessage.error(error.msg)
+    
+    // 从任务列表中移除失败的任务
+    const taskIndex = generationTasks.value.findIndex(t => t.id === taskId)
+    if (taskIndex > -1) {
+      generationTasks.value.splice(taskIndex, 1)
+    }
+    
+    // 显示错误信息
+    const errorMsg = error?.msg || error?.message || '生成请求失败'
+    ElMessage.error(errorMsg)
+    
+    // 重新抛出错误，让调用方知道失败了
+    throw error
   }
 }
 
@@ -3173,8 +3501,8 @@ const startPolling = () => {
   // 如果已经有轮询在运行，不重复启动
   if (pollingTimer.value) return
   
-  // 如果没有待轮询的 inputId，不启动
-  if (pendingInputIds.value.size === 0) return
+  // 如果没有待轮询的 userInputId，不启动
+  if (pendingUserInputIds.value.size === 0) return
   
   pollingTimer.value = window.setInterval(async () => {
     await pollGenerateStatus()
@@ -3191,14 +3519,14 @@ const stopPolling = () => {
 
 // 轮询生成状态
 const pollGenerateStatus = async () => {
-  if (pendingInputIds.value.size === 0) {
+  if (pendingUserInputIds.value.size === 0) {
     stopPolling()
     return
   }
   
   try {
     // 将 Set 转换为逗号分隔的字符串
-    const userInputIds = Array.from(pendingInputIds.value).join(',')
+    const userInputIds = Array.from(pendingUserInputIds.value).join(',')
     
     // 调用状态查询接口
     const response = await getGenerateStatus({ userInputIds })
@@ -3208,22 +3536,22 @@ const pollGenerateStatus = async () => {
       
       // 遍历返回的状态列表
       for (const statusItem of statusList) {
-        const inputId = statusItem.userInputId
+        const userInputId = statusItem.userInputId
         
         // 如果状态为成功（status === 2 表示成功）且有资源数据
         if (statusItem.status === 2 && statusItem.assets && statusItem.assets.length > 0) {
           // 从待轮询列表中移除
-          pendingInputIds.value.delete(inputId)
+          pendingUserInputIds.value.delete(userInputId)
           
           // 从任务列表中移除对应的任务
-          const taskIndex = generationTasks.value.findIndex(t => t.inputId === inputId)
+          const taskIndex = generationTasks.value.findIndex(t => t.userInputId === userInputId)
           if (taskIndex > -1) {
             generationTasks.value.splice(taskIndex, 1)
           }
           
           // 动态将完成的结果插入到列表头部，不刷新列表接口
           const newResult: HistoryResult = {
-            id: statusItem.id || inputId,
+            id: statusItem.id || userInputId,
             type: statusItem.type || 1,
             status: statusItem.status,
             createTime: statusItem.createTime || new Date().toISOString(),
@@ -3244,8 +3572,8 @@ const pollGenerateStatus = async () => {
         }
       }
       
-      // 如果所有 inputId 都已完成，停止轮询
-      if (pendingInputIds.value.size === 0) {
+      // 如果所有 userInputId 都已完成，停止轮询
+      if (pendingUserInputIds.value.size === 0) {
         stopPolling()
       }
     }
