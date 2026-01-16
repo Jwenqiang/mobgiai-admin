@@ -13,9 +13,10 @@ import { TosClient } from '@volcengine/tos-sdk';
  * 火山引擎TOS 视频上传核心方法
  * @param {File} file - input:file 拿到的视频文件对象
  * @param {Object} tosConfig - 后端返回的tos配置+临时凭证
+ * @param {Function} onProgress - 上传进度回调函数，参数为进度值(0-1)
  * @returns {Promise<string>} 上传成功后返回「视频的完整访问地址」
  */
-export const uploadBigVideoToTOS = async function uploadBigVideoToTOS(file, tosConfig) {
+export const uploadBigVideoToTOS = async function uploadBigVideoToTOS(file, tosConfig, onProgress) {
   return new Promise((resolve, reject) => {
     // 检查必要参数
     if (!tosConfig.accessKeyId) {
@@ -78,13 +79,18 @@ export const uploadBigVideoToTOS = async function uploadBigVideoToTOS(file, tosC
       progress: (p) => {
         // ✅ 实时获取上传进度，可做进度条展示
         console.log('视频上传进度：', Math.floor(p * 100) + '%');
+        // 如果传入了进度回调函数，则调用它
+        if (typeof onProgress === 'function') {
+          onProgress(p);
+        }
       }
     }).then((data) => {
       console.log('上传成功，返回数据：', data);
+      console.log('上传成功，返回的域名：', tosConfig.publicDomain);      
       // 上传成功，构建完整的访问URL
-      const videoUrl = data.url || `${tosConfig.PublicDomain}/${uploadFileName}`;
+      const videoUrl = `${tosConfig.publicDomain}${uploadFileName}`;
       console.log('最终视频地址：', videoUrl);
-      resolve(videoUrl);
+      resolve({videoUrl,uploadFileName});
     }).catch((err) => {
       console.error('大视频上传失败：', err);
       

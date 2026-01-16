@@ -7,3 +7,7 @@ export const getImgModelConfig = (params?:object) => {
 export const getGenerateResults = (params?:object) => {
   return get('/api/v1/user_input/list', params);
 }
+//AI生成接口
+export const postAIGenerate = (data:object) => {
+  return post('/api/v1/user_input/generate', data);
+}

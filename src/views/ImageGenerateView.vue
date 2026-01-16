@@ -140,9 +140,23 @@
                         :before-upload="handleVideoUpload"
                         accept="video/*"
                         class="frame-uploader"
+                        :disabled="isVideoUploading"
                       >
-                        <div class="upload-area-video" :class="{ 'has-video': referenceVideo }">
-                          <video v-if="referenceVideo" :src="referenceVideo" class="uploaded-video" muted />
+                        <div class="upload-area-video" :class="{ 'has-video': referenceVideo, 'uploading': isVideoUploading }">
+                          <video v-if="referenceVideo && !isVideoUploading" :src="referenceVideo" class="uploaded-video" muted />
+                          <div v-else-if="isVideoUploading" class="upload-progress-overlay">
+                            <el-progress 
+                              type="circle" 
+                              :percentage="videoUploadProgress" 
+                              :width="80"
+                              :stroke-width="6"
+                            >
+                              <template #default="{ percentage }">
+                                <span class="progress-text">{{ percentage }}%</span>
+                              </template>
+                            </el-progress>
+                            <div class="progress-tip">视频上传中...</div>
+                          </div>
                           <div v-else class="upload-placeholder-video">
                             <el-icon size="24"><VideoCamera /></el-icon>
                           </div>
@@ -1026,9 +1040,23 @@
                       :before-upload="handleVideoUpload"
                       accept="video/*"
                       class="frame-uploader"
+                      :disabled="isVideoUploading"
                     >
-                      <div class="upload-area-video compact" :class="{ 'has-video': referenceVideo }">
-                        <video v-if="referenceVideo" :src="referenceVideo" class="uploaded-video" muted />
+                      <div class="upload-area-video compact" :class="{ 'has-video': referenceVideo, 'uploading': isVideoUploading }">
+                        <video v-if="referenceVideo && !isVideoUploading" :src="referenceVideo" class="uploaded-video" muted />
+                        <div v-else-if="isVideoUploading" class="upload-progress-overlay compact">
+                          <el-progress 
+                            type="circle" 
+                            :percentage="videoUploadProgress" 
+                            :width="60"
+                            :stroke-width="5"
+                          >
+                            <template #default="{ percentage }">
+                              <span class="progress-text small">{{ percentage }}%</span>
+                            </template>
+                          </el-progress>
+                          <div class="progress-tip small">上传中...</div>
+                        </div>
                         <div v-else class="upload-placeholder-video compact">
                           <el-icon size="18"><VideoCamera /></el-icon>
                         </div>
@@ -1939,7 +1967,10 @@ const generationMode = ref('std') // 生成模式：std-标准模式, pro-专家
 const firstFrameImage = ref('')
 const lastFrameImage = ref('')
 const referenceVideo = ref('')
+const referenceVideoVal = ref('')
 const videoReferenceImages = ref(['', '', '', '']) // 4张参考图片
+const videoUploadProgress = ref(0) // 视频上传进度 0-100
+const isVideoUploading = ref(false) // 视频是否正在上传
 
 const imageHistory = ref<ImageHistoryItem[]>([
   {
@@ -2138,6 +2169,11 @@ const handleVideoUpload = async (file: File) => {
   // 上传到火山引擎tos上
   console.log(file,"上传的视频")
   if (!file) return;
+  
+  // 重置上传状态
+  isVideoUploading.value = true;
+  videoUploadProgress.value = 0;
+  
   try {
     console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken();
@@ -2145,16 +2181,28 @@ const handleVideoUpload = async (file: File) => {
     if (!tosConfig) {
       throw new Error('未获取到TOS配置');
     }
-    // 调用图片上传方法
-    const videoUrl = await uploadBigVideoToTOS(file, tosConfig);
-    referenceVideo.value=videoUrl;
-    console.log('视频上传成功！地址：', videoUrl);
+    
+    // 调用视频上传方法，传递进度回调
+    const videoData = await uploadBigVideoToTOS(file, tosConfig, (progress: number) => {
+      // 更新上传进度
+      videoUploadProgress.value = Math.floor(progress * 100);
+      console.log('视频上传进度：', videoUploadProgress.value + '%');
+    });
+    
+    referenceVideo.value=(videoData as any).videoUrl;
+    referenceVideoVal.value=(videoData as any).uploadFileName;
+    console.log('视频上传成功！地址对象：', videoData);
+    ElMessage.success('视频上传成功')
   } catch (error: unknown) {
     console.error('视频上传失败：', error);
-  } 
+    ElMessage.error('视频上传失败：' + (error as Error).message)
+  } finally {
+    // 上传完成，重置状态
+    isVideoUploading.value = false;
+    videoUploadProgress.value = 0;
+  }
   
   // referenceVideo.value = url
-  ElMessage.success('视频上传成功')
   return false // 阻止自动上传
 }
 
@@ -3605,11 +3653,23 @@ onUnmounted(() => {
   height: 40px;
 }
 
+.upload-area-video.uploading {
+  border-color: #4A90E2;
+  border-style: solid;
+  cursor: not-allowed;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.12) 0%, rgba(102, 126, 234, 0.12) 100%);
+}
+
 .upload-area-video:hover {
   border-color: #4A90E2;
   background: linear-gradient(135deg, rgba(74, 144, 226, 0.15) 0%, rgba(102, 126, 234, 0.15) 100%);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(74, 144, 226, 0.25);
+}
+
+.upload-area-video.uploading:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 .upload-area-video.has-video {
@@ -3632,6 +3692,42 @@ onUnmounted(() => {
 .upload-area-video:hover .upload-placeholder-video {
   color: #4A90E2;
   transform: scale(1.1);
+}
+
+/* 视频上传进度覆盖层 */
+.upload-progress-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.upload-progress-overlay.compact {
+  gap: 4px;
+}
+
+.upload-progress-overlay .progress-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4A90E2;
+}
+
+.upload-progress-overlay .progress-text.small {
+  font-size: 12px;
+}
+
+.upload-progress-overlay .progress-tip {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+}
+
+.upload-progress-overlay .progress-tip.small {
+  font-size: 10px;
+  margin-top: 2px;
 }
 
 /* 新的图片上传区域样式 */
