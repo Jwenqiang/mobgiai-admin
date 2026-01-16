@@ -5,12 +5,22 @@
       <!-- 初始加载动画 - 只覆盖内容区域 -->
       <div v-if="initialLoading" class="initial-loading-overlay">
         <div class="loading-content">
-          <div class="loading-dots">
-            <span class="dot"></span>
-            <span class="dot"></span>
-            <span class="dot"></span>
+          <div class="loading-spinner">
+            <div class="spinner-ring"></div>
+            <div class="spinner-ring"></div>
+            <div class="spinner-ring"></div>
+            <div class="spinner-core">
+              <el-icon class="spinner-icon"><Picture /></el-icon>
+            </div>
           </div>
-          <div class="loading-text">加载中</div>
+          <div class="loading-text">
+            <span class="text-shimmer">加载中</span>
+            <span class="loading-dots-text">
+              <span class="dot-text">.</span>
+              <span class="dot-text">.</span>
+              <span class="dot-text">.</span>
+            </span>
+          </div>
         </div>
       </div>
       
@@ -432,11 +442,11 @@
                   <div class="size-display">
                     <div class="size-input-group">
                     <span class="size-label">W</span>
-                    <div class="size-value" v-if="currentResolution?.value=='4K'">{{ currentSize?.width*2 || 2880 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ currentSize?.width*2 || 2880 }}</div>
                     <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
                     <span class="size-connector">⟷</span>
                     <span class="size-label">H</span>
-                    <div class="size-value" v-if="currentResolution?.value=='4K'">{{ currentSize?.height*2 || 5120 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ currentSize?.height*2 || 5120 }}</div>
                     <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
                     <span class="size-unit">PX</span>
                     </div>
@@ -650,7 +660,25 @@
                          :style="{ width: task.progress + '%' }"></div>
                   </div>
                 </div>
-                <div class="generation-prompt">{{ task.prompt || '正在生成您描述的内容...' }}</div>
+                <div class="generation-prompt-wrapper">
+                  <div 
+                    class="generation-prompt" 
+                    :class="{ 
+                      'long-prompt': (task.prompt || '').length > 200,
+                      'expanded': task.promptExpanded 
+                    }"
+                    @click="(task.prompt || '').length > 200 ? (task.promptExpanded = !task.promptExpanded) : null"
+                  >
+                    {{ task.prompt || '正在生成您描述的内容...' }}
+                  </div>
+                  <div 
+                    v-if="(task.prompt || '').length > 200 && !task.promptExpanded" 
+                    class="prompt-expand-hint"
+                    @click="task.promptExpanded = true"
+                  >
+                    <el-icon size="12"><ArrowDown /></el-icon>
+                  </div>
+                </div>
               </div>
             </div>
             
@@ -772,37 +800,120 @@
                        :src="result.assets[0]?.coverUrl" 
                        alt="生成缩略图" 
                        class="thumbnail-image" />
-                  <div v-else-if="result.type === 2 && result.assets?.length > 0" class="thumbnail-video-icon">
+                  <div v-else-if="result.type === 2 && result.assets?.length > 0" class="thumbnail-video-wrapper">
+                    <div class="video-thumbnail-bg"></div>
                     <div class="video-icon-wrapper">
-                      <el-icon size="20"><VideoCamera /></el-icon>
+                      <div class="video-play-icon">
+                        <el-icon size="28"><VideoCamera /></el-icon>
+                      </div>
+                      <div class="video-pulse-ring"></div>
                     </div>
-                    <div class="video-icon-bg"></div>
                   </div>
                 </template>
               </div>
               <div class="generation-info">
-                <div class="generation-prompt">{{ result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '暂无描述' }}</div>
+                <div class="generation-prompt-wrapper">
+                  <div 
+                    class="generation-prompt" 
+                    :class="{ 
+                      'long-prompt': (result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 200,
+                      'expanded': result.promptExpanded 
+                    }"
+                    @click="(result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 200 ? (result.promptExpanded = !result.promptExpanded) : null"
+                  >
+                    {{ result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '暂无描述' }}
+                  </div>
+                  <div 
+                    v-if="(result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 200 && !result.promptExpanded" 
+                    class="prompt-expand-hint"
+                    @click="result.promptExpanded = true"
+                  >
+                    <el-icon size="12"><ArrowDown /></el-icon>
+                  </div>
+                </div>
               </div>
             </div>
             
             <!-- 中部分:模型标签等信息 -->
             <div class="generation-meta">
               <div class="meta-tags">
-                <span class="meta-tag model-tag">{{ result.tags?.find(t => t.key === 'aiDriver')?.val || 'AI模型' }}</span>
-                <!-- <span class="meta-tag size-tag">{{ result.type === 1 ? '图片' : '视频' }}</span> -->
-                <span class="meta-tag model-tag" v-if="result.tags?.find(t => t.key === 'genImageNum')?.val">
+                <!-- AI模型标签 -->
+                <span class="meta-tag model-tag ai-model-tag">
+                  <svg class="tag-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  {{ result.tags?.find(t => t.key === 'aiDriver')?.val || 'AI模型' }}
+                </span>
+                
+                <!-- 图片张数标签 -->
+                <span class="meta-tag model-tag count-tag" v-if="result.tags?.find(t => t.key === 'genImageNum')?.val">
+                  <svg class="tag-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/>
+                  </svg>
                   {{ result.tags?.find(t => t.key === 'genImageNum')?.val }}张
                 </span>
-                <span class="meta-tag model-tag" v-if="result.tags?.find(t => t.key === 'size')?.val">
-                  {{ result.tags?.find(t => t.key === 'size')?.val }}画质
+                
+                <!-- 画质标签 -->
+                <span class="meta-tag quality-tag" v-if="result.tags?.find(t => t.key === 'resolutionRatio')?.val">
+                  <svg class="tag-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  {{ result.tags?.find(t => t.key === 'resolutionRatio')?.val }}画质
                 </span>
-                <span class="meta-tag model-tag" v-if="result.tags?.find(t => t.key === 'aspectRatio')?.val">
-                 尺寸比例:{{ result.tags?.find(t => t.key === 'aspectRatio')?.val }}
+                
+                <!-- 尺寸比例标签 -->
+                <span class="meta-tag ratio-tag" v-if="result.tags?.find(t => t.key === 'aspectRatio')?.val">
+                  <svg class="tag-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                    <path d="M3 9H21" stroke="currentColor" stroke-width="2"/>
+                    <path d="M9 3V21" stroke="currentColor" stroke-width="2"/>
+                  </svg>
+                  {{ result.tags?.find(t => t.key === 'aspectRatio')?.val }}
                 </span>
-                <span v-if="result.status === 0" class="meta-tag status-tag queuing">排队中</span>
-                <span v-else-if="result.status === 1" class="meta-tag status-tag processing">生成中</span>
-                <span v-else-if="result.status === 3" class="meta-tag status-tag failed">生成失败</span>
-                <span class="meta-tag time-tag">{{ formatTime(result.createdAt || new Date(result.createTime).getTime()) }}</span>
+                
+                <!-- 视频时长标签 -->
+                <span class="meta-tag duration-tag" v-if="result.type === 2 && result.tags?.find(t => t.key === 'duration')?.val">
+                  <svg class="tag-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  {{ result.tags?.find(t => t.key === 'duration')?.val }}秒
+                </span>
+                
+                <!-- 状态标签 -->
+                <span v-if="result.status === 0" class="meta-tag status-tag queuing">
+                  <svg class="tag-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2V6M12 18V22M4.93 4.93L7.76 7.76M16.24 16.24L19.07 19.07M2 12H6M18 12H22M4.93 19.07L7.76 16.24M16.24 7.76L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  排队中
+                </span>
+                <span v-else-if="result.status === 1" class="meta-tag status-tag processing">
+                  <svg class="tag-icon spinning" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2V6M12 18V22M4.93 4.93L7.76 7.76M16.24 16.24L19.07 19.07M2 12H6M18 12H22M4.93 19.07L7.76 16.24M16.24 7.76L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  生成中
+                </span>
+                <span v-else-if="result.status === 3" class="meta-tag status-tag failed">
+                  <svg class="tag-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M15 9L9 15M9 9L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  生成失败
+                </span>
+                
+                <!-- 时间标签 -->
+                <span class="meta-tag time-tag">
+                  <svg class="tag-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  {{ formatTime(result.createdAt || new Date(result.createTime).getTime()) }}
+                </span>
               </div>
             </div>
             
@@ -1366,11 +1477,11 @@
                 <div class="size-display">
                   <div class="size-input-group">
                     <span class="size-label">W</span>
-                    <div class="size-value" v-if="currentResolution?.value=='4K'">{{ currentSize?.width*2 || 2880 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ currentSize?.width*2 || 2880 }}</div>
                     <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
                     <span class="size-connector">⟷</span>
                     <span class="size-label">H</span>
-                    <div class="size-value" v-if="currentResolution?.value=='4K'">{{ currentSize?.height || 5120 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ currentSize?.height*2 || 5120 }}</div>
                     <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
                     <span class="size-unit">PX</span>
                   </div>
@@ -1856,6 +1967,7 @@ interface Tag {
   name: string
   key: string
   val: string
+  showVal?: string // 添加 showVal 字段，用于显示预览图 URL
   type?: number // 添加可选的 type 字段：1=图片, 2=视频
 }
 
@@ -2540,10 +2652,27 @@ const buildGenerateRequestTask = () => {
       })
     }
     
-    // 分辨率
-    if (currentResolution.value) {
+    // 尺寸 - 如果有 width 和 height，传递实际尺寸值
+    if (currentSize.value?.width && currentSize.value?.height) {
+      let width = currentSize.value.width
+      let height = currentSize.value.height
+      
+      // 如果选择了 4K，尺寸翻倍（兼容大小写）
+      if (currentResolution.value?.value?.toLowerCase() === '4k') {
+        width = width * 2
+        height = height * 2
+      }
+      
       tags.push({
         key: 'size',
+        val: `${width}x${height}`
+      })
+    }
+    
+    // 分辨率比例 - 传递 2K 或 4K
+    if (currentResolution.value) {
+      tags.push({
+        key: 'resolutionRatio',
         val: currentResolution.value.value
       })
     }
@@ -2979,6 +3108,16 @@ const editGeneration = async (result: HistoryResult) => {
   if (result.type === 1) {
     // 图片生成参数
     
+    // 清空视频模式的相关数据
+    firstFrameImage.value = ''
+    firstFrameImageVal.value = ''
+    lastFrameImage.value = ''
+    lastFrameImageVal.value = ''
+    referenceVideo.value = ''
+    referenceVideoVal.value = ''
+    videoReferenceImages.value = ['', '', '', '']
+    videoReferenceImagesVal.value = ['', '', '', '']
+    
     // 设置比例
     const aspectRatioTag = result.tags?.find(t => t.key === 'aspectRatio')?.val
     if (aspectRatioTag) {
@@ -2989,9 +3128,9 @@ const editGeneration = async (result: HistoryResult) => {
     }
     
     // 设置分辨率
-    const sizeTag = result.tags?.find(t => t.key === 'size')?.val
-    if (sizeTag) {
-      const targetResolution = resolutions.value.find(r => r.value === sizeTag)
+    const resolutionRatioTag = result.tags?.find(t => t.key === 'resolutionRatio')?.val
+    if (resolutionRatioTag) {
+      const targetResolution = resolutions.value.find(r => r.value === resolutionRatioTag)
       if (targetResolution) {
         currentResolution.value = targetResolution
       }
@@ -3054,6 +3193,9 @@ const editGeneration = async (result: HistoryResult) => {
   } else if (result.type === 2) {
     // 视频生成参数
     
+    // 清空图片模式的参考图片
+    referenceImages.value = []
+    
     // 设置比例
     const aspectRatioTag = result.tags?.find(t => t.key === 'aspectRatio')?.val
     if (aspectRatioTag) {
@@ -3114,49 +3256,38 @@ const editGeneration = async (result: HistoryResult) => {
     const imageAssets = result.assets?.filter(a => a.type === 1) || []
     const videoAssets = result.assets?.filter(a => a.type === 2) || []
     
-    // 填充首帧图
+    console.log('开始恢复视频参数:', { imageAssets, videoAssets, tags: result.tags })
+    
+    // 填充首帧图 - 直接使用 tag 的 showVal
     const imageFirstTag = result.tags?.find(t => t.key === 'imageFirst')
-    if (imageFirstTag && imageFirstTag.val) {
-      firstFrameImageVal.value = imageFirstTag.val
-      // 查找匹配的图片资源
-      const matchingAsset = imageAssets.find(asset => {
-        const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
-        return assetFileName.includes(imageFirstTag.val) || imageFirstTag.val.includes(assetFileName)
-      })
-      if (matchingAsset) {
-        firstFrameImage.value = matchingAsset.coverUrl || matchingAsset.materialUrl || ''
-        console.log('首帧图已恢复:', firstFrameImage.value)
-      }
+    if (imageFirstTag) {
+      firstFrameImageVal.value = imageFirstTag.val || ''
+      firstFrameImage.value = imageFirstTag.showVal || ''
+      console.log('首帧图已恢复:', firstFrameImage.value, 'from showVal')
     }
     
-    // 填充尾帧图
+    // 填充尾帧图 - 直接使用 tag 的 showVal
     const imageTailTag = result.tags?.find(t => t.key === 'imageTail')
-    if (imageTailTag && imageTailTag.val) {
-      lastFrameImageVal.value = imageTailTag.val
-      // 查找匹配的图片资源（排除已用作首帧的）
-      const matchingAsset = imageAssets.find(asset => {
-        const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
-        const isNotFirstFrame = asset.materialUrl !== firstFrameImage.value
-        return isNotFirstFrame && (assetFileName.includes(imageTailTag.val) || imageTailTag.val.includes(assetFileName))
-      })
-      if (matchingAsset) {
-        lastFrameImage.value = matchingAsset.coverUrl || matchingAsset.materialUrl || ''
-        console.log('尾帧图已恢复:', lastFrameImage.value)
-      }
+    if (imageTailTag) {
+      lastFrameImageVal.value = imageTailTag.val || ''
+      lastFrameImage.value = imageTailTag.showVal || ''
+      console.log('尾帧图已恢复:', lastFrameImage.value, 'from showVal')
     }
     
-    // 填充参考视频
+    // 填充参考视频 - 使用 materialUrl
     const uploadVideoTag = result.tags?.find(t => t.key === 'uploadVideo')
     if (uploadVideoTag && uploadVideoTag.val) {
       referenceVideoVal.value = uploadVideoTag.val
-      // 查找匹配的视频资源
+      // 查找匹配的视频资源，使用 materialUrl
       const matchingVideoAsset = videoAssets.find(asset => {
         const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
         return assetFileName.includes(uploadVideoTag.val) || uploadVideoTag.val.includes(assetFileName)
       })
       if (matchingVideoAsset) {
         referenceVideo.value = matchingVideoAsset.materialUrl || ''
-        console.log('参考视频已恢复:', referenceVideo.value)
+        console.log('参考视频已恢复:', referenceVideo.value, 'from materialUrl')
+      } else {
+        console.warn('未找到参考视频匹配的资源:', uploadVideoTag.val)
       }
     }
     
@@ -3315,12 +3446,12 @@ const fetchModelConfig = async (aiDriver?: string) => {
           // 图片尺寸选项
           imageSizes.value = config.optionsInfo.optionsConf.aspectRatio?.conf.select||[];
           // 分辨率选项
-          resolutions.value = config.optionsInfo.optionsConf.size?.conf.select||[];
+          resolutions.value = config.optionsInfo.optionsConf.resolutionRatio?.conf.select||[];
           // 图片张数选项
           imageCounts.value = config.optionsInfo.optionsConf.genImageNum.conf.select||[];
           // 当前选中的选项
           currentSize.value = config.optionsInfo.optionsDef.aspectRatio||imageSizes.value[0];
-          currentResolution.value = config.optionsInfo.optionsDef.size||resolutions.value[0];
+          currentResolution.value = config.optionsInfo.optionsDef.resolutionRatio||resolutions.value[0];
           currentImageCount.value = config.optionsInfo.optionsDef.genImageNum||imageCounts.value[0];
           console.log('默认图片尺寸：', currentSize.value);
           console.log('默认分辨率：', currentResolution.value);   
@@ -3796,21 +3927,23 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(26, 26, 46, 0.85);
-  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(20, 20, 40, 0.98) 100%);
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  animation: fadeIn 0.3s ease-in-out;
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
+    transform: scale(0.95);
   }
   to {
     opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -3818,57 +3951,200 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  padding: 48px 60px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 20px;
-  border: 1px solid rgba(74, 144, 226, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  gap: 32px;
+  padding: 60px 80px;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.08) 0%, rgba(102, 126, 234, 0.08) 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(74, 144, 226, 0.25);
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 80px rgba(74, 144, 226, 0.15);
+  position: relative;
+  overflow: hidden;
 }
 
-.loading-dots {
+.loading-content::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 30%,
+    rgba(74, 144, 226, 0.1) 50%,
+    transparent 70%
+  );
+  animation: shimmer 3s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+  }
+}
+
+.loading-spinner {
+  position: relative;
+  width: 120px;
+  height: 120px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
 }
 
-.loading-dots .dot {
-  width: 14px;
-  height: 14px;
+.spinner-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 3px solid transparent;
+}
+
+.spinner-ring:nth-child(1) {
+  width: 120px;
+  height: 120px;
+  border-top-color: #4A90E2;
+  border-right-color: #4A90E2;
+  animation: spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  box-shadow: 0 0 20px rgba(74, 144, 226, 0.4);
+}
+
+.spinner-ring:nth-child(2) {
+  width: 90px;
+  height: 90px;
+  border-bottom-color: #667eea;
+  border-left-color: #667eea;
+  animation: spin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite reverse;
+  box-shadow: 0 0 15px rgba(102, 126, 234, 0.4);
+}
+
+.spinner-ring:nth-child(3) {
+  width: 60px;
+  height: 60px;
+  border-top-color: #764ba2;
+  border-right-color: #764ba2;
+  animation: spin 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  box-shadow: 0 0 10px rgba(118, 75, 162, 0.4);
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner-core {
+  width: 50px;
+  height: 50px;
   background: linear-gradient(135deg, #4A90E2 0%, #667eea 100%);
   border-radius: 50%;
-  animation: dotJump 1.4s ease-in-out infinite;
-  box-shadow: 0 0 20px rgba(74, 144, 226, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 
+    0 0 30px rgba(74, 144, 226, 0.6),
+    0 0 60px rgba(102, 126, 234, 0.4),
+    0 0 0 4px rgba(255, 255, 255, 0.1);
+  animation: pulse 2s ease-in-out infinite;
+  z-index: 1;
 }
 
-.loading-dots .dot:nth-child(1) {
-  animation-delay: 0s;
-}
-
-.loading-dots .dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.loading-dots .dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes dotJump {
-  0%, 60%, 100% {
-    transform: translateY(0) scale(1);
-    opacity: 1;
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 
+      0 0 30px rgba(74, 144, 226, 0.6),
+      0 0 60px rgba(102, 126, 234, 0.4),
+      0 0 0 4px rgba(255, 255, 255, 0.1);
   }
-  30% {
-    transform: translateY(-20px) scale(1.1);
-    opacity: 0.8;
+  50% {
+    transform: scale(1.1);
+    box-shadow: 
+      0 0 40px rgba(74, 144, 226, 0.8),
+      0 0 80px rgba(102, 126, 234, 0.6),
+      0 0 0 6px rgba(255, 255, 255, 0.15);
   }
+}
+
+.spinner-icon {
+  font-size: 24px;
+  color: #ffffff;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .loading-text {
-  font-size: 16px;
-  color: rgba(255, 255, 255, 0.9);
-  font-weight: 500;
-  letter-spacing: 1px;
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 600;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(74, 144, 226, 1) 50%,
+    rgba(255, 255, 255, 0.9) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textShimmer 2s ease-in-out infinite;
+}
+
+@keyframes textShimmer {
+  0%, 100% {
+    background-position: 200% center;
+  }
+  50% {
+    background-position: 0% center;
+  }
+}
+
+.loading-dots-text {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.dot-text {
+  animation: dotFade 1.4s ease-in-out infinite;
+  color: rgba(74, 144, 226, 0.9);
+}
+
+.dot-text:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.dot-text:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot-text:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotFade {
+  0%, 60%, 100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
 }
 
 .image-generate-container::before {
@@ -5933,18 +6209,33 @@ onUnmounted(() => {
 /* 上部分：缩略图和描述 */
 .generation-header {
   display: flex;
-  gap: 16px;
-  align-items: flex-start;
+  gap: 20px;
+  align-items: center; /* 默认垂直居中 */
   margin-bottom: 2px;
+  min-height: 100px; /* 确保最小高度与缩略图一致 */
+}
+
+/* 当提示词较长时，改为顶部对齐 */
+.generation-header:has(.generation-prompt.long-prompt) {
+  align-items: flex-start;
 }
 
 .generation-thumbnail {
-  width: 80px;
-  height: 80px;
-  border-radius: 12px;
+  width: 100px;
+  height: 100px;
+  border-radius: 16px;
   overflow: hidden;
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.generation-thumbnail:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-color: rgba(74, 144, 226, 0.4);
 }
 
 .thumbnail-image {
@@ -5953,18 +6244,212 @@ onUnmounted(() => {
   object-fit: cover;
 }
 
+/* 视频缩略图美化 */
+.thumbnail-video-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.video-thumbnail-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, 
+    rgba(147, 51, 234, 0.15) 0%, 
+    rgba(79, 70, 229, 0.15) 50%,
+    rgba(59, 130, 246, 0.15) 100%);
+  animation: gradientShift 3s ease-in-out infinite;
+}
+
+@keyframes gradientShift {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.video-icon-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-play-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #9333ea 0%, #4f46e5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 
+    0 4px 16px rgba(147, 51, 234, 0.4),
+    0 0 0 4px rgba(147, 51, 234, 0.2);
+  animation: videoPulse 2s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes videoPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 
+      0 4px 16px rgba(147, 51, 234, 0.4),
+      0 0 0 4px rgba(147, 51, 234, 0.2);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 
+      0 6px 20px rgba(147, 51, 234, 0.6),
+      0 0 0 6px rgba(147, 51, 234, 0.3);
+  }
+}
+
+.video-pulse-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid rgba(147, 51, 234, 0.6);
+  animation: pulseRing 2s ease-out infinite;
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
 .generation-info {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center; /* 默认垂直居中 */
+}
+
+/* 当提示词较长时，改为顶部对齐 */
+.generation-header:has(.generation-prompt.long-prompt) .generation-info {
+  justify-content: flex-start;
+  padding-top: 4px; /* 与缩略图顶部对齐时稍微下移 */
+}
+
+/* 提示词容器 */
+.generation-prompt-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .generation-prompt {
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.7;
   color: rgba(255, 255, 255, 0.9);
   margin: 0;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  white-space: pre-wrap;
+  max-height: 4.8em; /* 约3行 */
+  overflow: hidden;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 长文本样式 */
+.generation-prompt.long-prompt {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  padding-right: 28px;
+  position: relative;
+}
+
+.generation-prompt.long-prompt::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 60px;
+  height: 1.7em;
+  background: linear-gradient(to right, transparent, rgba(26, 26, 46, 0.98) 40%);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.generation-prompt.long-prompt.expanded::after {
+  opacity: 0;
+}
+
+.generation-prompt.long-prompt:hover {
+  color: rgba(255, 255, 255, 1);
+}
+
+.generation-prompt.long-prompt.expanded {
+  -webkit-line-clamp: unset;
+  max-height: none;
+  padding-right: 0;
+  cursor: default;
+}
+
+/* 展开提示 */
+.prompt-expand-hint {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.15), rgba(102, 126, 234, 0.15));
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 6px;
+  color: rgba(74, 144, 226, 0.9);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+  backdrop-filter: blur(8px);
+}
+
+.prompt-expand-hint:hover {
+  color: rgba(74, 144, 226, 1);
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.25), rgba(102, 126, 234, 0.25));
+  border-color: rgba(74, 144, 226, 0.5);
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+.prompt-expand-hint:active {
+  transform: translateY(2px);
+}
+
+/* 极短文本（少于50字）- 单行显示 */
+.generation-prompt:not(.long-prompt) {
+  max-height: 1.7em;
+}
+
+/* 中等文本（50-200字）- 最多2行 */
+.generation-prompt:not(.long-prompt)[data-length="medium"] {
+  max-height: 3.4em;
+  -webkit-line-clamp: 2;
 }
 
 /* 中部分：模型标签等信息 */
@@ -5979,22 +6464,91 @@ onUnmounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .meta-tag {
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.9);
-  padding: 4px 12px;
-  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 6px;
   font-size: 12px;
   font-weight: 500;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  backdrop-filter: blur(10px);
 }
 
+/* 标签图标 */
+.tag-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+/* 旋转动画 */
+.tag-icon.spinning {
+  animation: spin 1.5s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* AI模型标签 - 紫蓝渐变，表示AI智能 */
+.ai-model-tag {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%);
+  border-color: rgba(102, 126, 234, 0.4);
+  color: #c4b5fd;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+/* 图片张数标签 - 青色，表示数量 */
+.count-tag {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.25) 0%, rgba(59, 130, 246, 0.25) 100%);
+  border-color: rgba(34, 211, 238, 0.4);
+  color: #7dd3fc;
+  box-shadow: 0 2px 8px rgba(34, 211, 238, 0.15);
+}
+
+/* 画质标签 - 金色渐变，表示高品质 */
+.quality-tag {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fcd34d;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.15);
+}
+
+/* 尺寸比例标签 - 绿色，表示尺寸规格 */
+.ratio-tag {
+  background: linear-gradient(135deg, rgba(52, 211, 153, 0.25) 0%, rgba(16, 185, 129, 0.25) 100%);
+  border-color: rgba(52, 211, 153, 0.4);
+  color: #6ee7b7;
+  box-shadow: 0 2px 8px rgba(52, 211, 153, 0.15);
+}
+
+/* 时长标签 - 紫红渐变，表示时间维度 */
+.duration-tag {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.25) 0%, rgba(236, 72, 153, 0.25) 100%) !important;
+  border-color: rgba(168, 85, 247, 0.4) !important;
+  color: #e9d5ff !important;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.15);
+}
+
+/* 兼容旧的 model-tag */
 .model-tag {
-  background: rgba(102, 126, 234, 0.3);
-  border-color: rgba(102, 126, 234, 0.5);
-  color: #ffffff;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.25) 0%, rgba(118, 75, 162, 0.25) 100%);
+  border-color: rgba(102, 126, 234, 0.4);
+  color: #c4b5fd;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
 }
 
 .size-tag {
@@ -6003,16 +6557,32 @@ onUnmounted(() => {
   color: #ffffff;
 }
 
+/* 时间标签 - 低调灰色 */
 .time-tag {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  padding: 5px 10px;
+  box-shadow: none;
 }
 
+/* 状态标签 - 失败 */
 .status-tag.failed {
-  background: rgba(255, 77, 79, 0.2);
-  border-color: rgba(255, 77, 79, 0.4);
-  color: #ff6b6b;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.25) 100%);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+  animation: pulse-failed 2s ease-in-out infinite;
+}
+
+@keyframes pulse-failed {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 /* 失败状态样式 */
@@ -6278,11 +6848,24 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* 状态标签 - 排队中 */
 .status-tag.queuing {
-  background: rgba(255, 193, 7, 0.2);
-  border-color: rgba(255, 193, 7, 0.4);
-  color: #ffc107;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.25) 0%, rgba(245, 158, 11, 0.25) 100%);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fcd34d;
+  box-shadow: 0 2px 4px rgba(251, 191, 36, 0.15);
   animation: queuePulse 2s infinite;
+}
+
+@keyframes queuePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
 }
 
 /* 生成中状态样式 (status === 1) */
@@ -6447,11 +7030,22 @@ onUnmounted(() => {
   animation-delay: 0.6s;
 }
 
+/* 状态标签 - 生成中 */
 .status-tag.processing {
-  background: rgba(74, 144, 226, 0.2);
-  border-color: rgba(74, 144, 226, 0.4);
-  color: #4A90E2;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(37, 99, 235, 0.25) 100%);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
   animation: statusPulse 2s infinite;
+}
+
+@keyframes statusPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
 }
 
 /* 下部分：生成图 */
@@ -7746,14 +8340,14 @@ onUnmounted(() => {
   }
   
   .generation-header {
-    flex-direction: column;
-    gap: 10px;
+    flex-direction: row;
+    gap: 12px;
     margin-bottom: 0;
   }
   
   .generation-thumbnail {
-    width: 60px;
-    height: 60px;
+    width: 80px;
+    height: 80px;
     align-self: flex-start;
   }
   
@@ -8110,45 +8704,7 @@ body.el-popup-parent--hidden {
   object-fit: cover;
 }
 
-/* 美化的视频图标缩略图样式 */
-.thumbnail-video-icon {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.video-icon-wrapper {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  color: #ffffff;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.video-icon-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
-  z-index: 1;
-}
+/* 美化的视频图标缩略图样式 - 已废弃，使用 thumbnail-video-wrapper */
 
 /* 视频结果容器 - 靠左显示，单个视频项 */
 .video-result-container {
