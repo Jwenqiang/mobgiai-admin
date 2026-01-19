@@ -709,7 +709,10 @@
             <!-- 下部分：待生成的模型图缺省图 -->
             <div class="generation-images generating-preview">
               <div class="generation-image-item generating-item" 
-                   :class="{ 'video-item': task.type === 2 || currentGenerateMode?.value === 'video' }">
+                   :class="[
+                     { 'video-item': task.type === 2 || currentGenerateMode?.value === 'video' },
+                     getRatioClass(task.aspectRatio?.value || (task.type === 2 || currentGenerateMode?.value === 'video' ? '16:9' : '1:1'))
+                   ]">
                 <div class="image-wrapper">
                   <div class="generating-placeholder-image" 
                        :class="{ 'video-placeholder': task.type === 2 || currentGenerateMode?.value === 'video' }">
@@ -986,6 +989,7 @@
                 v-for="(asset, imgIndex) in result.assets.filter(a => a.type === 1)" 
                 :key="asset.id"
                 class="generation-image-item"
+                :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '1:1')"
                 @click="previewImage(asset.materialUrl||asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)"
               >
                 <div class="image-wrapper">
@@ -1010,7 +1014,7 @@
             <!-- 视频结果显示 -->
             <div v-else-if="result.type === 2 && result.assets?.find(a => a.type === 2)" class="generation-images video-result-container">
               <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.assets.find(a => a.type === 2)?.materialUrl || '', result.assets.find(a => a.type === 2), result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)">
-                <div class="image-wrapper video-wrapper">
+                <div class="image-wrapper video-wrapper" :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '16:9')">
                   <video 
                     :src="result.assets.find(a => a.type === 2)?.materialUrl" 
                     class="generated-image generated-video"
@@ -2272,6 +2276,69 @@ const getMaxImageCount = () => {
     return 4 // 视频生成模式最多4张
   }
   return 5 // 默认5张
+}
+
+// 根据比例值生成对应的CSS类名
+const getRatioClass = (aspectRatioValue: string) => {
+  if (!aspectRatioValue) return 'ratio-1-1' // 默认1:1
+  
+  // 处理不同的比例格式
+  const ratioMap: { [key: string]: string } = {
+    // 标准比例格式
+    '1:1': 'ratio-1-1',
+    '3:4': 'ratio-3-4',
+    '4:3': 'ratio-4-3',
+    '9:16': 'ratio-9-16',
+    '16:9': 'ratio-16-9',
+    '21:9': 'ratio-21-9',
+    '2:3': 'ratio-2-3',
+    '3:2': 'ratio-3-2',
+    // 兼容其他格式
+    '1': 'ratio-1-1',
+    '1/1': 'ratio-1-1',
+    '3/4': 'ratio-3-4',
+    '4/3': 'ratio-4-3',
+    '9/16': 'ratio-9-16',
+    '16/9': 'ratio-16-9',
+    '21/9': 'ratio-21-9',
+    '2/3': 'ratio-2-3',
+    '3/2': 'ratio-3-2',
+    // 特殊关键词
+    'smart': 'ratio-16-9', // 智能比例默认为16:9
+    '正方形': 'ratio-1-1',
+    '竖屏': 'ratio-9-16',
+    '横屏': 'ratio-16-9',
+    '宽屏': 'ratio-21-9',
+    '方形': 'ratio-1-1',
+    '标准': 'ratio-16-9',
+    '超宽': 'ratio-21-9'
+  }
+  
+  // 尝试直接匹配
+  if (ratioMap[aspectRatioValue]) {
+    return ratioMap[aspectRatioValue]
+  }
+  
+  // 尝试解析比例字符串（如 "1920:1080" -> "16:9"）
+  const match = aspectRatioValue.match(/(\d+)[:/](\d+)/)
+  if (match) {
+    const width = parseInt(match[1])
+    const height = parseInt(match[2])
+    const ratio = width / height
+    
+    // 根据比例值匹配最接近的标准比例
+    if (Math.abs(ratio - 1) < 0.1) return 'ratio-1-1'
+    if (Math.abs(ratio - 0.75) < 0.1) return 'ratio-3-4'
+    if (Math.abs(ratio - 1.33) < 0.1) return 'ratio-4-3'
+    if (Math.abs(ratio - 0.5625) < 0.1) return 'ratio-9-16'
+    if (Math.abs(ratio - 1.78) < 0.1) return 'ratio-16-9'
+    if (Math.abs(ratio - 2.33) < 0.1) return 'ratio-21-9'
+    if (Math.abs(ratio - 0.67) < 0.1) return 'ratio-2-3'
+    if (Math.abs(ratio - 1.5) < 0.1) return 'ratio-3-2'
+  }
+  
+  // 默认返回1:1
+  return 'ratio-1-1'
 }
 
 // 视频上传处理方法
@@ -7143,36 +7210,101 @@ onUnmounted(() => {
 
 /* 下部分：生成图 */
 .generation-images {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   width: 100%;
+  align-items: start; /* 让不同高度的项目顶部对齐 */
 }
 
-.generation-images.count-1 {
-  grid-template-columns: 1fr;
-  max-width: 400px;
-  margin: 0 auto;
+/* 所有图片统一固定宽度 */
+.generation-image-item {
+  width: 220px; /* 固定宽度，确保一排至少能显示4张 */
+  flex-shrink: 0; /* 防止缩小 */
 }
 
-.generation-images.count-2 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.generation-images.count-3 {
-  grid-template-columns: repeat(3, 1fr);
-}
-
+/* 1张、2张、3张、4张图片都使用相同的样式 */
+.generation-images.count-1,
+.generation-images.count-2,
+.generation-images.count-3,
 .generation-images.count-4 {
-  grid-template-columns: repeat(4, 1fr);
+  /* 不需要特殊样式，所有图片都是固定宽度 */
+}
+
+/* 动态宽高比样式 - 根据设置的比例自动调整 */
+.generation-image-item.ratio-1-1 {
+  aspect-ratio: 1/1;
+}
+
+.generation-image-item.ratio-3-4 {
+  aspect-ratio: 3/4;
+}
+
+.generation-image-item.ratio-4-3 {
+  aspect-ratio: 4/3;
+}
+
+.generation-image-item.ratio-9-16 {
+  aspect-ratio: 9/16;
+}
+
+.generation-image-item.ratio-16-9 {
+  aspect-ratio: 16/9;
+}
+
+.generation-image-item.ratio-21-9 {
+  aspect-ratio: 21/9;
+}
+
+.generation-image-item.ratio-2-3 {
+  aspect-ratio: 2/3;
+}
+
+.generation-image-item.ratio-3-2 {
+  aspect-ratio: 3/2;
+}
+
+/* 视频比例样式 */
+.video-result-item .video-wrapper.ratio-1-1 {
+  aspect-ratio: 1/1;
+}
+
+.video-result-item .video-wrapper.ratio-3-4 {
+  aspect-ratio: 3/4;
+}
+
+.video-result-item .video-wrapper.ratio-4-3 {
+  aspect-ratio: 4/3;
+}
+
+.video-result-item .video-wrapper.ratio-9-16 {
+  aspect-ratio: 9/16;
+}
+
+.video-result-item .video-wrapper.ratio-16-9 {
+  aspect-ratio: 16/9;
+}
+
+.video-result-item .video-wrapper.ratio-21-9 {
+  aspect-ratio: 21/9;
+}
+
+.video-result-item .video-wrapper.ratio-2-3 {
+  aspect-ratio: 2/3;
+}
+
+.video-result-item .video-wrapper.ratio-3-2 {
+  aspect-ratio: 3/2;
 }
 
 .generation-image-item {
-  aspect-ratio: 1;
   cursor: pointer;
   border-radius: 8px;
   overflow: hidden;
   transition: all 0.3s ease;
   background: rgba(255, 255, 255, 0.05);
+  /* 动态设置宽高比，根据实际比例显示 */
+  position: relative;
 }
 
 .generation-image-item:hover {
@@ -7186,14 +7318,18 @@ onUnmounted(() => {
   height: 100%;
   border-radius: 8px;
   overflow: hidden;
-  background: transparent;
+  background: #000; /* 黑色背景填充空白区域 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .generated-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* 改为 contain 以保持原始比例 */
   transition: transform 0.3s ease;
+  display: block; /* 确保图片正确显示 */
 }
 
 .generation-image-item:hover .generated-image {
@@ -8452,15 +8588,8 @@ onUnmounted(() => {
     gap: 12px;
   }
   
-  .generation-images.count-1 {
-    grid-template-columns: 1fr;
-    max-width: 300px;
-  }
-  
-  .generation-images.count-2,
-  .generation-images.count-3,
-  .generation-images.count-4 {
-    grid-template-columns: repeat(2, 1fr);
+  .generation-image-item {
+    width: calc(50% - 6px); /* 移动端每张图片占50%宽度减去间距 */
   }
   
   .generation-actions {
@@ -8538,18 +8667,8 @@ onUnmounted(() => {
     gap: 12px;
   }
   
-  .generation-images.count-1 {
-    grid-template-columns: 1fr;
-    max-width: 350px;
-  }
-  
-  .generation-images.count-2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .generation-images.count-3,
-  .generation-images.count-4 {
-    grid-template-columns: repeat(4, 1fr);
+  .generation-image-item {
+    width: 200px; /* 平板端固定宽度，确保能显示4张 */
   }
   
   .results-section {
@@ -8594,21 +8713,8 @@ onUnmounted(() => {
     gap: 16px;
   }
   
-  .generation-images.count-1 {
-    grid-template-columns: 1fr;
-    max-width: 400px;
-  }
-  
-  .generation-images.count-2 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .generation-images.count-3 {
-    grid-template-columns: repeat(3, 1fr);
-  }
-  
-  .generation-images.count-4 {
-    grid-template-columns: repeat(4, 1fr);
+  .generation-image-item {
+    width: 220px; /* 桌面端固定宽度，确保一排至少能显示4张 */
   }
 }
 
@@ -8815,15 +8921,16 @@ body.el-popup-parent--hidden {
 }
 
 .video-result-item .video-wrapper {
-  /* 保持1:1比例，与图片一致 */
-  aspect-ratio: 1;
+  /* 动态设置宽高比，根据视频实际比例显示 */
+  position: relative;
 }
 
 .generated-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* 改为 contain 以保持原始比例 */
   transition: transform 0.3s ease;
+  display: block; /* 确保视频正确显示 */
 }
 
 .video-result-item:hover .generated-video {
@@ -9024,6 +9131,46 @@ body.el-popup-parent--hidden {
   .video-result-item .video-wrapper {
     aspect-ratio: 16/9;
   }
+}
+
+/* 优化不同比例图片的显示效果 */
+/* 使用flexbox布局，所有图片统一固定宽度，不需要特殊的跨列规则 */
+
+/* 竖屏比例优化 - 限制最大高度避免过高 */
+.generation-image-item.ratio-9-16,
+.generation-image-item.ratio-2-3,
+.generation-image-item.ratio-3-4 {
+  max-height: 600px; /* 限制竖屏图片的最大高度 */
+}
+
+/* 横屏和超宽比例优化 */
+.generation-image-item.ratio-16-9,
+.generation-image-item.ratio-21-9,
+.generation-image-item.ratio-3-2,
+.generation-image-item.ratio-4-3 {
+  max-height: 400px; /* 限制横屏图片的最大高度 */
+}
+
+/* video-wrapper 样式 */
+.video-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000; /* 黑色背景填充空白区域 */
+}
+
+/* 视频容器的比例优化 */
+.video-result-item .video-wrapper.ratio-9-16,
+.video-result-item .video-wrapper.ratio-2-3,
+.video-result-item .video-wrapper.ratio-3-4 {
+  max-height: 600px; /* 限制竖屏视频的最大高度 */
+}
+
+.video-result-item .video-wrapper.ratio-16-9,
+.video-result-item .video-wrapper.ratio-21-9,
+.video-result-item .video-wrapper.ratio-3-2,
+.video-result-item .video-wrapper.ratio-4-3 {
+  max-height: 400px; /* 限制横屏视频的最大高度 */
 }
 </style>
 
