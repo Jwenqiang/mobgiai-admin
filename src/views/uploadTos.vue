@@ -22,9 +22,9 @@
               :class="step.status.toLowerCase()"
             >
               <span class="step-icon">
-                {{ step.status === 'SUCCESS' ? '✅' : step.status === 'FAILED' ? '❌' : '🔄' }}
+                {{ step.status === 'success' ? '✅' : step.status === 'error' ? '❌' : '🔄' }}
               </span>
-              <span class="step-text">{{ step.name }}: {{ step.details }}</span>
+              <span class="step-text">{{ step.name }}: {{ step.message }}</span>
             </div>
           </div>
           <div v-if="diagnosisResult.recommendations.length > 0" class="recommendations">
@@ -89,16 +89,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { uploadBigVideoToTOS, uploadImageToTOS } from '../services/tos.js'
+import { uploadBigVideoToTOS, uploadImageToTOS, type TosTokenResponse, type VideoUploadResult, type ImageUploadResult } from '../services/tos.js'
 import { getTosToken } from '../api/index'
-import { diagnoseTosUpload, printDiagnosisReport } from '../utils/tosDebug.js'
+import { diagnoseTosUpload, printDiagnosisReport, type DiagnosisResult } from '../utils/tosDebug.js'
 
 const uploading = ref(false)
 const uploadProgress = ref(0)
 const uploadResult = ref('')
 const errorMessage = ref('')
 const diagnosing = ref(false)
-const diagnosisResult = ref(null)
+const diagnosisResult = ref<DiagnosisResult | null>(null)
 
 // 重置状态
 const resetState = () => {
@@ -120,14 +120,14 @@ const runDiagnosis = async () => {
     diagnosisResult.value = report
     printDiagnosisReport(report)
     
-    if (report.overallStatus === 'SUCCESS') {
+    if (report.overallStatus === 'success') {
       console.log('✅ TOS配置正常，可以进行文件上传')
     } else {
       console.log('❌ TOS配置存在问题，请查看上方诊断结果')
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('诊断过程出错:', error)
-    errorMessage.value = `诊断失败: ${error.message}`
+    errorMessage.value = `诊断失败: ${error?.message || error}`
   } finally {
     diagnosing.value = false
   }
@@ -158,7 +158,7 @@ const handleVideoUpload = async (e: Event) => {
 
   try {
     console.log('开始请求TOS配置...');
-    const tosConfig = await getTosToken();
+    const tosConfig = await getTosToken() as TosTokenResponse;
     console.log('获取到的TOS临时配置：', tosConfig);
 
     // 检查配置完整性
@@ -167,7 +167,7 @@ const handleVideoUpload = async (e: Event) => {
     }
 
     // 检查必要字段
-    const requiredFields = ['accessKeyId', 'sessionToken', 'region', 'bucket'];
+    const requiredFields: (keyof TosTokenResponse)[] = ['accessKeyId', 'sessionToken', 'region', 'bucket'];
     const missingFields = requiredFields.filter(field => !tosConfig[field]);
     if (missingFields.length > 0) {
       throw new Error(`TOS配置缺少必要字段: ${missingFields.join(', ')}`);
@@ -179,10 +179,10 @@ const handleVideoUpload = async (e: Event) => {
     }
 
     // 调用上传方法
-    const videoUrl = await uploadBigVideoToTOS(file, tosConfig);
+    const result = await uploadBigVideoToTOS(file, tosConfig);
     
-    uploadResult.value = videoUrl;
-    console.log('视频上传成功！地址：', videoUrl);
+    uploadResult.value = result.videoUrl;
+    console.log('视频上传成功！地址：', result.videoUrl);
     
     // 显示成功消息
     ElMessage.success({
@@ -230,17 +230,17 @@ const handleImageUpload = async (e: Event) => {
 
   try {
     console.log('开始请求TOS配置...');
-    const tosConfig = await getTosToken();
+    const tosConfig = await getTosToken() as TosTokenResponse;
     
     if (!tosConfig) {
       throw new Error('未获取到TOS配置');
     }
 
     // 调用图片上传方法
-    const imageUrl = await uploadImageToTOS(file, tosConfig);
+    const result = await uploadImageToTOS(file, tosConfig);
     
-    uploadResult.value = imageUrl;
-    console.log('图片上传成功！地址：', imageUrl);
+    uploadResult.value = result.imageUrl;
+    console.log('图片上传成功！地址：', result.imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();

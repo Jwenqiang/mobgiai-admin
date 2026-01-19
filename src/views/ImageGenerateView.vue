@@ -442,11 +442,11 @@
                   <div class="size-display">
                     <div class="size-input-group">
                     <span class="size-label">W</span>
-                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ currentSize?.width*2 || 2880 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.width || 1440)*2 }}</div>
                     <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
                     <span class="size-connector">⟷</span>
                     <span class="size-label">H</span>
-                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ currentSize?.height*2 || 5120 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.height || 2560)*2 }}</div>
                     <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
                     <span class="size-unit">PX</span>
                     </div>
@@ -1282,7 +1282,7 @@
             >
               <img 
                 :src="image.url" 
-                :alt="参考图"
+                alt="参考图"
                 class="upload-preview-image"
               />
               <el-button 
@@ -1481,11 +1481,11 @@
                 <div class="size-display">
                   <div class="size-input-group">
                     <span class="size-label">W</span>
-                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ currentSize?.width*2 || 2880 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.width || 1440)*2 }}</div>
                     <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
                     <span class="size-connector">⟷</span>
                     <span class="size-label">H</span>
-                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ currentSize?.height*2 || 5120 }}</div>
+                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.height || 2560)*2 }}</div>
                     <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
                     <span class="size-unit">PX</span>
                   </div>
@@ -1857,7 +1857,7 @@ import { uploadBigVideoToTOS, uploadImageToTOS } from '../services/tos.js'
 import { getTosToken } from '../api/index'
 import { ElMessage } from 'element-plus'
 import {
-  Picture, Plus, Download, FolderAdd, Clock, Close,
+  Picture, Plus, Download, Clock, Close,
   ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay, Loading, CircleClose
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
@@ -1891,6 +1891,31 @@ interface ImageHistoryItem {
   model: string
   size: string
   createdAt: number
+}
+
+interface ApiResponse<T = any> {
+  data: T
+  code?: number
+  msg?: string
+}
+
+interface GenerateResponse {
+  userInputId: number
+}
+
+interface StatusResponse {
+  list: Array<{
+    userInputId: number
+    status: number
+    id?: number
+    type?: number
+    createTime?: string
+    assets?: Asset[]
+    tags?: Tag[]
+    prompt?: string
+    genType?: number
+    aiDriver?: string
+  }>
 }
 
 interface Model {
@@ -1938,6 +1963,7 @@ interface GenerationTask {
   createdAt: number
   userInputId?: number // 添加 userInputId 字段
   type?: number // 添加 type 字段：1: 图片, 2: 视频
+  promptExpanded?: boolean // 添加 promptExpanded 字段
 }
 
 interface GenerationObj {
@@ -1989,6 +2015,7 @@ interface HistoryResult {
   videoUrl?: string
   aiDriver?: string
   createdAt?: number
+  promptExpanded?: boolean // 添加 promptExpanded 字段
 }
 
 const prompt = ref('')
@@ -2055,7 +2082,7 @@ const videoModels = ref<Model[]>([])
 // 当前可用的模型列表（根据生成方式动态变化）
 const models = ref<Model[]>(imageModels.value)
 
-const currentModel = ref<Model>(models.value[0])
+const currentModel = ref<Model>(models.value[0] || { aiDriver: '', name: '', desc: '', iconUrl: '' })
 
 // 尺寸选项 - 按图片显示的顺序排列
 const imageSizes = ref<Size[]>([])
@@ -2206,14 +2233,14 @@ const selectGenerateMode = (mode: { value: string; label: string }) => {
     models.value = imageModels.value
     // 如果当前选择的模型不在图片模型列表中，则选择第一个图片模型
     const currentModelExists = imageModels.value.find(model => model.aiDriver === currentModel.value.aiDriver)
-    if (!currentModelExists) {
+    if (!currentModelExists && imageModels.value[0]) {
       currentModel.value = imageModels.value[0]
     }
   } else if (mode.value === 'video') {
     models.value = videoModels.value
     // 如果当前选择的模型不在视频模型列表中，则选择第一个视频模型
     const currentModelExists = videoModels.value.find(model => model.aiDriver === currentModel.value.aiDriver)
-    if (!currentModelExists) {
+    if (!currentModelExists && videoModels.value[0]) {
       currentModel.value = videoModels.value[0]
     }
   }
@@ -2321,7 +2348,7 @@ const getRatioClass = (aspectRatioValue: string) => {
   
   // 尝试解析比例字符串（如 "1920:1080" -> "16:9"）
   const match = aspectRatioValue.match(/(\d+)[:/](\d+)/)
-  if (match) {
+  if (match && match[1] && match[2]) {
     const width = parseInt(match[1])
     const height = parseInt(match[2])
     const ratio = width / height
@@ -2353,8 +2380,7 @@ const handleFirstFrameUpload = async (file: File) => {
     message: '正在上传首帧图片，请稍候...',
     type: 'info',
     duration: 0, // 不自动关闭
-    showClose: false,
-    icon: 'Loading'
+    showClose: false
   });
   
   try {
@@ -2400,8 +2426,7 @@ const handleLastFrameUpload = async (file: File) => {
     message: '正在上传尾帧图片，请稍候...',
     type: 'info',
     duration: 0, // 不自动关闭
-    showClose: false,
-    icon: 'Loading'
+    showClose: false
   });
   
   try {
@@ -2489,14 +2514,10 @@ const handleVideoUpload = async (file: File) => {
     }
     
     // 调用视频上传方法，传递进度回调
-    const videoData = await uploadBigVideoToTOS(file, tosConfig, (progress: number) => {
-      // 更新上传进度
-      videoUploadProgress.value = Math.floor(progress * 100);
-      console.log('视频上传进度：', videoUploadProgress.value + '%');
-    });
+    const videoData = await uploadBigVideoToTOS(file, tosConfig);
     
-    referenceVideo.value=(videoData as any).videoUrl;
-    referenceVideoVal.value=(videoData as any).uploadFileName;
+    referenceVideo.value = videoData.videoUrl;
+    referenceVideoVal.value = videoData.uploadFileName;
     console.log('视频上传成功！地址对象：', videoData);
     
     // 显示成功消息
@@ -2561,8 +2582,7 @@ const handleReferenceImageUpload = async (file: File) => {
     message: `正在上传第${emptyIndex + 1}张参考图片...`,
     type: 'info',
     duration: 0, // 不自动关闭
-    showClose: false,
-    icon: 'Loading'
+    showClose: false
   });
   
   try {
@@ -2601,6 +2621,7 @@ const removeReferenceImage = (index: number) => {
   // 找到实际的索引位置
   const filteredImages = videoReferenceImages.value.filter(img => img)
   const imageToRemove = filteredImages[index]
+  if (!imageToRemove) return
   const actualIndex = videoReferenceImages.value.indexOf(imageToRemove)
   
   if (actualIndex !== -1) {
@@ -2645,6 +2666,7 @@ const previewReferenceImage = (imageUrl: string) => {
   })
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const handleImageUpload = async (uploadFile: any) => {
   const maxCount = getMaxImageCount()
   
@@ -2682,8 +2704,7 @@ const handleImageUpload = async (uploadFile: any) => {
     message: `正在上传图片 (${referenceImages.value.length + 1}/${maxCount})，请稍候...`,
     type: 'info',
     duration: 0, // 不自动关闭
-    showClose: false,
-    icon: 'Loading'
+    showClose: false
   });
   
   try {
@@ -2756,7 +2777,7 @@ const handleGenerate = async () => {
     now - task.createdAt < generationCooldown.value
   )
   
-  if (recentTasks.length >= maxConcurrentTasks.value) {
+  if (recentTasks.length >= maxConcurrentTasks.value && recentTasks[0]) {
     const remainingTime = Math.ceil((generationCooldown.value - (now - recentTasks[0].createdAt)) / 1000)
     ElMessage.warning(`请等待${remainingTime}秒后再次生成`)
     return
@@ -2768,9 +2789,9 @@ const handleGenerate = async () => {
     id: taskId,
     prompt: prompt.value,
     model: currentModel.value,
-    size: currentSize.value,
-    resolution: currentResolution.value,
-    imageCount: currentImageCount.value,
+    size: currentSize.value!,
+    resolution: currentResolution.value!,
+    imageCount: currentImageCount.value!,
     referenceImages: [...referenceImages.value],
     status: 'generating',
     progress: 0,
@@ -2796,6 +2817,7 @@ const handleGenerate = async () => {
 
 // 组装生成请求参数
 const buildGenerateRequestTask = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tags: any[] = []
   
   // 根据生成模式决定type: 1=图片, 2=视频
@@ -2978,6 +3000,7 @@ const buildGenerateRequestTask = () => {
 }
 
 // 新增：单个任务生成函数
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const generateTask = async (taskId: string) => {
   const task = generationTasks.value.find(t => t.id === taskId)
   if (!task) return
@@ -3080,6 +3103,7 @@ const previewImage = (imageUrl: string, imageData?: Asset, promptText?: string) 
     id: Date.now().toString(),
     materialUrl: imageUrl,
     coverUrl: imageUrl
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any
   previewPrompt.value = promptText || ''
   previewVisible.value = true
@@ -3125,6 +3149,7 @@ const downloadVideo = async (video: VideoResult) => {
     
     // 如果没有 previewVideoUrl，则从 video 对象中获取
     if (!videoUrl) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       videoUrl = (video as any).url || (video as any).materialUrl
     }
     
@@ -3138,8 +3163,10 @@ const downloadVideo = async (video: VideoResult) => {
     
     // 从 URL 中提取文件扩展名
     const urlParts = videoUrl.split('?')[0]
+    if (!urlParts) return
     const urlPath = urlParts.split('/')
     const urlFilename = urlPath[urlPath.length - 1]
+    if (!urlFilename) return
     const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'mp4'
     
     const filename = `generated_video_${video.id}.${ext}`
@@ -3154,14 +3181,16 @@ const downloadVideo = async (video: VideoResult) => {
 }
 
 // 下载图片URL
-const downloadImageUrl = async (imageUrl: string, id: string, index: number) => {
+const downloadImageUrl = async (imageUrl: string, id: string | number, index: number) => {
   try {
     console.log('开始下载图片:', imageUrl)
     
     // 从 URL 中提取文件扩展名
     const urlParts = imageUrl.split('?')[0] // 移除查询参数
+    if (!urlParts) return
     const urlPath = urlParts.split('/')
     const urlFilename = urlPath[urlPath.length - 1]
+    if (!urlFilename) return
     const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'jpg'
     
     const filename = `generated_image_${id}_${index + 1}.${ext}`
@@ -3176,7 +3205,7 @@ const downloadImageUrl = async (imageUrl: string, id: string, index: number) => 
 }
 
 // 下载视频URL
-const downloadVideoUrl = async (videoUrl: string, id: string) => {
+const downloadVideoUrl = async (videoUrl: string, id: string | number) => {
   try {
     console.log('开始下载视频:', videoUrl)
     await downloadFile(videoUrl, `generated_video_${id}.mp4`)
@@ -3187,6 +3216,7 @@ const downloadVideoUrl = async (videoUrl: string, id: string) => {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const saveVideoToAssets = (video: VideoResult) => {
   console.log('Saving video to assets:', video.id)
   ElMessage.success('视频已保存到资产库')
@@ -3199,6 +3229,7 @@ const downloadImage = async (image: ImageResult) => {
     
     // 如果没有 previewImageUrl，则从 image 对象中获取
     if (!imageUrl) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       imageUrl = (image as any).url || (image as any).materialUrl
     }
     
@@ -3212,8 +3243,10 @@ const downloadImage = async (image: ImageResult) => {
     
     // 从 URL 中提取文件扩展名
     const urlParts = imageUrl.split('?')[0] // 移除查询参数
+    if (!urlParts) return
     const urlPath = urlParts.split('/')
     const urlFilename = urlPath[urlPath.length - 1]
+    if (!urlFilename) return
     const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'jpg'
     
     const filename = `generated_image_${image.id}.${ext}`
@@ -3227,6 +3260,7 @@ const downloadImage = async (image: ImageResult) => {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const saveToAssets = (image: ImageResult) => {
   console.log('Saving image to assets:', image.id)
   ElMessage.success('图片已保存到资产库')
@@ -3511,9 +3545,9 @@ const regenerateFromHistory = async (result: HistoryResult) => {
     id: taskId,
     prompt: result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '',
     model: currentModel.value,
-    size: currentSize.value,
-    resolution: currentResolution.value,
-    imageCount: currentImageCount.value,
+    size: currentSize.value!,
+    resolution: currentResolution.value!,
+    imageCount: currentImageCount.value!,
     referenceImages: [],
     status: 'generating',
     progress: 0,
@@ -3533,7 +3567,7 @@ const regenerateFromHistory = async (result: HistoryResult) => {
 
   try {
     // 调用再次生成接口，传入结果的id到userInputId
-    const response = await postAIGenerateRetry({ userInputId: result.id })
+    const response = await postAIGenerateRetry({ userInputId: result.id }) as ApiResponse<GenerateResponse>
     console.log('再次生成请求成功:', response)
     
     // 如果响应中包含 userInputId，保存到任务中并添加到轮询列表
@@ -3553,6 +3587,7 @@ const regenerateFromHistory = async (result: HistoryResult) => {
       // 显示成功提示
       ElMessage.success('已添加到生成队列')
     }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('再次生成请求失败:', error)
     
@@ -3592,8 +3627,9 @@ const fetchModelConfig = async (aiDriver?: string) => {
     genType=2;
   }
   try {
-    const modelCofig = await getImgModelConfig({ genType: genType,aiDriver:aiDriver||'' });
-    if(modelCofig){
+    const modelCofig = await getImgModelConfig({ genType: genType,aiDriver:aiDriver||'' }) as ApiResponse<any>;
+    if(modelCofig && modelCofig.data){
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const config = modelCofig.data as Record<string, any>;
       models.value = config.supports||[];
       if(config){
@@ -3669,9 +3705,10 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
     if (page === 1 && !append) {
       initialLoading.value = true
     }
-    const results = await getGenerateResults({ page, pageSize: pageSize.value })
+    const results = await getGenerateResults({ page, pageSize: pageSize.value }) as ApiResponse<{ list: HistoryResult[], total: number }>
     
     if (results && results.data) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { list, total } = results.data
       
       // 处理返回的数据
@@ -3747,7 +3784,7 @@ fetchGenerateResults()
 const sendGenerateRequest = async (task: GenerationObj, taskId: string) => {
   try {
     // 这里调用实际的生成接口
-    const response = await postAIGenerate(task)
+    const response = await postAIGenerate(task) as ApiResponse<GenerateResponse>
     console.log('生成请求成功:', response)
     
     // 如果响应中包含 userInputId，保存到任务中并添加到轮询列表
@@ -3769,6 +3806,7 @@ const sendGenerateRequest = async (task: GenerationObj, taskId: string) => {
     }
     
     return response
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('生成请求失败:', error)
     
@@ -3820,7 +3858,7 @@ const pollGenerateStatus = async () => {
     const userInputIds = Array.from(pendingUserInputIds.value).join(',')
     
     // 调用状态查询接口
-    const response = await getGenerateStatus({ userInputIds })
+    const response = await getGenerateStatus({ userInputIds }) as ApiResponse<StatusResponse>
     
     if (response && response.data && response.data.list) {
       const statusList = response.data.list
@@ -3861,6 +3899,24 @@ const pollGenerateStatus = async () => {
             scrollToTop()
           }, 100)
         }
+        // 如果状态为失败（status === 3 表示失败）
+        else if (statusItem.status === 3) {
+          // 从待轮询列表中移除
+          pendingUserInputIds.value.delete(userInputId)
+          
+          // 从任务列表中移除对应的任务
+          const taskIndex = generationTasks.value.findIndex(t => t.userInputId === userInputId)
+          if (taskIndex > -1) {
+            generationTasks.value.splice(taskIndex, 1)
+          }
+          
+          // 显示友好的失败提示
+          ElMessage.error({
+            message: `生成失败：${statusItem.prompt || '内容生成遇到问题，请稍后重试'}`,
+            duration: 5000,
+            showClose: true
+          })
+        }
       }
       
       // 如果所有 userInputId 都已完成，停止轮询
@@ -3875,11 +3931,13 @@ const pollGenerateStatus = async () => {
 
 
 // 新增方法
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const clearAllImages = () => {
   referenceImages.value = []
   ElMessage.success('已清空所有参考图片')
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const regenerateAll = () => {
   handleGenerate()
 }

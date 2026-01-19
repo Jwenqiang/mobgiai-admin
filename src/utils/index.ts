@@ -262,6 +262,8 @@ export const downloadFiles = async (
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     
+    if (!file) continue
+    
     try {
       await downloadFile(file.url, file.filename)
       onProgress?.(i + 1, files.length)

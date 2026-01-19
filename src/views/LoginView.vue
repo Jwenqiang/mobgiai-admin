@@ -170,7 +170,7 @@ const handleLogin = async () => {
     loading.value = true
     
     // 调用登录API
-    const response= await login({mobile:loginForm.phone, code:loginForm.code});
+    const response= await login({mobile:loginForm.phone, code:loginForm.code}) as any;
     if (response&&response.data) {
       // 保存登录信息到store
       const data = response.data as { token: string; uid: string; expiredTime: number;username:string }
@@ -184,7 +184,8 @@ const handleLogin = async () => {
       }, 500)
     } 
     else {
-      throw new Error(response.msg || '登录失败')
+      const errorMsg = (response as any)?.msg || '登录失败'
+      throw new Error(errorMsg)
     }
     
   } catch (error: unknown) {

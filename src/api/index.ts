@@ -83,34 +83,22 @@ export const getCode = (data: { mobile: string }) => {
 export const getUserList = (params: { page: number; size: number }) => {
   return get('/user/list', params);
 };
-// TOS配置接口类型定义
-interface TosTokenResponse {
+
+// 导入TOS类型
+import type { TosTokenResponse as ToSConfig } from '@/services/tos'
+
+// TOS配置接口类型定义（API响应格式）
+interface TosApiResponse {
   code?: number;
-  data?: {
-    accessKeyId: string;
-    accessKeySecret?: string;
-    secretAccessKey?: string;
-    sessionToken: string;
-    region: string;
-    bucket: string;
-    mainPath?: string;
-  };
+  data?: ToSConfig;
   message?: string;
-  // 直接返回配置的情况
-  accessKeyId?: string;
-  accessKeySecret?: string;
-  secretAccessKey?: string;
-  sessionToken?: string;
-  region?: string;
-  bucket?: string;
-  mainPath?: string;
 }
 
 // TOS获取配置接口
-export const getTosToken = async () => {
+export const getTosToken = async (): Promise<ToSConfig> => {
   try {
     console.log('开始请求TOS配置...');
-    const response = await get<TosTokenResponse>('/api/v1/misc/sts_token');
+    const response = await get<TosApiResponse>('/api/v1/misc/sts_token');
     console.log('TOS配置API响应:', response);
     
     // 检查响应数据结构
@@ -120,14 +108,14 @@ export const getTosToken = async () => {
     
     // 如果后端返回的数据有特定结构，需要适配
     // 例如：{ code: 200, data: { accessKeyId: '...', ... }, message: 'success' }
-    const tosConfig = response.data || response;
+    const tosConfig = (response as any).data || response;
     
-    if (!tosConfig) {
-      throw new Error('TOS配置数据为空');
+    if (!tosConfig || !tosConfig.accessKeyId) {
+      throw new Error('TOS配置数据为空或格式不正确');
     }
     
     console.log('解析后的TOS配置:', tosConfig);
-    return tosConfig;
+    return tosConfig as ToSConfig;
   } catch (error) {
     console.error('获取TOS配置失败:', error);
     throw error;
