@@ -1127,18 +1127,46 @@ const saveToAssets = (video: VideoResult) => {
 }
 
 const handleFirstFrameUpload = (file: File) => {
+  // 显示处理中的友好提示
+  const loadingMessage = ElMessage({
+    message: '正在处理首帧图片...',
+    type: 'info',
+    duration: 1000,
+    icon: 'Loading'
+  });
+  
   const reader = new FileReader()
   reader.onload = (e) => {
     firstFrameImage.value = e.target?.result as string
+    loadingMessage.close();
+    ElMessage.success('首帧图片处理完成！');
+  }
+  reader.onerror = () => {
+    loadingMessage.close();
+    ElMessage.error('首帧图片处理失败，请重试');
   }
   reader.readAsDataURL(file)
   return false // 阻止自动上传
 }
 
 const handleLastFrameUpload = (file: File) => {
+  // 显示处理中的友好提示
+  const loadingMessage = ElMessage({
+    message: '正在处理尾帧图片...',
+    type: 'info',
+    duration: 1000,
+    icon: 'Loading'
+  });
+  
   const reader = new FileReader()
   reader.onload = (e) => {
     lastFrameImage.value = e.target?.result as string
+    loadingMessage.close();
+    ElMessage.success('尾帧图片处理完成！');
+  }
+  reader.onerror = () => {
+    loadingMessage.close();
+    ElMessage.error('尾帧图片处理失败，请重试');
   }
   reader.readAsDataURL(file)
   return false // 阻止自动上传
@@ -1153,9 +1181,30 @@ const swapFrameImages = () => {
 
 // 处理视频上传
 const handleVideoUpload = (file: File) => {
-  const url = URL.createObjectURL(file)
-  referenceVideo.value = url
-  ElMessage.success('视频上传成功')
+  // 显示处理中的友好提示
+  ElMessage({
+    message: '正在处理视频文件，请稍候...',
+    type: 'info',
+    duration: 1500,
+    icon: 'VideoCamera'
+  });
+  
+  try {
+    const url = URL.createObjectURL(file)
+    referenceVideo.value = url
+    
+    // 延迟显示成功消息，让用户感受到处理过程
+    setTimeout(() => {
+      ElMessage.success({
+        message: '视频处理完成！',
+        duration: 2000,
+        showClose: true
+      });
+    }, 800);
+  } catch (error) {
+    ElMessage.error('视频处理失败，请重试');
+  }
+  
   return false // 阻止自动上传
 }
 
@@ -1164,11 +1213,29 @@ const handleReferenceImageUpload = (file: File) => {
   // 找到第一个空位置
   const emptyIndex = referenceImages.value.findIndex(img => !img)
   if (emptyIndex !== -1) {
-    const url = URL.createObjectURL(file)
-    referenceImages.value[emptyIndex] = url
-    ElMessage.success(`第${emptyIndex + 1}张参考图片上传成功`)
+    // 显示处理中的友好提示
+    const loadingMessage = ElMessage({
+      message: `正在处理第${emptyIndex + 1}张参考图片...`,
+      type: 'info',
+      duration: 800,
+      icon: 'Loading'
+    });
+    
+    try {
+      const url = URL.createObjectURL(file)
+      referenceImages.value[emptyIndex] = url
+      
+      // 延迟显示成功消息
+      setTimeout(() => {
+        loadingMessage.close();
+        ElMessage.success(`第${emptyIndex + 1}张参考图片处理完成！`);
+      }, 600);
+    } catch (error) {
+      loadingMessage.close();
+      ElMessage.error(`第${emptyIndex + 1}张参考图片处理失败，请重试`);
+    }
   } else {
-    ElMessage.warning('最多只能上传4张参考图片')
+    ElMessage.warning('最多只能上传4张参考图片');
   }
   return false // 阻止自动上传
 }

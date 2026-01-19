@@ -697,7 +697,7 @@
                   {{ task.type === 2 || currentGenerateMode?.value === 'video' ? '视频' : '图片' }}
                 </span>
                 <span class="meta-tag model-tag">{{ task.model?.name }}</span>
-                <span class="meta-tag size-tag">比例：{{ task.aspectRatio?.label }}</span>
+                <span class="meta-tag size-tag" v-if="task.aspectRatio">比例：{{ task.aspectRatio?.label }}</span>
                 <span class="meta-tag size-tag">{{ task.size?.label }}</span>
                 <span class="meta-tag status-tag generating" 
                       :class="{ 'video-generating': task.type === 2 || currentGenerateMode?.value === 'video' }">
@@ -2281,6 +2281,15 @@ const handleFirstFrameUpload = async (file: File) => {
     return false;
   }
   
+  // 显示上传中的友好提示
+  const loadingMessage = ElMessage({
+    message: '正在上传首帧图片，请稍候...',
+    type: 'info',
+    duration: 0, // 不自动关闭
+    showClose: false,
+    icon: 'Loading'
+  });
+  
   try {
     console.log('开始上传首帧图到TOS...');
     const tosConfig = await getTosToken();
@@ -2298,9 +2307,15 @@ const handleFirstFrameUpload = async (file: File) => {
     firstFrameImageVal.value = uploadFileName;
     
     console.log('首帧图上传成功！地址：', imageUrl);
-    ElMessage.success('首帧图上传成功');
+    
+    // 关闭loading并显示成功消息
+    loadingMessage.close();
+    ElMessage.success('首帧图上传成功！');
   } catch (error: unknown) {
     console.error('首帧图上传失败：', error);
+    
+    // 关闭loading并显示错误消息
+    loadingMessage.close();
     ElMessage.error('首帧图上传失败：' + (error as Error).message);
   }
   
@@ -2312,6 +2327,15 @@ const handleLastFrameUpload = async (file: File) => {
     ElMessage.warning("请选择正确的图片文件");
     return false;
   }
+  
+  // 显示上传中的友好提示
+  const loadingMessage = ElMessage({
+    message: '正在上传尾帧图片，请稍候...',
+    type: 'info',
+    duration: 0, // 不自动关闭
+    showClose: false,
+    icon: 'Loading'
+  });
   
   try {
     console.log('开始上传尾帧图到TOS...');
@@ -2330,9 +2354,15 @@ const handleLastFrameUpload = async (file: File) => {
     lastFrameImageVal.value = uploadFileName;
     
     console.log('尾帧图上传成功！地址：', imageUrl);
-    ElMessage.success('尾帧图上传成功');
+    
+    // 关闭loading并显示成功消息
+    loadingMessage.close();
+    ElMessage.success('尾帧图上传成功！');
   } catch (error: unknown) {
     console.error('尾帧图上传失败：', error);
+    
+    // 关闭loading并显示错误消息
+    loadingMessage.close();
     ElMessage.error('尾帧图上传失败：' + (error as Error).message);
   }
   
@@ -2375,6 +2405,14 @@ const handleVideoUpload = async (file: File) => {
   isVideoUploading.value = true;
   videoUploadProgress.value = 0;
   
+  // 显示上传开始的友好提示
+  ElMessage({
+    message: '开始上传视频，请耐心等待...',
+    type: 'info',
+    duration: 2000,
+    icon: 'VideoCamera'
+  });
+  
   try {
     console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken();
@@ -2393,10 +2431,22 @@ const handleVideoUpload = async (file: File) => {
     referenceVideo.value=(videoData as any).videoUrl;
     referenceVideoVal.value=(videoData as any).uploadFileName;
     console.log('视频上传成功！地址对象：', videoData);
-    ElMessage.success('视频上传成功')
+    
+    // 显示成功消息
+    ElMessage.success({
+      message: '视频上传成功！',
+      duration: 3000,
+      showClose: true
+    });
   } catch (error: unknown) {
     console.error('视频上传失败：', error);
-    ElMessage.error('视频上传失败：' + (error as Error).message)
+    
+    // 显示详细的错误信息
+    ElMessage.error({
+      message: '视频上传失败：' + (error as Error).message,
+      duration: 5000,
+      showClose: true
+    });
   } finally {
     // 上传完成，重置状态
     isVideoUploading.value = false;
@@ -2439,6 +2489,15 @@ const handleReferenceImageUpload = async (file: File) => {
     return false;
   }
   
+  // 显示上传中的友好提示
+  const loadingMessage = ElMessage({
+    message: `正在上传第${emptyIndex + 1}张参考图片...`,
+    type: 'info',
+    duration: 0, // 不自动关闭
+    showClose: false,
+    icon: 'Loading'
+  });
+  
   try {
     console.log('开始上传参考图片到TOS...');
     const tosConfig = await getTosToken();
@@ -2456,9 +2515,15 @@ const handleReferenceImageUpload = async (file: File) => {
     videoReferenceImagesVal.value[emptyIndex] = uploadFileName;
     
     console.log(`第${emptyIndex + 1}张参考图片上传成功！地址：`, imageUrl);
-    ElMessage.success(`第${emptyIndex + 1}张参考图片上传成功`);
+    
+    // 关闭loading并显示成功消息
+    loadingMessage.close();
+    ElMessage.success(`第${emptyIndex + 1}张参考图片上传成功！`);
   } catch (error: unknown) {
     console.error('参考图片上传失败：', error);
+    
+    // 关闭loading并显示错误消息
+    loadingMessage.close();
     ElMessage.error('参考图片上传失败：' + (error as Error).message);
   }
   
@@ -2535,7 +2600,8 @@ const handleImageUpload = async (uploadFile: any) => {
     ElMessage.error('图片大小不能超过10MB')
     return false
   }
-// 上传到火山引擎tos上
+
+  // 上传到火山引擎tos上
   const file = uploadFile.raw;
   console.log(file,"上传的图片")
   if (!file) return;
@@ -2543,6 +2609,16 @@ const handleImageUpload = async (uploadFile: any) => {
     ElMessage.warning("请选择正确的图片文件");
     return;
   }
+  
+  // 显示上传中的友好提示
+  const loadingMessage = ElMessage({
+    message: `正在上传图片 (${referenceImages.value.length + 1}/${maxCount})，请稍候...`,
+    type: 'info',
+    duration: 0, // 不自动关闭
+    showClose: false,
+    icon: 'Loading'
+  });
+  
   try {
     console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken();
@@ -2563,8 +2639,24 @@ const handleImageUpload = async (uploadFile: any) => {
     }
     referenceImages.value.push(img);
     console.log('图片上传成功！地址：', imageUrl);
+    
+    // 关闭loading并显示成功消息
+    loadingMessage.close();
+    ElMessage.success({
+      message: `图片上传成功！(${referenceImages.value.length}/${maxCount})`,
+      duration: 2000,
+      showClose: true
+    });
   } catch (error: unknown) {
     console.error('图片上传失败：', error);
+    
+    // 关闭loading并显示错误消息
+    loadingMessage.close();
+    ElMessage.error({
+      message: '图片上传失败：' + (error as Error).message,
+      duration: 4000,
+      showClose: true
+    });
   } 
   
   // return false // 阻止自动上传
@@ -3561,8 +3653,9 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
         historyResults.value = formattedResults
       }
       
-      // 判断是否还有更多数据（基于已完成任务的数量）
-      hasMore.value = historyResults.value.length < total
+      // 修复：判断是否还有更多数据
+      // 如果当前页返回的原始数据少于每页大小，说明已经到最后一页了
+      hasMore.value = list.length >= pageSize.value
       
       // 数据加载完成后，重新设置 Intersection Observer
       setTimeout(() => {

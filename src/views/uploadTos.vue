@@ -88,6 +88,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { uploadBigVideoToTOS, uploadImageToTOS } from '../services/tos.js'
 import { getTosToken } from '../api/index'
 import { diagnoseTosUpload, printDiagnosisReport } from '../utils/tosDebug.js'
@@ -147,6 +148,14 @@ const handleVideoUpload = async (e: Event) => {
   resetState();
   uploading.value = true;
 
+  // 显示上传开始的友好提示
+  const loadingMessage = ElMessage({
+    message: '开始上传视频文件，请耐心等待...',
+    type: 'info',
+    duration: 2000,
+    icon: 'VideoCamera'
+  });
+
   try {
     console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken();
@@ -174,9 +183,23 @@ const handleVideoUpload = async (e: Event) => {
     
     uploadResult.value = videoUrl;
     console.log('视频上传成功！地址：', videoUrl);
+    
+    // 显示成功消息
+    ElMessage.success({
+      message: '视频上传成功！',
+      duration: 3000,
+      showClose: true
+    });
   } catch (error: unknown) {
     console.error('视频上传失败：', error);
     errorMessage.value = '视频上传失败：' + (error instanceof Error ? error.message : String(error));
+    
+    // 显示错误消息
+    ElMessage.error({
+      message: '视频上传失败：' + (error instanceof Error ? error.message : String(error)),
+      duration: 5000,
+      showClose: true
+    });
   } finally {
     uploading.value = false;
   }
@@ -196,6 +219,15 @@ const handleImageUpload = async (e: Event) => {
   resetState();
   uploading.value = true;
 
+  // 显示上传开始的友好提示
+  const loadingMessage = ElMessage({
+    message: '正在上传图片，请稍候...',
+    type: 'info',
+    duration: 0, // 不自动关闭
+    showClose: false,
+    icon: 'Loading'
+  });
+
   try {
     console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken();
@@ -209,9 +241,25 @@ const handleImageUpload = async (e: Event) => {
     
     uploadResult.value = imageUrl;
     console.log('图片上传成功！地址：', imageUrl);
+    
+    // 关闭loading并显示成功消息
+    loadingMessage.close();
+    ElMessage.success({
+      message: '图片上传成功！',
+      duration: 2000,
+      showClose: true
+    });
   } catch (error: unknown) {
     console.error('图片上传失败：', error);
     errorMessage.value = '图片上传失败：' + (error instanceof Error ? error.message : String(error));
+    
+    // 关闭loading并显示错误消息
+    loadingMessage.close();
+    ElMessage.error({
+      message: '图片上传失败：' + (error instanceof Error ? error.message : String(error)),
+      duration: 4000,
+      showClose: true
+    });
   } finally {
     uploading.value = false;
   }
