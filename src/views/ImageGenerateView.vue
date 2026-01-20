@@ -213,7 +213,7 @@
                             class="thumbnail-item"
                           >
                             <div class="thumbnail-wrapper" @click="previewReferenceImage(image)">
-                              <img :src="image" class="thumbnail-image" />
+                              <img :src="convertToProxyUrl(image)" class="thumbnail-image" />
                               <div class="thumbnail-overlay">
                                 <el-icon class="preview-icon"><Picture /></el-icon>
                               </div>
@@ -710,9 +710,10 @@
                 <!-- 正常状态 (status === 2) -->
                 <template v-else>
                   <img v-if="result.type === 1 && result.assets?.length > 0 && result.assets[0]?.coverUrl" 
-                       :src="result.assets[0]?.coverUrl" 
+                       :src="convertToProxyUrl(result.assets[0]?.coverUrl)" 
                        alt="生成缩略图" 
-                       class="thumbnail-image" />
+                       class="thumbnail-image" 
+                       crossorigin="anonymous" />
                   <div v-else-if="result.type === 2 && result.assets?.length > 0" class="thumbnail-video-wrapper">
                     <div class="video-thumbnail-bg"></div>
                     <div class="video-icon-wrapper">
@@ -903,7 +904,7 @@
                 @click="previewImage(asset.materialUrl||asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)"
               >
                 <div class="image-wrapper">
-                  <img :src="asset.coverUrl||asset.materialUrl" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" />
+                  <img :src="convertToProxyUrl(asset.coverUrl||asset.materialUrl)" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" crossorigin="anonymous" />
                   <div class="image-overlay">
                     <div class="overlay-actions">
                       <el-button 
@@ -926,10 +927,11 @@
               <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.assets.find(a => a.type === 2)?.materialUrl || '', result.assets.find(a => a.type === 2), result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)">
                 <div class="image-wrapper video-wrapper" :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '16:9')">
                   <video 
-                    :src="result.assets.find(a => a.type === 2)?.materialUrl" 
+                    :src="convertToProxyUrl(result.assets.find(a => a.type === 2)?.materialUrl)" 
                     class="generated-image generated-video"
                     muted
                     preload="metadata"
+                    crossorigin="anonymous"
                     @mouseenter="handleVideoHover"
                     @mouseleave="handleVideoLeave"
                   >
@@ -1235,7 +1237,7 @@
                           class="thumbnail-item"
                         >
                           <div class="thumbnail-wrapper" @click="previewReferenceImage(image)">
-                            <img :src="image" class="thumbnail-image" />
+                            <img :src="convertToProxyUrl(image)" class="thumbnail-image" />
                             <div class="thumbnail-overlay">
                               <el-icon class="preview-icon"><Picture /></el-icon>
                             </div>
@@ -1701,7 +1703,7 @@
             @click="selectHistoryItem(item)"
           >
             <div class="history-preview">
-              <img :src="item.images[0]?.url" class="history-thumb" />
+              <img :src="convertToProxyUrl(item.images[0]?.url)" class="history-thumb" />
               <div v-if="item.images.length > 1" class="image-count">
                 +{{ item.images.length - 1 }}
               </div>
@@ -1755,7 +1757,7 @@
           <!-- 左侧：媒体展示区 -->
           <div class="preview-media-section">
             <div class="media-container">
-              <img :src="previewImageUrl" class="preview-image" alt="预览图片" />
+              <img :src="convertToProxyUrl(previewImageUrl)" class="preview-image" alt="预览图片" crossorigin="anonymous" />
             </div>
           </div>
           
@@ -1825,7 +1827,7 @@
           <!-- 左侧：媒体展示区 -->
           <div class="preview-media-section">
             <div class="media-container">
-              <video :src="previewVideoUrl" class="preview-video" controls autoplay />
+              <video :src="convertToProxyUrl(previewVideoUrl)" class="preview-video" controls autoplay crossorigin="anonymous" />
             </div>
           </div>
           
@@ -1884,7 +1886,7 @@ import {
   ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay, Loading, CircleClose
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
-import { downloadFile } from '../utils'
+import { downloadFile, convertToProxyUrl } from '../utils'
 import { getImgModelConfig, getGenerateResults, postAIGenerate, getGenerateStatus,postAIGenerateRetry } from '../api/generate'
 
 interface UploadFile {
@@ -4300,30 +4302,58 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-/* 初始加载动画 - 只覆盖内容区域 */
+/* 初始加载动画 - 优化版 */
 .initial-loading-overlay {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(20, 20, 40, 0.98) 100%);
-  backdrop-filter: blur(12px);
+  background: linear-gradient(135deg, 
+    rgba(15, 23, 42, 0.98) 0%, 
+    rgba(30, 41, 59, 0.98) 50%,
+    rgba(15, 23, 42, 0.98) 100%
+  );
+  backdrop-filter: blur(20px) saturate(180%);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+
+/* 添加动态背景粒子效果 */
+.initial-loading-overlay::before {
+  content: '';
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 40% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%);
+  animation: floatBackground 20s ease-in-out infinite;
+}
+
+@keyframes floatBackground {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  33% {
+    transform: translate(-5%, 5%) rotate(120deg);
+  }
+  66% {
+    transform: translate(5%, -5%) rotate(240deg);
+  }
 }
 
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: scale(0.95);
   }
   to {
     opacity: 1;
-    transform: scale(1);
   }
 }
 
@@ -4331,19 +4361,25 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 32px;
+  gap: 40px;
   padding: 60px 80px;
-  background: linear-gradient(135deg, rgba(74, 144, 226, 0.08) 0%, rgba(102, 126, 234, 0.08) 100%);
-  border-radius: 24px;
-  border: 1px solid rgba(74, 144, 226, 0.25);
+  background: linear-gradient(135deg, 
+    rgba(30, 41, 59, 0.6) 0%, 
+    rgba(51, 65, 85, 0.4) 100%
+  );
+  border-radius: 32px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
   box-shadow: 
-    0 20px 60px rgba(0, 0, 0, 0.4),
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
     0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-    0 0 80px rgba(74, 144, 226, 0.15);
+    0 0 100px rgba(99, 102, 241, 0.2);
   position: relative;
   overflow: hidden;
+  backdrop-filter: blur(10px);
+  z-index: 1;
 }
 
+/* 光晕效果 */
 .loading-content::before {
   content: '';
   position: absolute;
@@ -4354,10 +4390,10 @@ onUnmounted(() => {
   background: linear-gradient(
     45deg,
     transparent 30%,
-    rgba(74, 144, 226, 0.1) 50%,
+    rgba(99, 102, 241, 0.08) 50%,
     transparent 70%
   );
-  animation: shimmer 3s infinite;
+  animation: shimmer 4s ease-in-out infinite;
 }
 
 @keyframes shimmer {
@@ -4371,8 +4407,8 @@ onUnmounted(() => {
 
 .loading-spinner {
   position: relative;
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4385,30 +4421,30 @@ onUnmounted(() => {
 }
 
 .spinner-ring:nth-child(1) {
-  width: 120px;
-  height: 120px;
-  border-top-color: #4A90E2;
-  border-right-color: #4A90E2;
-  animation: spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
-  box-shadow: 0 0 20px rgba(74, 144, 226, 0.4);
+  width: 140px;
+  height: 140px;
+  border-top-color: #6366f1;
+  border-right-color: #6366f1;
+  animation: spin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.6));
 }
 
 .spinner-ring:nth-child(2) {
-  width: 90px;
-  height: 90px;
-  border-bottom-color: #667eea;
-  border-left-color: #667eea;
-  animation: spin 2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite reverse;
-  box-shadow: 0 0 15px rgba(102, 126, 234, 0.4);
+  width: 105px;
+  height: 105px;
+  border-bottom-color: #8b5cf6;
+  border-left-color: #8b5cf6;
+  animation: spin 2.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite reverse;
+  filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.6));
 }
 
 .spinner-ring:nth-child(3) {
-  width: 60px;
-  height: 60px;
-  border-top-color: #764ba2;
-  border-right-color: #764ba2;
-  animation: spin 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
-  box-shadow: 0 0 10px rgba(118, 75, 162, 0.4);
+  width: 70px;
+  height: 70px;
+  border-top-color: #3b82f6;
+  border-right-color: #3b82f6;
+  animation: spin 1.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.6));
 }
 
 @keyframes spin {
@@ -4421,68 +4457,108 @@ onUnmounted(() => {
 }
 
 .spinner-core {
-  width: 50px;
-  height: 50px;
-  background: linear-gradient(135deg, #4A90E2 0%, #667eea 100%);
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #3b82f6 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 
-    0 0 30px rgba(74, 144, 226, 0.6),
-    0 0 60px rgba(102, 126, 234, 0.4),
-    0 0 0 4px rgba(255, 255, 255, 0.1);
-  animation: pulse 2s ease-in-out infinite;
+    0 0 30px rgba(99, 102, 241, 0.8),
+    0 0 60px rgba(139, 92, 246, 0.5),
+    0 0 0 4px rgba(255, 255, 255, 0.1),
+    inset 0 0 20px rgba(255, 255, 255, 0.2);
+  animation: pulse 2.5s ease-in-out infinite;
   z-index: 1;
+  position: relative;
+}
+
+/* 核心光晕 */
+.spinner-core::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  animation: coreGlow 2s ease-in-out infinite;
+}
+
+@keyframes coreGlow {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.8;
+  }
 }
 
 @keyframes pulse {
   0%, 100% {
     transform: scale(1);
     box-shadow: 
-      0 0 30px rgba(74, 144, 226, 0.6),
-      0 0 60px rgba(102, 126, 234, 0.4),
-      0 0 0 4px rgba(255, 255, 255, 0.1);
+      0 0 30px rgba(99, 102, 241, 0.8),
+      0 0 60px rgba(139, 92, 246, 0.5),
+      0 0 0 4px rgba(255, 255, 255, 0.1),
+      inset 0 0 20px rgba(255, 255, 255, 0.2);
   }
   50% {
-    transform: scale(1.1);
+    transform: scale(1.15);
     box-shadow: 
-      0 0 40px rgba(74, 144, 226, 0.8),
-      0 0 80px rgba(102, 126, 234, 0.6),
-      0 0 0 6px rgba(255, 255, 255, 0.15);
+      0 0 40px rgba(99, 102, 241, 1),
+      0 0 80px rgba(139, 92, 246, 0.7),
+      0 0 0 6px rgba(255, 255, 255, 0.2),
+      inset 0 0 30px rgba(255, 255, 255, 0.3);
   }
 }
 
 .spinner-icon {
-  font-size: 24px;
+  font-size: 28px;
   color: #ffffff;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
+  animation: iconFloat 3s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes iconFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.05);
+  }
 }
 
 .loading-text {
-  font-size: 18px;
+  font-size: 20px;
   color: rgba(255, 255, 255, 0.95);
   font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   position: relative;
   z-index: 1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .text-shimmer {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0.9) 0%,
-    rgba(74, 144, 226, 1) 50%,
+    rgba(99, 102, 241, 1) 25%,
+    rgba(139, 92, 246, 1) 50%,
+    rgba(59, 130, 246, 1) 75%,
     rgba(255, 255, 255, 0.9) 100%
   );
   background-size: 200% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: textShimmer 2s ease-in-out infinite;
+  animation: textShimmer 3s ease-in-out infinite;
 }
 
 @keyframes textShimmer {
@@ -4496,12 +4572,14 @@ onUnmounted(() => {
 
 .loading-dots-text {
   display: inline-flex;
-  gap: 2px;
+  gap: 3px;
 }
 
 .dot-text {
   animation: dotFade 1.4s ease-in-out infinite;
-  color: rgba(74, 144, 226, 0.9);
+  color: rgba(99, 102, 241, 1);
+  font-weight: bold;
+  text-shadow: 0 0 10px rgba(99, 102, 241, 0.8);
 }
 
 .dot-text:nth-child(1) {
@@ -4519,25 +4597,12 @@ onUnmounted(() => {
 @keyframes dotFade {
   0%, 60%, 100% {
     opacity: 0.3;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
   }
   30% {
     opacity: 1;
-    transform: translateY(-3px);
+    transform: translateY(-4px) scale(1.2);
   }
-}
-
-.image-generate-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 80%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(102, 126, 234, 0.1) 0%, transparent 50%);
-  pointer-events: none;
 }
 
 /* 页面头部 - 简洁风格 */

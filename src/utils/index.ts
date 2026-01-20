@@ -1,4 +1,12 @@
 /**
+ * 转换 TOS URL（预留函数，当前直接返回原始 URL）
+ */
+export const convertToProxyUrl = (url: string | undefined | null): string => {
+  if (!url || typeof url !== 'string') return url || ''
+  return url
+}
+
+/**
  * 格式化文件大小
  */
 export const formatFileSize = (bytes: number): string => {
