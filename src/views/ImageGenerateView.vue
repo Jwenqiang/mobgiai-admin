@@ -106,6 +106,16 @@
                           <div v-else class="upload-placeholder">
                             <el-icon size="16"><Plus /></el-icon>
                           </div>
+                          <el-button 
+                            v-if="firstFrameImage"
+                            type="danger" 
+                            size="small" 
+                            circle
+                            @click.stop="removeFirstFrameImage"
+                            class="remove-btn-corner"
+                          >
+                            <el-icon><Close /></el-icon>
+                          </el-button>
                         </div>
                       </el-upload>
                     </div>
@@ -133,6 +143,16 @@
                             <div v-else class="upload-placeholder">
                               <el-icon size="16"><Plus /></el-icon>
                             </div>
+                            <el-button 
+                              v-if="lastFrameImage"
+                              type="danger" 
+                              size="small" 
+                              circle
+                              @click.stop="removeLastFrameImage"
+                              class="remove-btn-corner"
+                            >
+                              <el-icon><Close /></el-icon>
+                            </el-button>
                           </div>
                         </el-upload>
                       </div>
@@ -141,7 +161,7 @@
                 </template>
 
                 <!-- 多模态参考模式和视频编辑模式 -->
-                <template v-else-if="((selectedKeLingOption === '多模态参考' || selectedKeLingOption === '编辑视频')&& currentModel?.aiDriver=='klingai-O1-video')">
+                <template v-else-if="((selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')&& currentModel?.aiDriver=='klingai-O1-video')">
                   <div class="video-upload-multimodal">
                     <!-- 传视频区域 -->
                     <div class="upload-item">
@@ -155,17 +175,19 @@
                         <div class="upload-area-video" :class="{ 'has-video': referenceVideo, 'uploading': isVideoUploading }">
                           <video v-if="referenceVideo && !isVideoUploading" :src="referenceVideo" class="uploaded-video" muted />
                           <div v-else-if="isVideoUploading" class="upload-progress-overlay">
-                            <el-progress 
-                              type="circle" 
-                              :percentage="videoUploadProgress" 
-                              :width="80"
-                              :stroke-width="6"
-                            >
-                              <template #default="{ percentage }">
-                                <span class="progress-text">{{ percentage }}%</span>
-                              </template>
-                            </el-progress>
-                            <div class="progress-tip">视频上传中...</div>
+                            <div class="progress-ring">
+                              <svg class="progress-svg" viewBox="0 0 36 36">
+                                <circle class="progress-bg" cx="18" cy="18" r="16" />
+                                <circle 
+                                  class="progress-bar" 
+                                  cx="18" 
+                                  cy="18" 
+                                  r="16"
+                                  :style="{ strokeDashoffset: 100 - videoUploadProgress }"
+                                />
+                              </svg>
+                              <span class="progress-percent">{{ videoUploadProgress }}%</span>
+                            </div>
                           </div>
                           <div v-else class="upload-placeholder-video">
                             <el-icon size="24"><VideoCamera /></el-icon>
@@ -416,7 +438,8 @@
                     <div class="btn-icon">
                       <el-icon><FullScreen /></el-icon>
                     </div>
-                    <span>{{ currentSize?.value?currentSize?.value+' | ':'' }}{{ currentResolution?.value?currentResolution?.value+' | ':'' }}{{ currentImageCount?.value }}张</span>
+                    <span v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">{{ currentSize?.value?currentSize?.value+' | ':'' }}{{ currentResolution?.value?currentResolution?.value+' | ':'' }}{{ currentImageCount?.value }}张</span>
+                    <span v-else>{{ currentSize?.value?currentSize?.value+' | ':'' }}{{ currentImageCount?.value }}张</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
@@ -435,32 +458,34 @@
                     </div>
                   </div>
                   
-                  <div class="selector-header" v-if="resolutions.length>0">选择分辨率</div>
-                  <div class="resolution-options">
-                    <div 
-                      v-for="resolution in resolutions" 
-                      :key="resolution.value"
-                      class="resolution-option"
-                      :class="{ active: currentResolution?.value === resolution.value }"
-                      @click="selectResolution(resolution)"
-                    >
-                      <span>{{ resolution.label=='2K'?'高清':'超清' }}{{ resolution.label }}</span>
+                  <template v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">
+                    <div class="selector-header" v-if="resolutions.length>0">选择分辨率</div>
+                    <div class="resolution-options">
+                      <div 
+                        v-for="resolution in resolutions" 
+                        :key="resolution.value"
+                        class="resolution-option"
+                        :class="{ active: currentResolution?.value === resolution.value }"
+                        @click="selectResolution(resolution)"
+                      >
+                        <span>{{ resolution.label=='2K'?'高清':'超清' }}{{ resolution.label }}</span>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div class="selector-header">尺寸</div>
-                  <div class="size-display">
-                    <div class="size-input-group">
-                    <span class="size-label">W</span>
-                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.width || 1440)*2 }}</div>
-                    <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
-                    <span class="size-connector">⟷</span>
-                    <span class="size-label">H</span>
-                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.height || 2560)*2 }}</div>
-                    <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
-                    <span class="size-unit">PX</span>
+                    
+                    <div class="selector-header">尺寸</div>
+                    <div class="size-display">
+                      <div class="size-input-group">
+                      <span class="size-label">W</span>
+                      <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.width || 1440)*2 }}</div>
+                      <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
+                      <span class="size-connector">⟷</span>
+                      <span class="size-label">H</span>
+                      <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.height || 2560)*2 }}</div>
+                      <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
+                      <span class="size-unit">PX</span>
+                      </div>
                     </div>
-                  </div>
+                  </template>
                   
                   <div class="selector-header" v-if="imageCounts.length>0">图片张数</div>
                   <div class="count-options">
@@ -556,7 +581,7 @@
                     </div>
                   </div>
 
-                  <div class="config-group" v-if="videoDurations.length > 0 && selectedKeLingOption !== '编辑视频'">
+                  <div class="config-group" v-if="videoDurations.length > 0 && selectedKeLingOption !== '视频编辑'">
                     <div class="config-title">选择时长</div>
                     <div class="duration-options">
                       <el-button 
@@ -615,7 +640,7 @@
               <el-button 
                 type="primary" 
                 :loading="generationTasks.length >= maxConcurrentTasks"
-                :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks || (selectedKeLingOption === '编辑视频' && !referenceVideo)"
+                :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks || (selectedKeLingOption === '视频编辑' && !referenceVideo)"
                 @click="handleGenerate"
                 class="generate-btn"
               >
@@ -709,20 +734,56 @@
                 
                 <!-- 正常状态 (status === 2) -->
                 <template v-else>
-                  <img v-if="result.type === 1 && result.assets?.length > 0 && result.assets[0]?.coverUrl" 
-                       :src="convertToProxyUrl(result.assets[0]?.coverUrl)" 
-                       alt="生成缩略图" 
-                       class="thumbnail-image" 
-                       crossorigin="anonymous" />
-                  <div v-else-if="result.type === 2 && result.assets?.length > 0" class="thumbnail-video-wrapper">
-                    <div class="video-thumbnail-bg"></div>
-                    <div class="video-icon-wrapper">
-                      <div class="video-play-icon">
-                        <el-icon size="28"><VideoCamera /></el-icon>
-                      </div>
-                      <div class="video-pulse-ring"></div>
+                  <!-- 参考图片叠加效果 -->
+                  <div 
+                    v-if="getReferenceImages(result).length > 0" 
+                    class="reference-thumbnails-stack"
+                    :class="{ 'has-hover': getReferenceImages(result).length > 1 }"
+                  >
+                    <div 
+                      v-for="(refImg, idx) in getReferenceImages(result)" 
+                      :key="idx"
+                      class="reference-thumb-item"
+                      :style="{ 
+                        zIndex: getReferenceImages(result).length - idx,
+                        transform: `translateX(${idx * 8}px) translateY(${idx * 8}px)`
+                      }"
+                    >
+                      <img 
+                        :src="convertToProxyUrl(refImg)" 
+                        alt="参考图" 
+                        class="reference-thumb-image" 
+                        crossorigin="anonymous" 
+                      />
                     </div>
                   </div>
+                  
+                  <!-- 没有参考图时显示默认缩略图 -->
+                  <template v-else>
+                    <!-- 图片生成结果：显示第一张生成的图片 -->
+                    <img v-if="result.type === 1 && result.assets?.length > 0 && result.assets[0]?.coverUrl" 
+                         :src="convertToProxyUrl(result.assets[0]?.coverUrl)" 
+                         alt="生成缩略图" 
+                         class="thumbnail-image" 
+                         crossorigin="anonymous" />
+                    <!-- 视频生成结果：显示默认视频缺省图 -->
+                    <div v-else-if="result.type === 2" class="thumbnail-video-wrapper">
+                      <div class="video-thumbnail-bg"></div>
+                      <div class="video-icon-wrapper">
+                        <div class="video-play-icon">
+                          <el-icon size="28"><VideoCamera /></el-icon>
+                        </div>
+                        <div class="video-pulse-ring"></div>
+                      </div>
+                    </div>
+                    <!-- 完全没有图片时的缺省图 -->
+                    <div v-else class="default-placeholder">
+                      <el-icon size="32" class="default-icon">
+                        <VideoCamera v-if="result.type === 2" />
+                        <Picture v-else />
+                      </el-icon>
+                    </div>
+                  </template>
                 </template>
               </div>
               <div class="generation-info">
@@ -1130,6 +1191,16 @@
                         <div v-else class="upload-placeholder">
                           <el-icon size="12"><Plus /></el-icon>
                         </div>
+                        <el-button 
+                          v-if="firstFrameImage"
+                          type="danger" 
+                          size="small" 
+                          circle
+                          @click.stop="removeFirstFrameImage"
+                          class="remove-btn-corner"
+                        >
+                          <el-icon><Close /></el-icon>
+                        </el-button>
                       </div>
                     </el-upload>
                   </div>
@@ -1157,6 +1228,16 @@
                           <div v-else class="upload-placeholder">
                             <el-icon size="12"><Plus /></el-icon>
                           </div>
+                          <el-button 
+                            v-if="lastFrameImage"
+                            type="danger" 
+                            size="small" 
+                            circle
+                            @click.stop="removeLastFrameImage"
+                            class="remove-btn-corner"
+                          >
+                            <el-icon><Close /></el-icon>
+                          </el-button>
                         </div>
                       </el-upload>
                     </div>
@@ -1165,7 +1246,7 @@
               </template>
 
               <!-- 多模态参考模式和视频编辑模式 -->
-              <template v-else-if="((selectedKeLingOption === '多模态参考' || selectedKeLingOption === '编辑视频')&& currentModel?.aiDriver=='klingai-O1-video')">
+              <template v-else-if="((selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')&& currentModel?.aiDriver=='klingai-O1-video')">
                 <div class="video-upload-multimodal compact">
                   <!-- 传视频区域 -->
                   <div class="upload-item">
@@ -1179,17 +1260,19 @@
                       <div class="upload-area-video compact" :class="{ 'has-video': referenceVideo, 'uploading': isVideoUploading }">
                         <video v-if="referenceVideo && !isVideoUploading" :src="referenceVideo" class="uploaded-video" muted />
                         <div v-else-if="isVideoUploading" class="upload-progress-overlay compact">
-                          <el-progress 
-                            type="circle" 
-                            :percentage="videoUploadProgress" 
-                            :width="60"
-                            :stroke-width="5"
-                          >
-                            <template #default="{ percentage }">
-                              <span class="progress-text small">{{ percentage }}%</span>
-                            </template>
-                          </el-progress>
-                          <div class="progress-tip small">上传中...</div>
+                          <div class="progress-ring compact">
+                            <svg class="progress-svg" viewBox="0 0 36 36">
+                              <circle class="progress-bg" cx="18" cy="18" r="16" />
+                              <circle 
+                                class="progress-bar" 
+                                cx="18" 
+                                cy="18" 
+                                r="16"
+                                :style="{ strokeDashoffset: 100 - videoUploadProgress }"
+                              />
+                            </svg>
+                            <span class="progress-percent">{{ videoUploadProgress }}%</span>
+                          </div>
                         </div>
                         <div v-else class="upload-placeholder-video compact">
                           <el-icon size="18"><VideoCamera /></el-icon>
@@ -1470,7 +1553,8 @@
                   <div class="btn-icon">
                     <el-icon><FullScreen /></el-icon>
                   </div>
-                  <span>{{ currentSize?.value }} | {{ currentResolution?.value  }} | {{ currentImageCount?.value  }}张</span>
+                  <span v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">{{ currentSize?.value }} | {{ currentResolution?.value  }} | {{ currentImageCount?.value  }}张</span>
+                  <span v-else>{{ currentSize?.value }} | {{ currentImageCount?.value  }}张</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
@@ -1489,32 +1573,34 @@
                   </div>
                 </div>
                 
-                <div class="selector-header" v-if="resolutions.length>0">选择分辨率</div>
-                <div class="resolution-options">
-                  <div 
-                    v-for="resolution in resolutions" 
-                    :key="resolution.value"
-                    class="resolution-option"
-                    :class="{ active: currentResolution?.value === resolution.value }"
-                    @click="selectResolution(resolution)"
-                  >
-                    <span>{{ resolution.label=='2K'?'高清':'超清' }}{{ resolution.label }}</span>
+                <template v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">
+                  <div class="selector-header" v-if="resolutions.length>0">选择分辨率</div>
+                  <div class="resolution-options">
+                    <div 
+                      v-for="resolution in resolutions" 
+                      :key="resolution.value"
+                      class="resolution-option"
+                      :class="{ active: currentResolution?.value === resolution.value }"
+                      @click="selectResolution(resolution)"
+                    >
+                      <span>{{ resolution.label=='2K'?'高清':'超清' }}{{ resolution.label }}</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div class="selector-header">尺寸</div>
-                <div class="size-display">
-                  <div class="size-input-group">
-                    <span class="size-label">W</span>
-                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.width || 1440)*2 }}</div>
-                    <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
-                    <span class="size-connector">⟷</span>
-                    <span class="size-label">H</span>
-                    <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.height || 2560)*2 }}</div>
-                    <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
-                    <span class="size-unit">PX</span>
+                  
+                  <div class="selector-header">尺寸</div>
+                  <div class="size-display">
+                    <div class="size-input-group">
+                      <span class="size-label">W</span>
+                      <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.width || 1440)*2 }}</div>
+                      <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
+                      <span class="size-connector">⟷</span>
+                      <span class="size-label">H</span>
+                      <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.height || 2560)*2 }}</div>
+                      <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
+                      <span class="size-unit">PX</span>
+                    </div>
                   </div>
-                </div>
+                </template>
                 
                 <div class="selector-header" v-if="imageCounts.length>0">图片张数</div>
                 <div class="count-options">
@@ -1638,7 +1724,7 @@
                   </div>
                 </div>
 
-                <div class="config-group" v-if="videoDurations.length > 0 && selectedKeLingOption !== '编辑视频'">
+                <div class="config-group" v-if="videoDurations.length > 0 && selectedKeLingOption !== '视频编辑'">
                   <div class="config-title">选择时长</div>
                   <div class="duration-options">
                     <el-button 
@@ -1671,7 +1757,7 @@
             <el-button 
               type="primary" 
               :loading="generationTasks.length >= maxConcurrentTasks"
-              :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks || (selectedKeLingOption === '编辑视频' && !referenceVideo)"
+              :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks || (selectedKeLingOption === '视频编辑' && !referenceVideo)"
               @click="handleGenerate"
               class="generate-btn compact"
             >
@@ -2224,12 +2310,79 @@ const keepOriginalAudioOptions = ref<KeLingOption[]>([])
 
 // 方法
 const selectModel = (model: Model) => {
+  // 保存当前的参考类型
+  const currentReferType = selectedKeLingOption.value
+  
   currentModel.value = model
   // 关闭 Popover
   modelPopoverRef.value?.hide()
   panelModelPopoverRef.value?.hide()
   console.log('选择模型：', model)
-  fetchModelConfig(model.aiDriver);
+  
+  // 清空所有配置参数（fetchModelConfig会重新设置默认值）
+  // 图片相关配置
+  imageSizes.value = []
+  resolutions.value = []
+  imageCounts.value = []
+  
+  // 视频相关配置
+  videoRatios.value = []
+  videoQualities.value = []
+  videoDurations.value = []
+  generationModes.value = []
+  keepOriginalAudioOptions.value = []
+  keLingOptions.value = []
+  
+  // 重新获取模型配置（会设置默认值）
+  fetchModelConfig(model.aiDriver).then(() => {
+    // 配置加载完成后，检查新模型是否支持当前的参考类型
+    const newModelSupportsCurrentType = keLingOptions.value.some(
+      option => option.label === currentReferType
+    )
+    
+    if (newModelSupportsCurrentType) {
+      // 新模型支持当前参考类型，保留参考类型和对应的图片
+      selectedKeLingOption.value = currentReferType
+      const currentOption = keLingOptions.value.find(opt => opt.label === currentReferType)
+      if (currentOption) {
+        selectedKeLingOptionVal.value = currentOption.value
+      }
+      
+      // 根据参考类型清空不相关的图片
+      if (currentReferType === '首尾帧') {
+        // 保留首尾帧图片，清空其他
+        referenceVideo.value = ''
+        referenceVideoVal.value = ''
+        videoReferenceImages.value = ['', '', '', '']
+        videoReferenceImagesVal.value = ['', '', '', '']
+      } else if (currentReferType === '多模态参考' || currentReferType === '视频编辑') {
+        // 保留参考视频和多模态图片，清空首尾帧
+        firstFrameImage.value = ''
+        firstFrameImageVal.value = ''
+        lastFrameImage.value = ''
+        lastFrameImageVal.value = ''
+      }
+    } else {
+      // 新模型不支持当前参考类型，重置为默认值并清空所有图片
+      if (keLingOptions.value.length > 0) {
+        selectedKeLingOption.value = keLingOptions.value[0].label
+        selectedKeLingOptionVal.value = keLingOptions.value[0].value
+      } else {
+        selectedKeLingOption.value = '首尾帧'
+        selectedKeLingOptionVal.value = 'first_tail'
+      }
+      
+      // 清空所有图片和视频
+      firstFrameImage.value = ''
+      firstFrameImageVal.value = ''
+      lastFrameImage.value = ''
+      lastFrameImageVal.value = ''
+      referenceVideo.value = ''
+      referenceVideoVal.value = ''
+      videoReferenceImages.value = ['', '', '', '']
+      videoReferenceImagesVal.value = ['', '', '', '']
+    }
+  })
 }
 
 const selectSize = (size: Size) => {
@@ -2249,11 +2402,32 @@ const selectImageCount = (count: ImageCount) => {
 // 选择生成方式 图片生成还是视频生成
 const selectGenerateMode = (mode: { value: string; label: string }) => {
   currentGenerateMode.value = mode
-  keLingOptions.value = [] // 切换生成方式时清空可灵选项
-  //调配置接口
-  fetchModelConfig();
-  // 切换模式时清空参考图片
+  
+  // 切换生成方式时清空可灵选项的值
+  selectedKeLingOption.value = '首尾帧'
+  selectedKeLingOptionVal.value = 'first_tail'
+  
+  // 清空所有配置参数
+  imageSizes.value = []
+  resolutions.value = []
+  imageCounts.value = []
+  videoRatios.value = []
+  videoQualities.value = []
+  videoDurations.value = []
+  generationModes.value = []
+  keepOriginalAudioOptions.value = []
+  keLingOptions.value = []
+  
+  // 清空上传的图片和视频
   referenceImages.value = []
+  firstFrameImage.value = ''
+  firstFrameImageVal.value = ''
+  lastFrameImage.value = ''
+  lastFrameImageVal.value = ''
+  referenceVideo.value = ''
+  referenceVideoVal.value = ''
+  videoReferenceImages.value = ['', '', '', '']
+  videoReferenceImagesVal.value = ['', '', '', '']
   
   // 根据生成方式切换可用的模型列表
   if (mode.value === 'image') {
@@ -2272,6 +2446,9 @@ const selectGenerateMode = (mode: { value: string; label: string }) => {
     }
   }
   
+  // 重新获取配置（会设置默认值）
+  fetchModelConfig();
+  
   // 关闭 Popover
   generateModePopoverRef.value?.hide()
   panelGenerateModePopoverRef.value?.hide()
@@ -2281,6 +2458,17 @@ const selectGenerateMode = (mode: { value: string; label: string }) => {
 const selectKeLingOption = (option: { value: string; label: string }) => {
   selectedKeLingOption.value = option.label
   selectedKeLingOptionVal.value = option.value
+  
+  // 切换参考类型时清空所有上传的图片和视频
+  firstFrameImage.value = ''
+  firstFrameImageVal.value = ''
+  lastFrameImage.value = ''
+  lastFrameImageVal.value = ''
+  referenceVideo.value = ''
+  referenceVideoVal.value = ''
+  videoReferenceImages.value = ['', '', '', '']
+  videoReferenceImagesVal.value = ['', '', '', '']
+  
   // 关闭 Popover
   keLingPopoverRef.value?.hide()
   panelKeLingPopoverRef.value?.hide()
@@ -2312,14 +2500,14 @@ const selectDuration = (duration: { value: string; label: string }) => {
 
 // 生成视频配置摘要文本
 const getVideoConfigSummary = () => {
-  const audioText = enableAudio.value ? '有声' : '无声'
+  const audioText = enableAudio.value=='yes' ? '有声' : '无声'
   const ratioText = videoRatios.value.find(r => r.value === selectedRatio.value)?.label || ''
   const qualityText = videoQualities.value.find(q => q.value === selectedQuality.value)?.label || ''
   const durationText = videoDurations.value.find(d => d.value === selectedDuration.value)?.label || ''
   const keepAudioText = keepOriginalAudioOptions.value.find(o => o.value === keepOriginalAudio.value)?.label || ''
   const modeText = generationModes.value.find(m => m.value === generationMode.value)?.label || ''
 
-  return `${hasEnableAudio.value?audioText+' | ':''} ${ratioText?ratioText+' | ':''} ${qualityText?qualityText+' | ':''} ${durationText?durationText+' | ':''} ${keepAudioText?keepAudioText+' | ':''} ${modeText}`
+  return `${hasEnableAudio.value?audioText+' | ':''} ${ratioText?ratioText+' | ':''} ${qualityText?qualityText+' | ':''} ${durationText?durationText+' | ':''} ${referenceVideo.value?keepAudioText+' | ':''} ${modeText}`
 }
 
 // 获取最大图片上传数量
@@ -2393,6 +2581,48 @@ const getRatioClass = (aspectRatioValue: string) => {
   
   // 默认返回1:1
   return 'ratio-1-1'
+}
+
+// 获取历史记录的参考图片（用于缩略图叠加显示）
+const getReferenceImages = (result: HistoryResult): string[] => {
+  if (!result || !result.tags) return []
+  
+  const referenceImages: string[] = []
+  
+  // 对于视频生成结果，优先显示参考视频的封面图
+  if (result.type === 2) {
+    const videoTag = result.tags.find(t => t.key === 'video')
+    if (videoTag?.showVal) {
+      // 如果有视频标签，尝试从assets中找到对应的封面
+      const videoAsset = result.assets?.find(a => a.type === 2 && a.coverUrl)
+      if (videoAsset?.coverUrl) {
+        referenceImages.push(videoAsset.coverUrl)
+      }
+    }
+  }
+  
+  // 1. 获取首帧图
+  const imageFirstTag = result.tags.find(t => t.key === 'imageFirst')
+  if (imageFirstTag?.showVal) {
+    referenceImages.push(imageFirstTag.showVal)
+  }
+  
+  // 2. 获取尾帧图
+  const imageTailTag = result.tags.find(t => t.key === 'imageTail')
+  if (imageTailTag?.showVal) {
+    referenceImages.push(imageTailTag.showVal)
+  }
+  
+  // 3. 获取多模态参考图片（key为"images"的标签）
+  const imagesTags = result.tags.filter(t => t.key === 'images')
+  imagesTags.forEach(imgTag => {
+    if (imgTag.showVal) {
+      referenceImages.push(imgTag.showVal)
+    }
+  })
+  
+  // 去重并返回（最多返回4张）
+  return [...new Set(referenceImages)].slice(0, 4)
 }
 
 // 视频上传处理方法
@@ -2499,6 +2729,20 @@ const swapFrameImages = () => {
   lastFrameImageVal.value = tempVal
   
   ElMessage.success('首帧图和尾帧图已交换')
+}
+
+// 删除首帧图
+const removeFirstFrameImage = () => {
+  firstFrameImage.value = ''
+  firstFrameImageVal.value = ''
+  ElMessage.success('首帧图已删除')
+}
+
+// 删除尾帧图
+const removeLastFrameImage = () => {
+  lastFrameImage.value = ''
+  lastFrameImageVal.value = ''
+  ElMessage.success('尾帧图已删除')
 }
 
 const handleVideoUpload = async (file: File) => {
@@ -5227,7 +5471,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   background: linear-gradient(135deg, rgba(74, 144, 226, 0.08) 0%, rgba(102, 126, 234, 0.08) 100%);
 }
 
@@ -5241,6 +5485,11 @@ onUnmounted(() => {
   border-style: solid;
   cursor: not-allowed;
   background: linear-gradient(135deg, rgba(74, 144, 226, 0.12) 0%, rgba(102, 126, 234, 0.12) 100%);
+  overflow: hidden;
+}
+
+.upload-area-video.has-video {
+  overflow: visible;
 }
 
 .upload-area-video:hover {
@@ -5292,25 +5541,76 @@ onUnmounted(() => {
   gap: 4px;
 }
 
+/* 自定义进度圈 */
+.progress-ring {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-ring.compact {
+  width: 32px;
+  height: 32px;
+}
+
+.progress-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.progress-bg {
+  fill: none;
+  stroke: rgba(74, 144, 226, 0.15);
+  stroke-width: 2.5;
+}
+
+.progress-bar {
+  fill: none;
+  stroke: #4A90E2;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+.progress-percent {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  font-weight: 600;
+  color: #4A90E2;
+  line-height: 1;
+}
+
+.progress-ring.compact .progress-percent {
+  font-size: 9px;
+}
+
 .upload-progress-overlay .progress-text {
-  font-size: 14px;
+  font-size: 10px;
   font-weight: 600;
   color: #4A90E2;
 }
 
 .upload-progress-overlay .progress-text.small {
-  font-size: 12px;
+  font-size: 8px;
 }
 
 .upload-progress-overlay .progress-tip {
-  font-size: 11px;
+  font-size: 9px;
   color: rgba(255, 255, 255, 0.6);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .upload-progress-overlay .progress-tip.small {
-  font-size: 10px;
-  margin-top: 2px;
+  font-size: 8px;
+  margin-top: 1px;
 }
 
 /* 新的图片上传区域样式 */
@@ -5404,7 +5704,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s ease;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   background: rgba(255, 255, 255, 0.05);
 }
 
@@ -5548,6 +5848,77 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* 参考图片叠加效果 */
+.reference-thumbnails-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.reference-thumb-item {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: white;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.reference-thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* hover展开效果 - 从左往右依次展开，盖住右边的文字 */
+.reference-thumbnails-stack.has-hover:hover .reference-thumb-item:nth-child(1) {
+  transform: translateX(0px) translateY(0px) scale(1.1) !important;
+  z-index: 104 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.reference-thumbnails-stack.has-hover:hover .reference-thumb-item:nth-child(2) {
+  transform: translateX(110%) translateY(0px) scale(1.1) !important;
+  z-index: 103 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.reference-thumbnails-stack.has-hover:hover .reference-thumb-item:nth-child(3) {
+  transform: translateX(220%) translateY(0px) scale(1.1) !important;
+  z-index: 102 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.reference-thumbnails-stack.has-hover:hover .reference-thumb-item:nth-child(4) {
+  transform: translateX(330%) translateY(0px) scale(1.1) !important;
+  z-index: 101 !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* 默认缺省图样式 */
+.default-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.default-icon {
+  opacity: 0.8;
 }
 
 .thumbnail-overlay {
@@ -6119,6 +6490,16 @@ onUnmounted(() => {
   right: -6px;
 }
 
+/* 首尾帧上传区域的删除按钮显示 */
+.upload-area:hover .remove-btn-corner {
+  opacity: 1;
+}
+
+.upload-area .remove-btn-corner {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
 .remove-btn-corner:hover {
   background: #ff4d4f !important;
   transform: scale(1.1);
@@ -6675,7 +7056,7 @@ onUnmounted(() => {
   gap: 20px;
   align-items: center; /* 默认垂直居中 */
   margin-bottom: 2px;
-  min-height: 100px; /* 确保最小高度与缩略图一致 */
+  min-height: 80px; /* 确保最小高度与缩略图一致 */
 }
 
 /* 当提示词较长时，改为顶部对齐 */
@@ -6684,15 +7065,20 @@ onUnmounted(() => {
 }
 
 .generation-thumbnail {
-  width: 100px;
-  height: 100px;
-  border-radius: 16px;
-  overflow: hidden;
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: visible;
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid rgba(255, 255, 255, 0.1);
   transition: all 0.3s ease;
   position: relative;
+  z-index: 1;
+}
+
+.generation-thumbnail:hover {
+  z-index: 100;
 }
 
 .generation-thumbnail:hover {
