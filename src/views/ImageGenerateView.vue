@@ -91,7 +91,7 @@
               <!-- 视频生成模式的上传 -->
               <template v-else-if="currentGenerateMode?.value === 'video'">
                 <!-- 首尾帧模式 -->
-                <template v-if="!currentModel?.name?.includes('可灵') || selectedKeLingOption === '首尾帧'">
+                <template v-if="!currentModel?.aiDriver?.includes('klingai-O1-video') || selectedKeLingOption === '首尾帧'">
                   <div class="video-upload-frames">
                     <div class="upload-item">
                       <label class="upload-label">首帧图</label>
@@ -109,7 +109,7 @@
                         </div>
                       </el-upload>
                     </div>
-                    <template v-if="currentModel?.name!='可灵2.6'">
+                    <template v-if="currentModel?.aiDriver!='klingai-V2-video'">
                       <div class="arrow-section">
                         <el-button 
                           class="swap-button" 
@@ -141,7 +141,7 @@
                 </template>
 
                 <!-- 多模态参考模式和视频编辑模式 -->
-                <template v-else-if="(selectedKeLingOption === '多模态参考' || selectedKeLingOption === '编辑视频')">
+                <template v-else-if="((selectedKeLingOption === '多模态参考' || selectedKeLingOption === '编辑视频')&& currentModel?.aiDriver=='klingai-O1-video')">
                   <div class="video-upload-multimodal">
                     <!-- 传视频区域 -->
                     <div class="upload-item">
@@ -170,6 +170,16 @@
                           <div v-else class="upload-placeholder-video">
                             <el-icon size="24"><VideoCamera /></el-icon>
                           </div>
+                          <el-button 
+                            v-if="referenceVideo && !isVideoUploading"
+                            type="danger" 
+                            size="small" 
+                            circle
+                            @click.stop="removeReferenceVideo"
+                            class="remove-btn-corner"
+                          >
+                            <el-icon><Close /></el-icon>
+                          </el-button>
                         </div>
                       </el-upload>
                     </div>
@@ -406,7 +416,7 @@
                     <div class="btn-icon">
                       <el-icon><FullScreen /></el-icon>
                     </div>
-                    <span>{{ currentSize?.value }} | {{ currentResolution?.value }} | {{ currentImageCount?.value }}张</span>
+                    <span>{{ currentSize?.value?currentSize?.value+' | ':'' }}{{ currentResolution?.value?currentResolution?.value+' | ':'' }}{{ currentImageCount?.value }}张</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
@@ -546,7 +556,7 @@
                     </div>
                   </div>
 
-                  <div class="config-group" v-if="videoDurations.length > 0">
+                  <div class="config-group" v-if="videoDurations.length > 0 && selectedKeLingOption !== '编辑视频'">
                     <div class="config-title">选择时长</div>
                     <div class="duration-options">
                       <el-button 
@@ -559,7 +569,7 @@
                       </el-button>
                     </div>
                   </div>
-                  <div class="config-group" v-if="keepOriginalAudioOptions.length > 0">
+                  <div class="config-group" v-if="keepOriginalAudioOptions.length > 0 && referenceVideo">
                     <div class="config-title">保留视频原声</div>
                     <div class="audio-options">
                       <el-button 
@@ -599,19 +609,19 @@
                 </div>
               </el-popover>
             </div>
-          </div>
-          
-          <!-- 生成按钮 - 独立放置在右下角 -->
-          <div class="generate-section-fixed">
-            <el-button 
-              type="primary" 
-              :loading="generationTasks.length >= maxConcurrentTasks"
-              :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks"
-              @click="handleGenerate"
-              class="generate-btn"
-            >
-              <span>{{ generationTasks.length >= maxConcurrentTasks ? '生成中...' : '生成' }}</span>
-            </el-button>
+            
+            <!-- 生成按钮 - 放在参数区域右侧 -->
+            <div class="generate-section-inline">
+              <el-button 
+                type="primary" 
+                :loading="generationTasks.length >= maxConcurrentTasks"
+                :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks || (selectedKeLingOption === '编辑视频' && !referenceVideo)"
+                @click="handleGenerate"
+                class="generate-btn"
+              >
+                <span>{{ generationTasks.length >= maxConcurrentTasks ? '生成中...' : '生成' }}</span>
+              </el-button>
+            </div>
           </div>
         </div>
       </div>
@@ -1101,7 +1111,7 @@
             <!-- 视频生成模式的上传 -->
             <template v-else-if="currentGenerateMode?.value === 'video'">
               <!-- 首尾帧模式 -->
-              <template v-if="!currentModel?.name?.includes('可灵') || selectedKeLingOption === '首尾帧'">
+              <template v-if="!currentModel?.aiDriver?.includes('klingai-O1-video') || selectedKeLingOption === '首尾帧'">
                 <div class="video-upload-frames compact">
                   <div class="upload-item">
                     <label class="upload-label">首帧图</label>
@@ -1119,38 +1129,39 @@
                       </div>
                     </el-upload>
                   </div>
-                  
-                  <div class="arrow-section">
-                    <el-button 
-                      class="swap-button small" 
-                      @click="swapFrameImages"
-                      :disabled="!firstFrameImage && !lastFrameImage"
-                    >
-                      <el-icon><Switch /></el-icon>
-                    </el-button>
-                  </div>
-                  
-                  <div class="upload-item">
-                    <label class="upload-label">尾帧图</label>
-                    <el-upload
-                      :show-file-list="false"
-                      :before-upload="handleLastFrameUpload"
-                      accept="image/*"
-                      class="frame-uploader"
-                    >
-                      <div class="upload-area small" :class="{ 'has-image': lastFrameImage }">
-                        <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
-                        <div v-else class="upload-placeholder">
-                          <el-icon size="12"><Plus /></el-icon>
+                  <template v-if="currentModel?.aiDriver!='klingai-V2-video'">
+                    <div class="arrow-section">
+                      <el-button 
+                        class="swap-button small" 
+                        @click="swapFrameImages"
+                        :disabled="!firstFrameImage && !lastFrameImage"
+                      >
+                        <el-icon><Switch /></el-icon>
+                      </el-button>
+                    </div>
+                    
+                    <div class="upload-item">
+                      <label class="upload-label">尾帧图</label>
+                      <el-upload
+                        :show-file-list="false"
+                        :before-upload="handleLastFrameUpload"
+                        accept="image/*"
+                        class="frame-uploader"
+                      >
+                        <div class="upload-area small" :class="{ 'has-image': lastFrameImage }">
+                          <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
+                          <div v-else class="upload-placeholder">
+                            <el-icon size="12"><Plus /></el-icon>
+                          </div>
                         </div>
-                      </div>
-                    </el-upload>
-                  </div>
+                      </el-upload>
+                    </div>
+                  </template>
                 </div>
               </template>
 
               <!-- 多模态参考模式和视频编辑模式 -->
-              <template v-else-if="(selectedKeLingOption === '多模态参考' || selectedKeLingOption === '编辑视频')">
+              <template v-else-if="((selectedKeLingOption === '多模态参考' || selectedKeLingOption === '编辑视频')&& currentModel?.aiDriver=='klingai-O1-video')">
                 <div class="video-upload-multimodal compact">
                   <!-- 传视频区域 -->
                   <div class="upload-item">
@@ -1179,6 +1190,16 @@
                         <div v-else class="upload-placeholder-video compact">
                           <el-icon size="18"><VideoCamera /></el-icon>
                         </div>
+                        <el-button 
+                          v-if="referenceVideo && !isVideoUploading"
+                          type="danger" 
+                          size="small" 
+                          circle
+                          @click.stop="removeReferenceVideo"
+                          class="remove-btn-corner"
+                        >
+                          <el-icon><Close /></el-icon>
+                        </el-button>
                       </div>
                     </el-upload>
                   </div>
@@ -1555,7 +1576,7 @@
                   </div>
                 </div>
 
-                <div class="config-group">
+                <div class="config-group" v-if="keepOriginalAudioOptions.length > 0 && referenceVideo">
                   <div class="config-title">保留视频原声</div>
                   <div class="audio-options">
                     <el-button 
@@ -1599,7 +1620,7 @@
                   </div>
                 </div>
 
-                <div class="config-group">
+                <div class="config-group" v-if="videoQualities.length>0">
                   <div class="config-title">选择分辨率</div>
                   <div class="quality-options">
                     <el-button 
@@ -1613,7 +1634,7 @@
                   </div>
                 </div>
 
-                <div class="config-group">
+                <div class="config-group" v-if="videoDurations.length > 0 && selectedKeLingOption !== '编辑视频'">
                   <div class="config-title">选择时长</div>
                   <div class="duration-options">
                     <el-button 
@@ -1646,7 +1667,7 @@
             <el-button 
               type="primary" 
               :loading="generationTasks.length >= maxConcurrentTasks"
-              :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks"
+              :disabled="!prompt.trim() || generationTasks.length >= maxConcurrentTasks || (selectedKeLingOption === '编辑视频' && !referenceVideo)"
               @click="handleGenerate"
               class="generate-btn compact"
             >
@@ -2629,6 +2650,13 @@ const removeReferenceImage = (index: number) => {
     videoReferenceImagesVal.value[actualIndex] = ''
     ElMessage.success('参考图片已删除')
   }
+}
+
+// 删除参考视频
+const removeReferenceVideo = () => {
+  referenceVideo.value = ''
+  referenceVideoVal.value = ''
+  ElMessage.success('参考视频已删除')
 }
 
 const previewReferenceImage = (imageUrl: string) => {
@@ -4420,7 +4448,7 @@ onUnmounted(() => {
 /* 输入容器 */
 .input-container {
   width: 100%;
-  max-width: 690px;
+  max-width: 729px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -4446,8 +4474,6 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: wrap;
-  padding-right: 100px; /* 为生成按钮留出空间 */
 }
 
 /* 上传按钮 */
@@ -4717,6 +4743,8 @@ onUnmounted(() => {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .param-btn {
@@ -4933,6 +4961,12 @@ onUnmounted(() => {
   z-index: 10;
 }
 
+/* 生成按钮内联显示（居中输入区域） */
+.generate-section-inline {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 .generate-btn {
   background: linear-gradient(135deg, #4A90E2, #357ABD);
   border: none;
@@ -4979,6 +5013,7 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  position: relative;
 }
 
 /* 新的视频上传区域样式 */
@@ -4993,7 +5028,7 @@ onUnmounted(() => {
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   background: linear-gradient(135deg, rgba(74, 144, 226, 0.08) 0%, rgba(102, 126, 234, 0.08) 100%);
 }
 
@@ -5875,6 +5910,16 @@ onUnmounted(() => {
   opacity: 1;
 }
 
+/* 视频上传区域的删除按钮显示 */
+.upload-area-video:hover .remove-btn-corner {
+  opacity: 1;
+}
+
+.upload-area-video .remove-btn-corner {
+  top: -6px;
+  right: -6px;
+}
+
 .remove-btn-corner:hover {
   background: #ff4d4f !important;
   transform: scale(1.1);
@@ -5950,9 +5995,7 @@ onUnmounted(() => {
 .panel-bottom-section {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
 }
 
 .panel-top-section .upload-section {
@@ -5988,10 +6031,13 @@ onUnmounted(() => {
   gap: 6px;
   align-items: center;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .panel-bottom-section .generate-section {
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 
@@ -8544,6 +8590,15 @@ onUnmounted(() => {
     align-items: stretch;
   }
   
+  .generate-section-inline {
+    margin-left: 0;
+    width: 100%;
+  }
+  
+  .generate-section-inline .generate-btn {
+    width: 100%;
+  }
+  
   .upload-preview-list {
     gap: 6px;
     padding: 6px;
@@ -8740,7 +8795,7 @@ onUnmounted(() => {
   }
   
   .floating-input-panel {
-    max-width: 728px;
+    max-width: 757px;
     left: 50%;
     transform: translateX(-50%);
     bottom: 100px;
@@ -8842,7 +8897,7 @@ body.el-popup-parent--hidden {
 .image-count-popover {
   background: rgba(26, 26, 46, 0.95) !important;
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
   border-radius: 12px !important;
   padding: 0 !important;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4) !important;
@@ -8909,9 +8964,13 @@ body.el-popup-parent--hidden {
 .generate-mode-popover .el-popper__arrow::before,
 .keling-popover .el-popper__arrow::before,
 .video-params-popover .el-popper__arrow::before,
+.image-params-popover .el-popper__arrow::before,
+.model-popover .el-popper__arrow::before,
 .el-popper.generate-mode-popover .el-popper__arrow::before,
 .el-popper.keling-popover .el-popper__arrow::before,
-.el-popper.video-params-popover .el-popper__arrow::before {
+.el-popper.video-params-popover .el-popper__arrow::before,
+.el-popper.image-params-popover .el-popper__arrow::before,
+.el-popper.model-popover .el-popper__arrow::before {
   background: rgba(26, 26, 46, 0.95) !important;
   border: 1px solid rgba(255, 255, 255, 0.2) !important;
 }
@@ -8919,7 +8978,9 @@ body.el-popup-parent--hidden {
 /* 更强的覆盖规则 */
 .el-popover.generate-mode-popover[data-popper-placement],
 .el-popover.keling-popover[data-popper-placement],
-.el-popover.video-params-popover[data-popper-placement] {
+.el-popover.video-params-popover[data-popper-placement],
+.el-popover.image-params-popover[data-popper-placement],
+.el-popover.model-popover[data-popper-placement] {
   background: rgba(26, 26, 46, 0.95) !important;
 }
 
