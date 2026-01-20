@@ -630,20 +630,120 @@
       <div class="results-section">
         <!-- 生成结果 - 新布局 -->
         <div v-if="historyResults.length > 0 || generationTasks.length > 0" class="results-display" ref="resultsDisplayRef">
-          <!-- 滚动哨兵元素 - 用于触发上拉加载，放在顶部 -->
-          <!-- 始终渲染哨兵元素，但在加载时改变样式 -->
-          <div v-if="hasMore" class="scroll-sentinel" :class="{ 'loading': loadingMore }" style="height: 50px; background: rgba(255,0,0,0.1);">
-            <div v-if="loadingMore" class="loading-more">
-              <el-icon class="is-loading"><Loading /></el-icon>
-              <span>加载中...</span>
+          <!-- 多任务生成中状态 - 插入到列表头部 -->
+          <div 
+            v-for="task in generationTasks" 
+            :key="task.id"
+            class="generation-card generating"
+            :class="{ 
+              'generating-video': task.type === 2 || currentGenerateMode?.value === 'video',
+              'generating-image': task.type === 1 || currentGenerateMode?.value === 'image'
+            }"
+          >
+            <!-- 上部分：缩略图和制作中状态 -->
+            <div class="generation-header">
+              <div class="generation-thumbnail generating-thumb" 
+                   :class="{ 
+                     'video-thumb': task.type === 2 || currentGenerateMode?.value === 'video',
+                     'image-thumb': task.type === 1 || currentGenerateMode?.value === 'image'
+                   }">
+                <div class="generating-placeholder">
+                  <div class="icon-wrapper">
+                    <el-icon class="placeholder-icon">
+                      <VideoCamera v-if="task.type === 2 || currentGenerateMode?.value === 'video'" />
+                      <Picture v-else />
+                    </el-icon>
+                    <div class="type-badge" :class="{ 'video-badge': task.type === 2 || currentGenerateMode?.value === 'video' }">
+                      <el-icon size="14"><Loading /></el-icon>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="generation-info">
+                <div class="generation-status">
+                  <span class="status-text" :class="{ 'video-status': task.type === 2 || currentGenerateMode?.value === 'video' }">
+                    {{ task.type === 2 || currentGenerateMode?.value === 'video' ? '视频制作中...' : '图片生成中...' }}
+                  </span>
+                  <div class="status-progress">
+                    <div class="progress-bar" 
+                         :class="{ 'video-progress': task.type === 2 || currentGenerateMode?.value === 'video' }"
+                         :style="{ width: task.progress + '%' }"></div>
+                  </div>
+                </div>
+                <div class="generation-prompt-wrapper">
+                  <div 
+                    class="generation-prompt" 
+                    :class="{ 
+                      'long-prompt': (task.prompt || '').length > 200,
+                      'expanded': task.promptExpanded 
+                    }"
+                    @click="(task.prompt || '').length > 200 ? (task.promptExpanded = !task.promptExpanded) : null"
+                  >
+                    {{ task.prompt || '正在生成您描述的内容...' }}
+                  </div>
+                  <div 
+                    v-if="(task.prompt || '').length > 200 && !task.promptExpanded" 
+                    class="prompt-expand-hint"
+                    @click="task.promptExpanded = true"
+                  >
+                    <el-icon size="12"><ArrowDown /></el-icon>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <!-- 移除独立的加载提示，合并到哨兵元素中 -->
-          
-          <!-- 没有更多数据提示 - 放在顶部 -->
-          <div v-if="!hasMore && historyResults.length > 0" class="no-more-data">
-            <span>没有更多数据了</span>
+            
+            <!-- 中部分：模型标签等信息 -->
+            <div class="generation-meta">
+              <div class="meta-tags">
+                <span class="meta-tag type-tag" 
+                      :class="{ 
+                        'video-type-tag': task.type === 2 || currentGenerateMode?.value === 'video',
+                        'image-type-tag': task.type === 1 || currentGenerateMode?.value === 'image'
+                      }">
+                  <el-icon size="12">
+                    <VideoCamera v-if="task.type === 2 || currentGenerateMode?.value === 'video'" />
+                    <Picture v-else />
+                  </el-icon>
+                  {{ task.type === 2 || currentGenerateMode?.value === 'video' ? '视频' : '图片' }}
+                </span>
+                <span class="meta-tag model-tag">{{ task.model?.name }}</span>
+                <span class="meta-tag size-tag" v-if="task.aspectRatio">比例：{{ task.aspectRatio?.label }}</span>
+                <span class="meta-tag size-tag">{{ task.size?.label }}</span>
+                <span class="meta-tag status-tag generating" 
+                      :class="{ 'video-generating': task.type === 2 || currentGenerateMode?.value === 'video' }">
+                  {{ task.progressText }}
+                </span>
+              </div>
+            </div>
+            
+            <!-- 下部分：待生成的模型图缺省图 -->
+            <div class="generation-images generating-preview">
+              <div class="generation-image-item generating-item" 
+                   :class="[
+                     { 'video-item': task.type === 2 || currentGenerateMode?.value === 'video' },
+                     getRatioClass(task.aspectRatio?.value || (task.type === 2 || currentGenerateMode?.value === 'video' ? '16:9' : '1:1'))
+                   ]">
+                <div class="image-wrapper">
+                  <div class="generating-placeholder-image" 
+                       :class="{ 'video-placeholder': task.type === 2 || currentGenerateMode?.value === 'video' }">
+                    <div class="placeholder-content">
+                      <el-icon class="placeholder-icon">
+                        <VideoCamera v-if="task.type === 2 || currentGenerateMode?.value === 'video'" />
+                        <Picture v-else />
+                      </el-icon>
+                      <div class="placeholder-text">
+                        {{ task.type === 2 || currentGenerateMode?.value === 'video' ? '视频生成中' : '图片生成中' }}
+                      </div>
+                      <div class="generating-dots">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- 遍历历史结果列表 -->
@@ -964,121 +1064,19 @@
             </div>
           </div>
           
-          <!-- 多任务生成中状态 - 在最底部显示 -->
-          <div 
-            v-for="task in generationTasks" 
-            :key="task.id"
-            class="generation-card generating"
-            :class="{ 
-              'generating-video': task.type === 2,
-              'generating-image': task.type === 1
-            }"
-          >
-            <!-- 上部分：缩略图和制作中状态 -->
-            <div class="generation-header">
-              <div class="generation-thumbnail generating-thumb" 
-                   :class="{ 
-                     'video-thumb': task.type === 2,
-                     'image-thumb': task.type === 1
-                   }">
-                <div class="generating-placeholder">
-                  <div class="icon-wrapper">
-                    <el-icon class="placeholder-icon">
-                      <VideoCamera v-if="task.type === 2" />
-                      <Picture v-else />
-                    </el-icon>
-                    <div class="type-badge" :class="{ 'video-badge': task.type === 2 }">
-                      <el-icon size="14"><Loading /></el-icon>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="generation-info">
-                <div class="generation-status">
-                  <span class="status-text" :class="{ 'video-status': task.type === 2 }">
-                    {{ task.type === 2 ? '视频制作中...' : '图片生成中...' }}
-                  </span>
-                  <div class="status-progress">
-                    <div class="progress-bar" 
-                         :class="{ 'video-progress': task.type === 2 }"
-                         :style="{ width: task.progress + '%' }"></div>
-                  </div>
-                </div>
-                <div class="generation-prompt-wrapper">
-                  <div 
-                    class="generation-prompt" 
-                    :class="{ 
-                      'long-prompt': (task.prompt || '').length > 200,
-                      'expanded': task.promptExpanded 
-                    }"
-                    @click="(task.prompt || '').length > 200 ? (task.promptExpanded = !task.promptExpanded) : null"
-                  >
-                    {{ task.prompt || '正在生成您描述的内容...' }}
-                  </div>
-                  <div 
-                    v-if="(task.prompt || '').length > 200 && !task.promptExpanded" 
-                    class="prompt-expand-hint"
-                    @click="task.promptExpanded = true"
-                  >
-                    <el-icon size="12"><ArrowDown /></el-icon>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 中部分：模型标签等信息 -->
-            <div class="generation-meta">
-              <div class="meta-tags">
-                <span class="meta-tag type-tag" 
-                      :class="{ 
-                        'video-type-tag': task.type === 2,
-                        'image-type-tag': task.type === 1
-                      }">
-                  <el-icon size="12">
-                    <VideoCamera v-if="task.type === 2" />
-                    <Picture v-else />
-                  </el-icon>
-                  {{ task.type === 2 ? '视频' : '图片' }}
-                </span>
-                <span class="meta-tag model-tag">{{ task.model?.name }}</span>
-                <span class="meta-tag size-tag" v-if="task.type === 2 && task.aspectRatio">比例：{{ task.aspectRatio?.label }}</span>
-                <span class="meta-tag size-tag" v-if="task.type === 1">{{ task.size?.label }}</span>
-                <span class="meta-tag status-tag generating" 
-                      :class="{ 'video-generating': task.type === 2 }">
-                  {{ task.progressText }}
-                </span>
-              </div>
-            </div>
-            
-            <!-- 下部分：待生成的模型图缺省图 -->
-            <div class="generation-images generating-preview">
-              <div class="generation-image-item generating-item" 
-                   :class="[
-                     { 'video-item': task.type === 2 },
-                     getRatioClass(task.aspectRatio?.value || (task.type === 2 ? '16:9' : '1:1'))
-                   ]">
-                <div class="image-wrapper">
-                  <div class="generating-placeholder-image" 
-                       :class="{ 'video-placeholder': task.type === 2 }">
-                    <div class="placeholder-content">
-                      <el-icon class="placeholder-icon">
-                        <VideoCamera v-if="task.type === 2" />
-                        <Picture v-else />
-                      </el-icon>
-                      <div class="placeholder-text">
-                        {{ task.type === 2 ? '视频生成中' : '图片生成中' }}
-                      </div>
-                      <div class="generating-dots">
-                        <span class="dot"></span>
-                        <span class="dot"></span>
-                        <span class="dot"></span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <!-- 加载更多提示 -->
+          <div v-if="loadingMore" class="loading-more">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>加载中...</span>
           </div>
+          
+          <!-- 没有更多数据提示 -->
+          <div v-if="!hasMore && historyResults.length > 0" class="no-more-data">
+            <span>没有更多数据了</span>
+          </div>
+          
+          <!-- 滚动哨兵元素 - 用于触发 Intersection Observer -->
+          <div v-if="hasMore && !loadingMore" class="scroll-sentinel" style="height: 1px;"></div>
         </div>
       </div>
     </div>
@@ -1875,7 +1873,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { uploadBigVideoToTOS, uploadImageToTOS } from '../services/tos.js'
 import { getTosToken } from '../api/index'
 import { ElMessage } from 'element-plus'
@@ -2063,8 +2061,6 @@ const pageSize = ref(10)
 const loadingMore = ref(false)
 const hasMore = ref(true)
 const initialLoading = ref(true) // 初始加载状态
-const isLoadingTriggered = ref(false) // 防止重复触发加载
-const isInitialScrollDone = ref(false) // 标记初始滚动是否完成
 const resultsDisplayRef = ref<HTMLElement | null>(null)
 const loadMoreObserver = ref<IntersectionObserver | null>(null)
 
@@ -2817,26 +2813,6 @@ const handleGenerate = async () => {
 
   // 创建新的生成任务
   const taskId = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-  
-  // 根据生成模式确定比例
-  let aspectRatio: Size | undefined
-  if (currentGenerateMode.value?.value === 'video') {
-    // 视频模式：使用 selectedRatio
-    const ratioOption = videoRatios.value.find(r => r.value === selectedRatio.value)
-    if (ratioOption) {
-      aspectRatio = {
-        value: ratioOption.value,
-        label: ratioOption.label,
-        aspect: ratioOption.aspect,
-        width: 0, // 视频不需要具体宽高
-        height: 0
-      }
-    }
-  } else {
-    // 图片模式：使用 currentSize
-    aspectRatio = currentSize.value
-  }
-  
   const newTask: GenerationTask = {
     id: taskId,
     prompt: prompt.value,
@@ -2844,22 +2820,20 @@ const handleGenerate = async () => {
     size: currentSize.value!,
     resolution: currentResolution.value!,
     imageCount: currentImageCount.value!,
-    aspectRatio: aspectRatio, // 添加比例信息
     referenceImages: [...referenceImages.value],
     status: 'generating',
     progress: 0,
     progressText: '正在分析您的描述...',
     images: [],
-    createdAt: now,
-    type: currentGenerateMode.value?.value === 'video' ? 2 : 1 // 根据生成模式设置type
+    createdAt: now
   }
 
   // 添加到任务列表
   generationTasks.value.push(newTask)
   
-  // 滚动到底部 - 使用延迟确保 DOM 更新
+  // 滚动到顶部 - 使用更长的延迟确保 DOM 更新
   setTimeout(() => {
-    scrollToBottom()
+    scrollToTop()
   }, 100)
   
   // 组装请求参数
@@ -3614,9 +3588,9 @@ const regenerateFromHistory = async (result: HistoryResult) => {
   // 添加到任务列表
   generationTasks.value.push(newTask)
   
-  // 滚动到底部
+  // 滚动到顶部
   setTimeout(() => {
-    scrollToBottom()
+    scrollToTop()
   }, 100)
 
   try {
@@ -3806,23 +3780,7 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
         })
       
       if (append) {
-        // 记录当前滚动位置和内容高度
-        const mainContent = document.querySelector('.main-content') as HTMLElement
-        const oldScrollHeight = mainContent?.scrollHeight || 0
-        const oldScrollTop = mainContent?.scrollTop || 0
-        
-        // 上拉加载时，新数据插入到头部
-        historyResults.value = [...formattedResults, ...historyResults.value]
-        
-        // 等待DOM更新后，调整滚动位置以保持用户视图不变
-        nextTick(() => {
-          if (mainContent) {
-            const newScrollHeight = mainContent.scrollHeight
-            const heightDiff = newScrollHeight - oldScrollHeight
-            // 调整滚动位置，保持用户看到的内容不变
-            mainContent.scrollTop = oldScrollTop + heightDiff
-          }
-        })
+        historyResults.value = [...historyResults.value, ...formattedResults]
       } else {
         historyResults.value = formattedResults
       }
@@ -3831,47 +3789,19 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
       // 如果当前页返回的原始数据少于每页大小，说明已经到最后一页了
       hasMore.value = list.length >= pageSize.value
       
-      // 数据加载完成后，只在追加数据时重新设置 Intersection Observer
-      if (append) {
-        // 等待 DOM 更新和滚动位置调整完成后，重新设置 Observer
-        setTimeout(() => {
-          // 先断开旧的 Observer
-          if (loadMoreObserver.value) {
-            loadMoreObserver.value.disconnect()
-            loadMoreObserver.value = null
-          }
-          // 延迟重新设置，确保滚动位置已经调整
-          setTimeout(() => {
-            setupIntersectionObserver()
-          }, 100)
-        }, 600)
-      }
+      // 数据加载完成后，重新设置 Intersection Observer
+      setTimeout(() => {
+        setupIntersectionObserver()
+      }, 500)
     }
   } catch (error) {
     console.error('获取生成结果失败：', error)
     ElMessage.error('获取生成结果失败')
   } finally {
     loadingMore.value = false
-    // 首次加载完成后先滚动到底部，再关闭loading
+    // 首次加载完成后关闭初始加载状态
     if (initialLoading.value) {
-      // 使用 nextTick 确保 DOM 完全更新
-      nextTick(() => {
-        // 再延迟一下确保渲染完成
-        setTimeout(() => {
-          scrollToBottom()
-          // 标记初始滚动完成
-          isInitialScrollDone.value = true
-          // 等待滚动完成后再关闭loading
-          setTimeout(() => {
-            initialLoading.value = false
-            // 首次加载完成后设置Observer
-            setTimeout(() => {
-              console.log('🎯 Initial load complete, setting up observer')
-              setupIntersectionObserver()
-            }, 200)
-          }, 500)
-        }, 200)
-      })
+      initialLoading.value = false
     }
   }
 }
@@ -3989,12 +3919,12 @@ const pollGenerateStatus = async () => {
             aiDriver: statusItem.aiDriver
           }
           
-          // 插入到结果列表底部
-          historyResults.value.push(newResult)
+          // 插入到结果列表头部
+          historyResults.value.unshift(newResult)
           
-          // 滚动到底部 - 使用更长的延迟确保 DOM 更新
+          // 滚动到顶部 - 使用更长的延迟确保 DOM 更新
           setTimeout(() => {
-            scrollToBottom()
+            scrollToTop()
           }, 100)
         }
         // 如果状态为失败（status === 3 表示失败）
@@ -4040,35 +3970,39 @@ const regenerateAll = () => {
   handleGenerate()
 }
 
-// 滚动到底部函数
-const scrollToBottom = () => {
-  console.log('🎯 scrollToBottom called')
+// 滚动到顶部函数
+const scrollToTop = () => {
+  // 从结果列表元素开始，向上查找所有可滚动的父元素
+  let element = resultsDisplayRef.value?.parentElement
+  const scrollableElements: HTMLElement[] = []
   
-  // 等待一小段时间确保DOM完全渲染
-  setTimeout(() => {
-    // 尝试方法1：找到最后一个生成任务或结果，滚动到它
-    const lastTask = document.querySelector('.generation-card:last-child')
-    if (lastTask) {
-      console.log('Found last task, scrolling into view')
-      lastTask.scrollIntoView({ behavior: 'auto', block: 'end' })
-      console.log('✅ scrollToBottom completed (scrollIntoView)')
-      return
+  while (element) {
+    if (element.scrollHeight > element.clientHeight) {
+      scrollableElements.push(element)
     }
-    
-    // 方法2：直接操作 main-content
+    element = element.parentElement
+  }
+  
+  // 滚动所有找到的可滚动元素到顶部（使用平滑滚动）
+  if (scrollableElements.length > 0) {
+    scrollableElements.forEach((el) => {
+      el.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    })
+  } else {
+    // 如果没找到，尝试预定义的容器
     const mainContent = document.querySelector('.main-content') as HTMLElement
-    if (mainContent) {
-      console.log('Using main-content, scrollHeight:', mainContent.scrollHeight)
-      // 尝试多次设置，确保生效
-      mainContent.scrollTop = mainContent.scrollHeight
-      setTimeout(() => {
-        mainContent.scrollTop = mainContent.scrollHeight
-        console.log('After double scroll, scrollTop:', mainContent.scrollTop)
-      }, 50)
-    }
+    const contentBody = document.querySelector('.content-body') as HTMLElement
     
-    console.log('✅ scrollToBottom completed')
-  }, 100)
+    if (mainContent) {
+      mainContent.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    if (contentBody) {
+      contentBody.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
 }
 
 // 滚动监听函数
@@ -4084,58 +4018,11 @@ const handleScroll = () => {
     currentScrollTop = window.scrollY || document.documentElement.scrollTop
   }
   
-  // 先判断滚动方向
-  let currentDirection = 'none'
+  // 判断滚动方向
   if (currentScrollTop > lastScrollTop.value) {
-    currentDirection = 'down'
     scrollDirection.value = 'down'
   } else if (currentScrollTop < lastScrollTop.value) {
-    currentDirection = 'up'
     scrollDirection.value = 'up'
-  }
-  
-  // 调试信息
-  if (currentScrollTop < 300) {
-    console.log('📊 Scroll debug:', {
-      currentScrollTop,
-      lastScrollTop: lastScrollTop.value,
-      currentDirection,
-      hasMore: hasMore.value,
-      loadingMore: loadingMore.value,
-      initialLoading: initialLoading.value,
-      isInitialScrollDone: isInitialScrollDone.value,
-      isLoadingTriggered: isLoadingTriggered.value,
-      willTrigger: currentScrollTop < 200 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value
-    })
-  }
-  
-  console.log('🔍 Before if check:', {
-    condition1: currentScrollTop < 200,
-    condition2: hasMore.value,
-    condition3: !loadingMore.value,
-    condition4: isInitialScrollDone.value,
-    condition5: !isLoadingTriggered.value,
-    allConditions: currentScrollTop < 200 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value
-  })
-  
-  // 检测是否滚动到顶部附近（距离顶部小于200px）
-  // 简化逻辑：只要满足条件就触发，用标记防止重复
-  if (currentScrollTop < 200 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value) {
-    console.log('🎯 Scrolled near top, loading more data', {
-      currentScrollTop,
-      hasMore: hasMore.value,
-      loadingMore: loadingMore.value
-    })
-    isLoadingTriggered.value = true
-    currentPage.value++
-    fetchGenerateResults(currentPage.value, true)
-  } else {
-    console.log('❌ Condition not met')
-  }
-  
-  // 当滚动离开顶部区域时，重置触发标记
-  if (currentScrollTop > 300) {
-    isLoadingTriggered.value = false
   }
   
   lastScrollTop.value = currentScrollTop
@@ -4189,8 +4076,10 @@ onMounted(() => {
   
   window.addEventListener('scroll', handleScroll, { passive: true })
   
-  // 不在这里设置 Observer，等初始加载完成后再设置
-  console.log('🎯 Component mounted, waiting for initial load to complete')
+  // 设置 Intersection Observer
+  setTimeout(() => {
+    setupIntersectionObserver()
+  }, 1000)
 })
 
 // 设置 Intersection Observer 监听底部元素
@@ -4200,57 +4089,34 @@ const setupIntersectionObserver = () => {
     loadMoreObserver.value.disconnect()
   }
   
-  // 只查找哨兵元素
+  // 查找哨兵元素、"加载更多"或"没有更多数据"的元素
   const sentinelEl = document.querySelector('.scroll-sentinel')
+  const loadingMoreEl = document.querySelector('.loading-more')
+  const noMoreDataEl = document.querySelector('.no-more-data')
+  const targetEl = sentinelEl || loadingMoreEl || noMoreDataEl
   
-  if (!sentinelEl) {
-    console.warn('No sentinel element found for IntersectionObserver')
+  if (!targetEl) {
     return
   }
-  
-  // 查找滚动容器
-  const mainContent = document.querySelector('.main-content') as HTMLElement
-  const scrollContainer = mainContent || null
-  
-  console.log('setupIntersectionObserver called:', {
-    sentinelEl,
-    scrollContainer,
-    hasMore: hasMore.value,
-    loadingMore: loadingMore.value,
-    sentinelRect: sentinelEl.getBoundingClientRect(),
-    containerRect: scrollContainer?.getBoundingClientRect()
-  })
   
   // 创建 Intersection Observer
   loadMoreObserver.value = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        console.log('IntersectionObserver triggered:', {
-          isIntersecting: entry.isIntersecting,
-          hasMore: hasMore.value,
-          loadingMore: loadingMore.value,
-          currentPage: currentPage.value,
-          intersectionRatio: entry.intersectionRatio,
-          boundingClientRect: entry.boundingClientRect
-        })
-        // 只有当元素真正进入视口时才触发加载
-        // 使用 intersectionRatio > 0 确保元素至少部分可见
-        if (entry.isIntersecting && entry.intersectionRatio > 0 && hasMore.value && !loadingMore.value) {
-          console.log('✅ Loading more data, page:', currentPage.value + 1)
+        if (entry.isIntersecting && hasMore.value && !loadingMore.value) {
           currentPage.value++
           fetchGenerateResults(currentPage.value, true)
         }
       })
     },
     {
-      root: scrollContainer,
-      rootMargin: '500px 0px 0px 0px', // 向上扩展500px，提前触发加载
-      threshold: [0, 0.1, 0.5, 1] // 多个阈值，确保能捕获到变化
+      root: null,
+      rootMargin: '200px',
+      threshold: 0
     }
   )
   
-  console.log('✅ IntersectionObserver setup complete, observing:', sentinelEl)
-  loadMoreObserver.value.observe(sentinelEl)
+  loadMoreObserver.value.observe(targetEl)
 }
 
 // 组件卸载时移除滚动监听和 Observer
@@ -6553,7 +6419,7 @@ onUnmounted(() => {
 
 /* 生成结果展示 - 扁平布局 */
 .results-display {
-  padding: 80px 40px 60px 40px; /* 增加顶部内边距，避免被面包屑遮挡 */
+  padding: 20px 40px 60px 40px; /* 增加底部内边距 */
   width: 100%;
   max-width: none;
   margin: 0;
@@ -8802,7 +8668,7 @@ onUnmounted(() => {
   
   /* 新布局响应式 */
   .results-display {
-    padding: 70px 20px 50px 20px; /* 增加顶部内边距 */
+    padding: 16px 20px 50px 20px;
   }
   
   .generation-card {
@@ -8898,7 +8764,7 @@ onUnmounted(() => {
   }
   
   .results-display {
-    padding: 75px 30px 55px 30px; /* 增加顶部内边距 */
+    padding: 18px 30px 55px 30px;
   }
   
   .generation-card {
@@ -8944,7 +8810,7 @@ onUnmounted(() => {
   }
   
   .results-display {
-    padding: 80px 40px 60px 40px; /* 保持顶部内边距 */
+    padding: 20px 40px 60px 40px;
   }
   
   .generation-card {
