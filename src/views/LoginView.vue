@@ -38,6 +38,7 @@
                 placeholder="请输入手机号"
                 class="phone-input"
                 maxlength="11"
+                @keyup.enter="handleLogin"
               />
             </div>
           </el-form-item>
@@ -50,6 +51,7 @@
                 placeholder="请输入验证码"
                 class="code-input"
                 maxlength="6"
+                @keyup.enter="handleLogin"
               />
               <el-button
                 :disabled="codeDisabled"
@@ -190,7 +192,7 @@ const handleLogin = async () => {
     
   } catch (error: unknown) {
     console.error('登录失败:', error)
-    const errorMessage = error instanceof Error ? error.message : '登录失败，请检查手机号和验证码'
+    const errorMessage = (error as any)?.msg || '登录失败，请检查手机号和验证码'
     ElMessage.error(errorMessage)
   } finally {
     loading.value = false

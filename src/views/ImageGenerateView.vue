@@ -438,8 +438,7 @@
                     <div class="btn-icon">
                       <el-icon><FullScreen /></el-icon>
                     </div>
-                    <span v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">{{ currentSize?.value?currentSize?.value+' | ':'' }}{{ currentResolution?.value?currentResolution?.value+' | ':'' }}{{ currentImageCount?.value }}张</span>
-                    <span v-else>{{ currentSize?.value?currentSize?.value+' | ':'' }}{{ currentImageCount?.value }}张</span>
+                    <span>{{ currentSize?.value }}{{ currentResolution?.value?' | '+currentResolution?.value:'' }}{{ currentImageCount?.value?' | '+currentImageCount?.value:'' }}张</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                   </div>
                 </template>
@@ -458,8 +457,9 @@
                     </div>
                   </div>
                   
-                  <template v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">
-                    <div class="selector-header" v-if="resolutions.length>0">选择分辨率</div>
+                  <!-- 分辨率选择：所有模型都显示（只要有值） -->
+                  <template v-if="resolutions && resolutions.length > 0">
+                    <div class="selector-header">选择分辨率</div>
                     <div class="resolution-options">
                       <div 
                         v-for="resolution in resolutions" 
@@ -468,20 +468,21 @@
                         :class="{ active: currentResolution?.value === resolution.value }"
                         @click="selectResolution(resolution)"
                       >
-                        <span>{{ resolution.label=='2K'?'高清':'超清' }}{{ resolution.label }}</span>
+                        <span>{{ resolution.label }}</span>
                       </div>
                     </div>
-                    
+                  </template>
+                  
+                  <!-- 尺寸显示：只在非可灵模型时显示 -->
+                  <template v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">
                     <div class="selector-header">尺寸</div>
                     <div class="size-display">
                       <div class="size-input-group">
                       <span class="size-label">W</span>
-                      <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.width || 1440)*2 }}</div>
-                      <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
+                      <div class="size-value">{{ getCalculatedSize().width }}</div>
                       <span class="size-connector">⟷</span>
                       <span class="size-label">H</span>
-                      <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.height || 2560)*2 }}</div>
-                      <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
+                      <div class="size-value">{{ getCalculatedSize().height }}</div>
                       <span class="size-unit">PX</span>
                       </div>
                     </div>
@@ -1031,10 +1032,10 @@
                 <el-icon class="button-icon"><Download /></el-icon>
                 <span>下载</span>
               </el-button>
-              <el-button class="action-button delete-button" @click="deleteHistoryItem(result.id)">
+              <!-- <el-button class="action-button delete-button" @click="deleteHistoryItem(result.id)">
                 <el-icon class="button-icon"><Delete /></el-icon>
                 <span>删除</span>
-              </el-button>
+              </el-button> -->
             </div>
           </div>
           
@@ -1379,7 +1380,7 @@
               v-model="prompt"
               type="textarea"
               :rows="1"
-              :autosize="{ minRows: 1, maxRows: 3 }"
+              :autosize="false"
               :placeholder="currentGenerateMode?.value === 'video' ? '请描述您想要生成的视频内容...' : '请描述您想要生成的图片内容...'"
               class="main-input compact"
               :maxlength="inputSize"
@@ -1564,8 +1565,7 @@
                   <div class="btn-icon">
                     <el-icon><FullScreen /></el-icon>
                   </div>
-                  <span v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">{{ currentSize?.value }} | {{ currentResolution?.value  }} | {{ currentImageCount?.value  }}张</span>
-                  <span v-else>{{ currentSize?.value }} | {{ currentImageCount?.value  }}张</span>
+                  <span>{{ currentSize?.value }}{{ currentResolution?.value?' | '+currentResolution?.value:'' }}{{ currentImageCount?.value?' | '+currentImageCount?.value:'' }}张</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
@@ -1584,8 +1584,9 @@
                   </div>
                 </div>
                 
-                <template v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">
-                  <div class="selector-header" v-if="resolutions.length>0">选择分辨率</div>
+                <!-- 分辨率选择：所有模型都显示（只要有值） -->
+                <template v-if="resolutions && resolutions.length > 0">
+                  <div class="selector-header">选择分辨率</div>
                   <div class="resolution-options">
                     <div 
                       v-for="resolution in resolutions" 
@@ -1594,20 +1595,21 @@
                       :class="{ active: currentResolution?.value === resolution.value }"
                       @click="selectResolution(resolution)"
                     >
-                      <span>{{ resolution.label=='2K'?'高清':'超清' }}{{ resolution.label }}</span>
+                      <span>{{ resolution.label }}</span>
                     </div>
                   </div>
-                  
+                </template>
+                
+                <!-- 尺寸显示：只在非可灵模型时显示 -->
+                <template v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">
                   <div class="selector-header">尺寸</div>
                   <div class="size-display">
                     <div class="size-input-group">
                       <span class="size-label">W</span>
-                      <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.width || 1440)*2 }}</div>
-                      <div class="size-value" v-else>{{ currentSize?.width || 1440 }}</div>
+                      <div class="size-value">{{ getCalculatedSize().width }}</div>
                       <span class="size-connector">⟷</span>
                       <span class="size-label">H</span>
-                      <div class="size-value" v-if="currentResolution?.value?.toLowerCase()=='4k'">{{ (currentSize?.height || 2560)*2 }}</div>
-                      <div class="size-value" v-else>{{ currentSize?.height || 2560 }}</div>
+                      <div class="size-value">{{ getCalculatedSize().height }}</div>
                       <span class="size-unit">PX</span>
                     </div>
                   </div>
@@ -2213,13 +2215,51 @@ const imageSizes = ref<Size[]>([])
 
 const currentSize = ref<Size>() // 默认选择9:16
 
-// 分辨率选项
-const resolutions = ref<Resolution[]>([
-  { value: '2k', label: '2K'},
-  { value: '4k', label: '4K'}
-])
+// 分辨率选项（初始为空，从后端获取）
+const resolutions = ref<Resolution[]>([])
 
-const currentResolution = ref(resolutions.value[0])
+const currentResolution = ref<Resolution | null>(null)
+
+// 根据比例和分辨率计算尺寸
+const getCalculatedSize = () => {
+  if (!currentSize.value) return { width: 0, height: 0 };
+  
+  // 如果已经有 width 和 height，直接使用（后端返回的是最终值，不需要再乘以倍数）
+  if (currentSize.value.width && currentSize.value.height) {
+    return {
+      width: currentSize.value.width,
+      height: currentSize.value.height
+    };
+  }
+  
+  // 否则根据比例值计算默认尺寸
+  const aspectRatio = currentSize.value.value || '1:1';
+  const [w, h] = aspectRatio.split(':').map(Number);
+  
+  // 基础尺寸（2K）
+  const baseSize = 1440;
+  let width = 0;
+  let height = 0;
+  
+  // 根据比例计算
+  if (w !== undefined && h !== undefined && w >= h) {
+    // 横向或正方形
+    width = baseSize;
+    height = Math.round(baseSize * h / w);
+  } else if (w !== undefined && h !== undefined) {
+    // 纵向
+    height = baseSize;
+    width = Math.round(baseSize * w / h);
+  }
+  
+  // 如果是 4K，尺寸翻倍
+  if (currentResolution.value?.value?.toLowerCase() === '4k') {
+    width *= 2;
+    height *= 2;
+  }
+  
+  return { width, height };
+}
 
 // 图片张数选项
 const imageCounts = ref<ImageCount[]>([
@@ -2514,11 +2554,11 @@ const getVideoConfigSummary = () => {
   const audioText = enableAudio.value=='yes' ? '有声' : '无声'
   const ratioText = videoRatios.value.find(r => r.value === selectedRatio.value)?.label || ''
   const qualityText = videoQualities.value.find(q => q.value === selectedQuality.value)?.label || ''
-  const durationText = videoDurations.value.find(d => d.value === selectedDuration.value)?.label || ''
+  const durationText = !currentModel.value.aiDriver?.includes('klingai-O1-video') ? videoDurations.value.find(d => d.value === selectedDuration.value)?.label || '' : ''
   const keepAudioText = keepOriginalAudioOptions.value.find(o => o.value === keepOriginalAudio.value)?.label || ''
   const modeText = generationModes.value.find(m => m.value === generationMode.value)?.label || ''
 
-  return `${hasEnableAudio.value?audioText+' | ':''} ${ratioText?ratioText+' | ':''} ${qualityText?qualityText+' | ':''} ${durationText?durationText+' | ':''} ${referenceVideo.value?keepAudioText+' | ':''} ${modeText}`
+  return `${ratioText} ${hasEnableAudio.value?' | '+audioText:''} ${qualityText?' | '+qualityText:''} ${durationText?' | '+durationText:''} ${referenceVideo.value?' | '+keepAudioText:''} ${modeText?' | '+modeText:''}`.trim()
 }
 
 // 获取最大图片上传数量
@@ -3158,10 +3198,11 @@ const buildGenerateRequestTask = () => {
       })
     }
     
-    // 分辨率比例 - 传递 2K 或 4K
+    // 分辨率比例 - 可灵模型使用 resolution，其他模型使用 resolutionRatio
     if (currentResolution.value) {
+      const isKelingModel = currentModel.value?.aiDriver?.toLowerCase().includes('klingai') || currentModel.value?.aiDriver?.toLowerCase().includes('keling');
       tags.push({
-        key: 'resolutionRatio',
+        key: isKelingModel ? 'resolution' : 'resolutionRatio',
         val: currentResolution.value.value
       })
     }
@@ -3628,12 +3669,15 @@ const editGeneration = async (result: HistoryResult) => {
       }
     }
     
-    // 设置分辨率
-    const resolutionRatioTag = result.tags?.find(t => t.key === 'resolutionRatio')?.val
-    if (resolutionRatioTag) {
-      const targetResolution = resolutions.value.find(r => r.value === resolutionRatioTag)
+    // 设置分辨率 - 可灵模型使用 resolution，其他模型使用 resolutionRatio
+    const isKelingModel = result.tags?.find(t => t.key === 'model')?.val?.toLowerCase().includes('klingai') || 
+                          result.tags?.find(t => t.key === 'model')?.val?.toLowerCase().includes('keling');
+    const resolutionKey = isKelingModel ? 'resolution' : 'resolutionRatio';
+    const resolutionTag = result.tags?.find(t => t.key === resolutionKey)?.val;
+    if (resolutionTag) {
+      const targetResolution = resolutions.value.find(r => r.value === resolutionTag);
       if (targetResolution) {
-        currentResolution.value = targetResolution
+        currentResolution.value = targetResolution;
       }
     }
     
@@ -3921,13 +3965,42 @@ const fetchModelConfig = async (aiDriver?: string) => {
           console.log('图片生成模型列表：', imageModels.value);
           // 图片尺寸选项
           imageSizes.value = config.optionsInfo.optionsConf.aspectRatio?.conf.select||[];
-          // 分辨率选项
-          resolutions.value = config.optionsInfo.optionsConf.resolutionRatio?.conf.select||[];
+          
+          // 分辨率选项：可灵模型使用 resolution，其他模型使用 resolutionRatio
+          const isKelingModel = aiDriver?.toLowerCase().includes('klingai') || aiDriver?.toLowerCase().includes('keling');
+          if (isKelingModel) {
+            resolutions.value = config.optionsInfo.optionsConf.resolution?.conf.select||[];
+            const defaultResolution = config.optionsInfo.optionsDef.resolution;
+            if (defaultResolution && defaultResolution.value) {
+              const matchedResolution = resolutions.value.find(res => res.value === defaultResolution.value);
+              currentResolution.value = matchedResolution || resolutions.value[0] || null;
+            } else {
+              currentResolution.value = resolutions.value[0] || null;
+            }
+          } else {
+            resolutions.value = config.optionsInfo.optionsConf.resolutionRatio?.conf.select||[];
+            const defaultResolution = config.optionsInfo.optionsDef.resolutionRatio;
+            if (defaultResolution && defaultResolution.value) {
+              const matchedResolution = resolutions.value.find(res => res.value === defaultResolution.value);
+              currentResolution.value = matchedResolution || resolutions.value[0] || null;
+            } else {
+              currentResolution.value = resolutions.value[0] || null;
+            }
+          }
+          
           // 图片张数选项
           imageCounts.value = config.optionsInfo.optionsConf.genImageNum.conf.select||[];
-          // 当前选中的选项
-          currentSize.value = config.optionsInfo.optionsDef.aspectRatio||imageSizes.value[0];
-          currentResolution.value = config.optionsInfo.optionsDef.resolutionRatio||resolutions.value[0];
+          
+          // 当前选中的选项 - 需要从完整的选项列表中找到匹配的对象（包含 width 和 height）
+          const defaultAspectRatio = config.optionsInfo.optionsDef.aspectRatio;
+          if (defaultAspectRatio && defaultAspectRatio.value) {
+            // 从 imageSizes 中找到匹配的完整对象
+            const matchedSize = imageSizes.value.find(size => size.value === defaultAspectRatio.value);
+            currentSize.value = matchedSize || imageSizes.value[0];
+          } else {
+            currentSize.value = imageSizes.value[0];
+          }
+          
           currentImageCount.value = config.optionsInfo.optionsDef.genImageNum||imageCounts.value[0];
           console.log('默认图片尺寸：', currentSize.value);
           console.log('默认分辨率：', currentResolution.value);   
@@ -5122,16 +5195,31 @@ onUnmounted(() => {
   resize: none;
   padding: 0;
   box-shadow: none;
-  height: 56px !important;
-  overflow: hidden;
-  overflow-y: hidden !important;
-  scrollbar-width: none;
+  min-height: 56px !important;
+  max-height: 200px !important;
+  height: auto !important;
+  overflow-y: auto !important;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  padding-right: 8px;
 }
 
 .main-input :deep(.el-textarea__inner)::-webkit-scrollbar {
-  display: none;
+  width: 6px;
+}
+
+.main-input :deep(.el-textarea__inner)::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.main-input :deep(.el-textarea__inner)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.main-input :deep(.el-textarea__inner)::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .main-input :deep(.el-textarea__inner)::placeholder {
@@ -5154,6 +5242,8 @@ onUnmounted(() => {
 
 .main-input.compact :deep(.el-textarea__inner) {
   font-size: 13px;
+  min-height: 40px !important;
+  max-height: 150px !important;
 }
 
 .main-input.compact :deep(.el-input__count) {

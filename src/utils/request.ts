@@ -7,6 +7,8 @@ import axios, {
   type AxiosProgressEvent
 } from 'axios';
 import { ElMessage } from 'element-plus';
+import router from '@/router';
+import { useAuthStore } from '@/stores/auth';
 
 // 扩展 AxiosRequestConfig，添加 allowRepeat 配置项
 declare module 'axios' {
@@ -22,6 +24,31 @@ const pendingMap = new Map<string, Canceler>();
 const getPendingKey = (config: AxiosRequestConfig) => {
   const { url, method, params, data } = config;
   return [url, method, JSON.stringify(params), JSON.stringify(data)].join('&');
+};
+
+// 处理授权失败
+let isHandlingAuthError = false; // 防止重复处理
+const handleAuthError = () => {
+  if (isHandlingAuthError) return;
+  isHandlingAuthError = true;
+  
+  // 清空登录信息
+  const authStore = useAuthStore();
+  authStore.clearAuth();
+  
+  // 提示用户
+  ElMessage.error('登录已过期，请重新登录');
+  
+  // 跳转到登录页
+  router.push({
+    path: '/login',
+    query: { redirect: router.currentRoute.value.fullPath }
+  }).finally(() => {
+    // 重置标志，允许下次处理
+    setTimeout(() => {
+      isHandlingAuthError = false;
+    }, 1000);
+  });
 };
 
 // 创建 axios 实例
@@ -79,6 +106,10 @@ service.interceptors.response.use(
     if (resData.code === 200 || resData.code === 0) {  // 通常后端用0表示成功
       return resData;
     } else {
+      // 授权失败处理（401 未授权 或 403 禁止访问）
+      if (resData.code === 401 || resData.code === 403) {
+        handleAuthError();
+      }
       // 显示错误提示
       const errorMsg = resData.msg || '接口请求失败';
       // ElMessage.error(errorMsg);
@@ -96,6 +127,14 @@ service.interceptors.response.use(
     if (axios.isCancel(error)) {
       console.log('请求已取消：', error.message);
       return Promise.reject({ msg: '请求已取消', cancelled: true });
+    }
+    
+    // 处理 HTTP 状态码错误（401/403）
+    if (error.response) {
+      const status = error.response.status;
+      if (status === 401 || status === 403) {
+        handleAuthError();
+      }
     }
     
     // 处理网络错误
