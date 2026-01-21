@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="image-generate-container">
     <!-- 主要内容区域 -->
     <div class="main-content">
@@ -749,11 +749,22 @@
                         transform: `translateX(${idx * 8}px) translateY(${idx * 8}px)`
                       }"
                     >
-                      <img 
-                        :src="convertToProxyUrl(refImg)" 
-                        alt="参考图" 
-                        class="reference-thumb-image" 
-                        crossorigin="anonymous" 
+                      <!-- 如果是视频URL（第一个且是参考视频），使用video标签 -->
+                      <video
+                        v-if="idx === 0 && result.tags?.find(t => t.key === 'uploadVideo')?.showVal === refImg"
+                        :src="convertToProxyUrl(refImg)"
+                        class="reference-thumb-image"
+                        crossorigin="anonymous"
+                        muted
+                        preload="metadata"
+                      />
+                      <!-- 否则使用img标签 -->
+                      <img
+                        v-else
+                        :src="convertToProxyUrl(refImg)"
+                        alt="参考图"
+                        class="reference-thumb-image"
+                        crossorigin="anonymous"
                       />
                     </div>
                   </div>
@@ -2365,8 +2376,8 @@ const selectModel = (model: Model) => {
     } else {
       // 新模型不支持当前参考类型，重置为默认值并清空所有图片
       if (keLingOptions.value.length > 0) {
-        selectedKeLingOption.value = keLingOptions.value[0].label
-        selectedKeLingOptionVal.value = keLingOptions.value[0].value
+        selectedKeLingOption.value = keLingOptions?.value[0]?.label||'首尾帧'
+        selectedKeLingOptionVal.value = keLingOptions?.value[0]?.value||'first_tail'
       } else {
         selectedKeLingOption.value = '首尾帧'
         selectedKeLingOptionVal.value = 'first_tail'
@@ -2591,13 +2602,10 @@ const getReferenceImages = (result: HistoryResult): string[] => {
   
   // 对于视频生成结果，优先显示参考视频的封面图
   if (result.type === 2) {
-    const videoTag = result.tags.find(t => t.key === 'video')
-    if (videoTag?.showVal) {
-      // 如果有视频标签，尝试从assets中找到对应的封面
-      const videoAsset = result.assets?.find(a => a.type === 2 && a.coverUrl)
-      if (videoAsset?.coverUrl) {
-        referenceImages.push(videoAsset.coverUrl)
-      }
+    const uploadVideoTag = result.tags.find(t => t.key === 'uploadVideo')
+    if (uploadVideoTag?.showVal) {
+      // 如果有参考视频，将视频URL作为封面（浏览器会自动显示第一帧）
+      referenceImages.push(uploadVideoTag.showVal)
     }
   }
   
@@ -3647,20 +3655,10 @@ const editGeneration = async (result: HistoryResult) => {
     
     imageTags.forEach((imgTag, index) => {
       if (imgTag.val) {
-        // 尝试通过文件名匹配找到对应的资源
-        let matchingAsset = imageAssets.find(asset => {
-          const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
-          return assetFileName.includes(imgTag.val) || imgTag.val.includes(assetFileName)
-        })
         
-        // 如果没有找到匹配的，使用索引匹配
-        if (!matchingAsset && imageAssets[index]) {
-          matchingAsset = imageAssets[index]
-        }
-        
-        if (matchingAsset) {
-          const imageUrl = matchingAsset.coverUrl || matchingAsset.materialUrl || ''
-          if (imageUrl) {
+        // 直接使用 showVal（原始上传的图片）
+        const imageUrl = imgTag.showVal || imgTag.val
+        if (imageUrl) {
             // 创建一个临时的 File 对象用于满足 UploadFile 的 raw 属性要求
             const blob = new Blob([''], { type: 'image/jpeg' })
             const file = new File([blob], imgTag.val, { type: 'image/jpeg' })
@@ -3673,9 +3671,8 @@ const editGeneration = async (result: HistoryResult) => {
               val: imgTag.val
             })
             
-            console.log(`参考图片${index + 1}已恢复:`, imageUrl)
+            console.log(`参考图片${index + 1}已恢复（原始上传）:`, imageUrl)
           }
-        }
       }
     })
     
@@ -3755,33 +3752,24 @@ const editGeneration = async (result: HistoryResult) => {
     const imageFirstTag = result.tags?.find(t => t.key === 'imageFirst')
     if (imageFirstTag) {
       firstFrameImageVal.value = imageFirstTag.val || ''
-      firstFrameImage.value = imageFirstTag.showVal || ''
-      console.log('首帧图已恢复:', firstFrameImage.value, 'from showVal')
+      firstFrameImage.value = imageFirstTag.showVal || imageFirstTag.val || ''
+      console.log('首帧图已恢复（原始上传）:', firstFrameImage.value)
     }
     
     // 填充尾帧图 - 直接使用 tag 的 showVal
     const imageTailTag = result.tags?.find(t => t.key === 'imageTail')
     if (imageTailTag) {
       lastFrameImageVal.value = imageTailTag.val || ''
-      lastFrameImage.value = imageTailTag.showVal || ''
-      console.log('尾帧图已恢复:', lastFrameImage.value, 'from showVal')
+      lastFrameImage.value = imageTailTag.showVal || imageTailTag.val || ''
+      console.log('尾帧图已恢复（原始上传）:', lastFrameImage.value)
     }
     
-    // 填充参考视频 - 使用 materialUrl
+    // 填充参考视频 - 使用原始上传的视频（showVal）
     const uploadVideoTag = result.tags?.find(t => t.key === 'uploadVideo')
     if (uploadVideoTag && uploadVideoTag.val) {
       referenceVideoVal.value = uploadVideoTag.val
-      // 查找匹配的视频资源，使用 materialUrl
-      const matchingVideoAsset = videoAssets.find(asset => {
-        const assetFileName = asset.materialUrl?.split('/').pop()?.split('?')[0] || ''
-        return assetFileName.includes(uploadVideoTag.val) || uploadVideoTag.val.includes(assetFileName)
-      })
-      if (matchingVideoAsset) {
-        referenceVideo.value = matchingVideoAsset.materialUrl || ''
-        console.log('参考视频已恢复:', referenceVideo.value, 'from materialUrl')
-      } else {
-        console.warn('未找到参考视频匹配的资源:', uploadVideoTag.val)
-      }
+      referenceVideo.value = uploadVideoTag.showVal || uploadVideoTag.val
+      console.log('参考视频已恢复（原始上传）:', referenceVideo.value)
     }
     
     // 填充参考图片（多模态）
@@ -3796,19 +3784,12 @@ const editGeneration = async (result: HistoryResult) => {
       if (tagIndex < 4 && imgTag.val) {
         videoReferenceImagesVal.value[tagIndex] = imgTag.val
         
-        // 查找匹配的图片资源（排除已使用的）
-        const matchingAsset = imageAssets.find(asset => {
-          const assetUrl = asset.coverUrl || asset.materialUrl || ''
-          const assetFileName = assetUrl.split('/').pop()?.split('?')[0] || ''
-          const isNotUsed = !usedAssetUrls.has(assetUrl)
-          return isNotUsed && (assetFileName.includes(imgTag.val) || imgTag.val.includes(assetFileName))
-        })
-        
-        if (matchingAsset) {
-          const imageUrl = matchingAsset.coverUrl || matchingAsset.materialUrl || ''
+        // 直接使用 showVal（原始上传的图片）
+        const imageUrl = imgTag.showVal || imgTag.val
+        if (imageUrl) {
           videoReferenceImages.value[tagIndex] = imageUrl
           usedAssetUrls.add(imageUrl)
-          console.log(`参考图片${tagIndex + 1}已恢复:`, imageUrl)
+          console.log(`参考图片${tagIndex + 1}已恢复（原始上传）:`, imageUrl)
         }
       }
     })
