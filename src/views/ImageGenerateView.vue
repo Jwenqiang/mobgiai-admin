@@ -4128,7 +4128,6 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
       
       // 处理返回的数据
       const formattedResults: HistoryResult[] = list
-        .filter((item: { status: number }) => item.status === 2) // 只显示已完成的任务
         .map((item: {
           id: number
           type: number
