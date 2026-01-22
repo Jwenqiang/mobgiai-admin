@@ -173,7 +173,12 @@
                         :disabled="isVideoUploading"
                       >
                         <div class="upload-area-video" :class="{ 'has-video': referenceVideo, 'uploading': isVideoUploading }">
-                          <video v-if="referenceVideo && !isVideoUploading" :src="referenceVideo" class="uploaded-video" muted />
+                          <div v-if="referenceVideo && !isVideoUploading" class="video-preview-wrapper" @click.stop="previewReferenceVideo(referenceVideo)">
+                            <video :src="referenceVideo" class="uploaded-video" muted />
+                            <div class="video-play-overlay">
+                              <el-icon size="32" class="play-icon"><VideoPlay /></el-icon>
+                            </div>
+                          </div>
                           <div v-else-if="isVideoUploading" class="upload-progress-overlay">
                             <div class="progress-ring">
                               <svg class="progress-svg" viewBox="0 0 36 36">
@@ -1251,7 +1256,12 @@
                       :disabled="isVideoUploading"
                     >
                       <div class="upload-area-video compact" :class="{ 'has-video': referenceVideo, 'uploading': isVideoUploading }">
-                        <video v-if="referenceVideo && !isVideoUploading" :src="referenceVideo" class="uploaded-video" muted />
+                        <div v-if="referenceVideo && !isVideoUploading" class="video-preview-wrapper" @click.stop="previewReferenceVideo(referenceVideo)">
+                          <video :src="referenceVideo" class="uploaded-video" muted />
+                          <div class="video-play-overlay">
+                            <el-icon size="24" class="play-icon"><VideoPlay /></el-icon>
+                          </div>
+                        </div>
                         <div v-else-if="isVideoUploading" class="upload-progress-overlay compact">
                           <div class="progress-ring compact">
                             <svg class="progress-svg" viewBox="0 0 36 36">
@@ -2973,6 +2983,71 @@ const removeReferenceVideo = () => {
   referenceVideo.value = ''
   referenceVideoVal.value = ''
   ElMessage.success('参考视频已删除')
+}
+
+// 预览参考视频
+const previewReferenceVideo = (videoUrl: string) => {
+  // 创建预览弹窗
+  const previewDialog = document.createElement('div')
+  previewDialog.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    cursor: pointer;
+  `
+  
+  const videoContainer = document.createElement('div')
+  videoContainer.style.cssText = `
+    position: relative;
+    max-width: 90%;
+    max-height: 90%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  `
+  
+  const video = document.createElement('video')
+  video.src = videoUrl
+  video.controls = true
+  video.autoplay = true
+  video.style.cssText = `
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  `
+  
+  // 阻止视频点击事件冒泡
+  video.addEventListener('click', (e) => {
+    e.stopPropagation()
+  })
+  
+  videoContainer.appendChild(video)
+  previewDialog.appendChild(videoContainer)
+  document.body.appendChild(previewDialog)
+  
+  // 点击背景关闭预览
+  previewDialog.addEventListener('click', () => {
+    video.pause()
+    document.body.removeChild(previewDialog)
+  })
+  
+  // ESC键关闭预览
+  const handleEsc = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      video.pause()
+      document.body.removeChild(previewDialog)
+      document.removeEventListener('keydown', handleEsc)
+    }
+  }
+  document.addEventListener('keydown', handleEsc)
 }
 
 const previewReferenceImage = (imageUrl: string) => {
@@ -5755,6 +5830,46 @@ onUnmounted(() => {
   height: 100%;
   object-fit: cover;
   border-radius: 6px;
+}
+
+/* 视频预览包装器 */
+.video-preview-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.video-preview-wrapper:hover .video-play-overlay {
+  opacity: 1;
+}
+
+/* 视频播放覆盖层 */
+.video-play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.video-play-overlay .play-icon {
+  color: white;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  transition: transform 0.3s ease;
+}
+
+.video-preview-wrapper:hover .video-play-overlay .play-icon {
+  transform: scale(1.1);
 }
 
 .upload-placeholder {
