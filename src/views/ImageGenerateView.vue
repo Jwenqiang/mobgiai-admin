@@ -2223,6 +2223,7 @@ const maxConcurrentTasks = ref(5)
 const generationCooldown = ref(60000) // 1分钟冷却时间
 const pollingTimer = ref<number | null>(null) // 轮询定时器
 const pendingUserInputIds = ref<Set<number>>(new Set()) // 待轮询的 userInputId 集合
+const pendingResultIds = ref<Set<number>>(new Set()) // 待轮询的历史记录 ID 集合（用于列表中 status === 1 的记录）
 
 // 滚动相关状态
 const isScrolling = ref(false)
@@ -4187,6 +4188,17 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
         historyResults.value = formattedResults
       }
       
+      // 检查是否有 status === 1 的记录，如果有则启动轮询
+      const processingResults = formattedResults.filter(item => item.status === 1)
+      if (processingResults.length > 0) {
+        // 将这些记录的 ID 添加到待轮询集合
+        processingResults.forEach(item => {
+          pendingResultIds.value.add(item.id)
+        })
+        // 启动轮询
+        startPolling()
+      }
+      
       // 修复：判断是否还有更多数据
       // 如果当前页返回的原始数据少于每页大小，说明已经到最后一页了
       hasMore.value = list.length >= pageSize.value
@@ -4286,8 +4298,8 @@ const startPolling = () => {
   // 如果已经有轮询在运行，不重复启动
   if (pollingTimer.value) return
   
-  // 如果没有待轮询的 userInputId，不启动
-  if (pendingUserInputIds.value.size === 0) return
+  // 如果没有待轮询的 ID，不启动
+  if (pendingUserInputIds.value.size === 0 && pendingResultIds.value.size === 0) return
   
   pollingTimer.value = window.setInterval(async () => {
     await pollGenerateStatus()
@@ -4304,14 +4316,18 @@ const stopPolling = () => {
 
 // 轮询生成状态
 const pollGenerateStatus = async () => {
-  if (pendingUserInputIds.value.size === 0) {
+  // 如果没有待轮询的 ID，停止轮询
+  if (pendingUserInputIds.value.size === 0 && pendingResultIds.value.size === 0) {
     stopPolling()
     return
   }
   
   try {
+    // 合并两个集合的 ID
+    const allIds = new Set([...pendingUserInputIds.value, ...pendingResultIds.value])
+    
     // 将 Set 转换为逗号分隔的字符串
-    const userInputIds = Array.from(pendingUserInputIds.value).join(',')
+    const userInputIds = Array.from(allIds).join(',')
     
     // 调用状态查询接口
     const response = await getGenerateStatus({ userInputIds }) as ApiResponse<StatusResponse>
@@ -4321,62 +4337,118 @@ const pollGenerateStatus = async () => {
       
       // 遍历返回的状态列表
       for (const statusItem of statusList) {
-        const userInputId = statusItem.userInputId
+        const itemId = statusItem.id || statusItem.userInputId
         
         // 如果状态为成功（status === 2 表示成功）且有资源数据
         if (statusItem.status === 2 && statusItem.assets && statusItem.assets.length > 0) {
-          // 从待轮询列表中移除
-          pendingUserInputIds.value.delete(userInputId)
-          
-          // 从任务列表中移除对应的任务
-          const taskIndex = generationTasks.value.findIndex(t => t.userInputId === userInputId)
-          if (taskIndex > -1) {
-            generationTasks.value.splice(taskIndex, 1)
+          // 检查是否是历史记录中的项（status === 1 的记录）
+          if (pendingResultIds.value.has(itemId)) {
+            // 从待轮询列表中移除
+            pendingResultIds.value.delete(itemId)
+            
+            // 在 historyResults 中找到对应的记录并替换
+            const resultIndex = historyResults.value.findIndex(r => r.id === itemId)
+            if (resultIndex > -1) {
+              // 构建新的结果对象
+              const updatedResult: HistoryResult = {
+                id: itemId,
+                type: statusItem.type || historyResults.value[resultIndex].type,
+                status: statusItem.status,
+                createTime: statusItem.createTime || historyResults.value[resultIndex].createTime,
+                assets: statusItem.assets,
+                tags: statusItem.tags || historyResults.value[resultIndex].tags,
+                prompt: statusItem.tags?.find(t => t.key === 'prompt')?.val || historyResults.value[resultIndex].prompt,
+                genType: statusItem.type || historyResults.value[resultIndex].genType,
+                aiDriver: statusItem.tags?.find(t => t.key === 'aiDriver')?.val || historyResults.value[resultIndex].aiDriver,
+                // 提取图片URLs
+                images: statusItem.assets
+                  ?.filter((asset) => asset.type === 1)
+                  .map((asset) => asset.materialUrl || asset.coverUrl) || [],
+                // 提取视频URL
+                videoUrl: statusItem.assets?.find((asset) => asset.type === 2)?.materialUrl || '',
+                createdAt: new Date(statusItem.createTime || historyResults.value[resultIndex].createTime).getTime()
+              }
+              
+              // 替换原有记录
+              historyResults.value.splice(resultIndex, 1, updatedResult)
+              
+              // 显示成功提示
+              ElMessage.success({
+                message: `${statusItem.type === 2 ? '视频' : '图片'}生成完成`,
+                duration: 3000
+              })
+            }
           }
-          
-          // 动态将完成的结果插入到列表头部，不刷新列表接口
-          const newResult: HistoryResult = {
-            id: statusItem.id || userInputId,
-            type: statusItem.type || 1,
-            status: statusItem.status,
-            createTime: statusItem.createTime || new Date().toISOString(),
-            assets: statusItem.assets,
-            tags: statusItem.tags || [],
-            prompt: statusItem.prompt,
-            genType: statusItem.genType,
-            aiDriver: statusItem.aiDriver
+          // 检查是否是新生成任务（generationTasks 中的任务）
+          else if (pendingUserInputIds.value.has(itemId)) {
+            // 从待轮询列表中移除
+            pendingUserInputIds.value.delete(itemId)
+            
+            // 从任务列表中移除对应的任务
+            const taskIndex = generationTasks.value.findIndex(t => t.userInputId === itemId)
+            if (taskIndex > -1) {
+              generationTasks.value.splice(taskIndex, 1)
+            }
+            
+            // 动态将完成的结果插入到列表底部
+            const newResult: HistoryResult = {
+              id: itemId,
+              type: statusItem.type || 1,
+              status: statusItem.status,
+              createTime: statusItem.createTime || new Date().toISOString(),
+              assets: statusItem.assets,
+              tags: statusItem.tags || [],
+              prompt: statusItem.tags?.find(t => t.key === 'prompt')?.val || '',
+              genType: statusItem.type,
+              aiDriver: statusItem.tags?.find(t => t.key === 'aiDriver')?.val || 'AI模型',
+              // 提取图片URLs
+              images: statusItem.assets
+                ?.filter((asset) => asset.type === 1)
+                .map((asset) => asset.materialUrl || asset.coverUrl) || [],
+              // 提取视频URL
+              videoUrl: statusItem.assets?.find((asset) => asset.type === 2)?.materialUrl || '',
+              createdAt: new Date(statusItem.createTime || new Date().toISOString()).getTime()
+            }
+            
+            // 插入到结果列表底部
+            historyResults.value.push(newResult)
+            
+            // 滚动到底部 - 使用更长的延迟确保 DOM 更新
+            setTimeout(() => {
+              scrollToBottom()
+            }, 100)
           }
-          
-          // 插入到结果列表底部
-          historyResults.value.push(newResult)
-          
-          // 滚动到底部 - 使用更长的延迟确保 DOM 更新
-          setTimeout(() => {
-            scrollToBottom()
-          }, 100)
         }
         // 如果状态为失败（status === 3 表示失败）
         else if (statusItem.status === 3) {
-          // 从待轮询列表中移除
-          pendingUserInputIds.value.delete(userInputId)
+          // 从两个待轮询列表中移除
+          pendingResultIds.value.delete(itemId)
+          pendingUserInputIds.value.delete(itemId)
+          
+          // 检查是否在历史记录中
+          const resultIndex = historyResults.value.findIndex(r => r.id === itemId)
+          if (resultIndex > -1) {
+            // 更新状态为失败
+            historyResults.value[resultIndex].status = 3
+          }
           
           // 从任务列表中移除对应的任务
-          const taskIndex = generationTasks.value.findIndex(t => t.userInputId === userInputId)
+          const taskIndex = generationTasks.value.findIndex(t => t.userInputId === itemId)
           if (taskIndex > -1) {
             generationTasks.value.splice(taskIndex, 1)
           }
           
           // 显示友好的失败提示
           ElMessage.error({
-            message: `生成失败：${statusItem.prompt || '内容生成遇到问题，请稍后重试'}`,
+            message: `生成失败：${statusItem.tags?.find(t => t.key === 'prompt')?.val || '内容生成遇到问题，请稍后重试'}`,
             duration: 5000,
             showClose: true
           })
         }
       }
       
-      // 如果所有 userInputId 都已完成，停止轮询
-      if (pendingUserInputIds.value.size === 0) {
+      // 如果所有 ID 都已完成，停止轮询
+      if (pendingUserInputIds.value.size === 0 && pendingResultIds.value.size === 0) {
         stopPolling()
       }
     }
