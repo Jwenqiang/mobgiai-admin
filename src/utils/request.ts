@@ -109,7 +109,7 @@ service.interceptors.response.use(
       return resData;
     } else {
       // 授权失败处理（401 未授权 或 403 禁止访问）
-      if (resData.code === 401 || resData.code === 403) {
+      if (resData.code === 401 || resData.code === 403 || resData.code === 200003) {
         handleAuthError();
         // 授权失败时不再显示额外的错误提示
         return Promise.reject({ msg: '授权失败', code: resData.code, authError: true });

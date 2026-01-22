@@ -160,8 +160,8 @@ const handleLogout = async () => {
     })
     
     try {
-      // 调用退出登录API
-      logout()
+      // 调用退出登录API（等待完成后再清除本地状态）
+      await logout()
     } catch (error) {
       console.error('退出登录API调用失败:', error)
       // 即使API调用失败，也要清除本地状态

@@ -766,19 +766,28 @@
                   <div 
                     class="generation-prompt" 
                     :class="{ 
-                      'long-prompt': (result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 200,
+                      'long-prompt': (result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 100,
                       'expanded': result.promptExpanded 
                     }"
-                    @click="(result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 200 ? (result.promptExpanded = !result.promptExpanded) : null"
+                    @click="(result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 100 ? (result.promptExpanded = !result.promptExpanded) : null"
                   >
-                    {{ result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '暂无描述' }}
+                    {{ (result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '暂无描述').substring(0, 2000) }}
                   </div>
+                  <!-- 展开按钮 -->
                   <div 
-                    v-if="(result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 200 && !result.promptExpanded" 
+                    v-if="(result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 100 && !result.promptExpanded" 
                     class="prompt-expand-hint"
                     @click="result.promptExpanded = true"
                   >
                     <el-icon size="12"><ArrowDown /></el-icon>
+                  </div>
+                  <!-- 收起按钮 -->
+                  <div 
+                    v-if="(result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || '').length > 100 && result.promptExpanded" 
+                    class="prompt-collapse-hint"
+                    @click="result.promptExpanded = false"
+                  >
+                    <el-icon size="12"><ArrowUp /></el-icon>
                   </div>
                 </div>
               </div>
@@ -937,7 +946,7 @@
                 :key="asset.id"
                 class="generation-image-item"
                 :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '1:1')"
-                @click="previewImage(asset.materialUrl||asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)"
+                @click="previewImage(asset.materialUrl||asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val, result)"
               >
                 <div class="image-wrapper">
                   <img :src="convertToProxyUrl(asset.coverUrl||asset.materialUrl)" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" crossorigin="anonymous" />
@@ -960,7 +969,7 @@
 
             <!-- 视频结果显示 -->
             <div v-else-if="result.type === 2 && result.assets?.find(a => a.type === 2)" class="generation-images video-result-container">
-              <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.assets.find(a => a.type === 2)?.materialUrl || '', result.assets.find(a => a.type === 2), result.prompt || result.tags?.find(t => t.key === 'prompt')?.val)">
+              <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.assets.find(a => a.type === 2)?.materialUrl || '', result.assets.find(a => a.type === 2), result.prompt || result.tags?.find(t => t.key === 'prompt')?.val, result)">
                 <div class="image-wrapper video-wrapper" :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '16:9')">
                   <video 
                     :src="convertToProxyUrl(result.assets.find(a => a.type === 2)?.materialUrl)" 
@@ -1046,19 +1055,28 @@
                   <div 
                     class="generation-prompt" 
                     :class="{ 
-                      'long-prompt': (task.prompt || '').length > 200,
+                      'long-prompt': (task.prompt || '').length > 100,
                       'expanded': task.promptExpanded 
                     }"
-                    @click="(task.prompt || '').length > 200 ? (task.promptExpanded = !task.promptExpanded) : null"
+                    @click="(task.prompt || '').length > 100 ? (task.promptExpanded = !task.promptExpanded) : null"
                   >
-                    {{ task.prompt || '正在生成您描述的内容...' }}
+                    {{ (task.prompt || '正在生成您描述的内容...').substring(0, 2000) }}
                   </div>
+                  <!-- 展开按钮 -->
                   <div 
-                    v-if="(task.prompt || '').length > 200 && !task.promptExpanded" 
+                    v-if="(task.prompt || '').length > 100 && !task.promptExpanded" 
                     class="prompt-expand-hint"
                     @click="task.promptExpanded = true"
                   >
                     <el-icon size="12"><ArrowDown /></el-icon>
+                  </div>
+                  <!-- 收起按钮 -->
+                  <div 
+                    v-if="(task.prompt || '').length > 100 && task.promptExpanded" 
+                    class="prompt-collapse-hint"
+                    @click="task.promptExpanded = false"
+                  >
+                    <el-icon size="12"><ArrowUp /></el-icon>
                   </div>
                 </div>
               </div>
@@ -1834,6 +1852,31 @@
                 <h3 class="header-title">图片详情</h3>
               </div>
               
+              <!-- 元数据信息 - 移到提示词上方 -->
+              <div class="preview-metadata-section" v-if="previewMetadata">
+                <div class="metadata-row">
+                  <!-- AI模型 -->
+                  <div class="metadata-item-compact" v-if="previewMetadata.tags?.find(t => t.key === 'aiDriver')?.val">
+                    <span class="metadata-text-compact">{{ previewMetadata.tags.find(t => t.key === 'aiDriver')?.val }}</span>
+                  </div>
+                  
+                  <!-- 图片尺寸比例 -->
+                  <div class="metadata-item-compact" v-if="previewMetadata.tags?.find(t => t.key === 'aspectRatio')?.val">
+                    <span class="metadata-text-compact">{{ previewMetadata.tags.find(t => t.key === 'aspectRatio')?.val }}</span>
+                  </div>
+                  
+                  <!-- 分辨率 -->
+                  <div class="metadata-item-compact" v-if="previewMetadata.tags?.find(t => t.key === 'resolutionRatio')?.val">
+                    <span class="metadata-text-compact">{{ previewMetadata.tags.find(t => t.key === 'resolutionRatio')?.val }}</span>
+                  </div>
+                  
+                  <!-- 图片张数 -->
+                  <div class="metadata-item-compact" v-if="previewMetadata.tags?.find(t => t.key === 'genImageNum')?.val">
+                    <span class="metadata-text-compact">{{ previewMetadata.tags.find(t => t.key === 'genImageNum')?.val }}张</span>
+                  </div>
+                </div>
+              </div>
+              
               <!-- 提示词 -->
               <div class="preview-prompt-section" v-if="previewPrompt">
                 <div class="prompt-label">
@@ -1843,10 +1886,10 @@
                 <div class="prompt-text">{{ previewPrompt }}</div>
               </div>
               
-              <!-- 占位符 - 如果没有提示词 -->
-              <div v-else class="prompt-placeholder">
+              <!-- 占位符 - 如果没有提示词和元数据 -->
+              <div v-if="!previewPrompt && !previewMetadata" class="prompt-placeholder">
                 <el-icon><Edit /></el-icon>
-                <span>暂无提示词信息</span>
+                <span>暂无详细信息</span>
               </div>
               
               <!-- 操作按钮 -->
@@ -1904,6 +1947,31 @@
                 <h3 class="header-title">视频详情</h3>
               </div>
               
+              <!-- 元数据信息 - 移到提示词上方 -->
+              <div class="preview-metadata-section" v-if="previewMetadata">
+                <div class="metadata-row">
+                  <!-- AI模型 -->
+                  <div class="metadata-item-compact" v-if="previewMetadata.tags?.find(t => t.key === 'aiDriver')?.val">
+                    <span class="metadata-text-compact">{{ previewMetadata.tags.find(t => t.key === 'aiDriver')?.val }}</span>
+                  </div>
+                  
+                  <!-- 视频尺寸比例 -->
+                  <div class="metadata-item-compact" v-if="previewMetadata.tags?.find(t => t.key === 'aspectRatio')?.val">
+                    <span class="metadata-text-compact">{{ previewMetadata.tags.find(t => t.key === 'aspectRatio')?.val }}</span>
+                  </div>
+                  
+                  <!-- 视频时长 -->
+                  <div class="metadata-item-compact" v-if="previewMetadata.tags?.find(t => t.key === 'duration')?.val">
+                    <span class="metadata-text-compact">{{ previewMetadata.tags.find(t => t.key === 'duration')?.val }}秒</span>
+                  </div>
+                  
+                  <!-- 分辨率 -->
+                  <div class="metadata-item-compact" v-if="previewMetadata.tags?.find(t => t.key === 'resolutionRatio')?.val">
+                    <span class="metadata-text-compact">{{ previewMetadata.tags.find(t => t.key === 'resolutionRatio')?.val }}</span>
+                  </div>
+                </div>
+              </div>
+              
               <!-- 提示词 -->
               <div class="preview-prompt-section" v-if="previewPrompt">
                 <div class="prompt-label">
@@ -1913,10 +1981,11 @@
                 <div class="prompt-text">{{ previewPrompt }}</div>
               </div>
               
-              <!-- 占位符 - 如果没有提示词 -->
-              <div v-else class="prompt-placeholder">
+              
+              <!-- 占位符 - 如果没有提示词和元数据 -->
+              <div v-if="!previewPrompt && !previewMetadata" class="prompt-placeholder">
                 <el-icon><Edit /></el-icon>
-                <span>暂无提示词信息</span>
+                <span>暂无详细信息</span>
               </div>
               
               <!-- 操作按钮 -->
@@ -1945,7 +2014,7 @@ import { getTosToken } from '../api/index'
 import { ElMessage } from 'element-plus'
 import {
   Picture, Plus, Download, Clock, Close,
-  ArrowDown, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay, Loading, CircleClose
+  ArrowDown, ArrowUp, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay, Loading, CircleClose
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile, convertToProxyUrl } from '../utils'
@@ -2115,6 +2184,7 @@ const previewVisible = ref(false)
 const previewImageUrl = ref('')
 const previewImageData = ref<ImageResult | null>(null)
 const previewPrompt = ref('')
+const previewMetadata = ref<HistoryResult | null>(null) // 存储预览的元数据（模型、尺寸等）
 const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
 // 控制提示词输入框字数限制
@@ -3390,7 +3460,7 @@ const generateTask = async (taskId: string) => {
   }
 }
 
-const previewImage = (imageUrl: string, imageData?: Asset, promptText?: string) => {
+const previewImage = (imageUrl: string, imageData?: Asset, promptText?: string, resultData?: HistoryResult) => {
   previewImageUrl.value = imageUrl
   // 如果传入了imageData，使用它；否则创建一个临时对象
   previewImageData.value = imageData || {
@@ -3400,10 +3470,12 @@ const previewImage = (imageUrl: string, imageData?: Asset, promptText?: string) 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any
   previewPrompt.value = promptText || ''
+  // 存储元数据
+  previewMetadata.value = resultData || null
   previewVisible.value = true
 }
 
-const previewVideo = (videoUrl: string, videoData?: Asset, promptText?: string) => {
+const previewVideo = (videoUrl: string, videoData?: Asset, promptText?: string, resultData?: HistoryResult) => {
   previewVideoUrl.value = videoUrl
   // 如果没有传入videoData，创建一个临时对象
   previewVideoData.value = videoData ? {
@@ -3416,6 +3488,8 @@ const previewVideo = (videoUrl: string, videoData?: Asset, promptText?: string) 
     thumbnail: ''
   }
   previewPrompt.value = promptText || ''
+  // 存储元数据
+  previewMetadata.value = resultData || null
   videoPreviewVisible.value = true
 }
 
@@ -3943,6 +4017,12 @@ const fetchModelConfig = async (aiDriver?: string) => {
         currentModel.value = config.currentModel;
         // 模型提示词的数量限制
         inputSize.value = config.optionsInfo.optionsConf.prompt.conf.maxLen || 300;
+        
+        // 如果当前输入的提示词超过新模型的限制，自动截断
+        if (prompt.value.length > inputSize.value) {
+          prompt.value = prompt.value.substring(0, inputSize.value);
+          ElMessage.warning(`提示词已自动截断至${inputSize.value}字以适应当前模型`);
+        }
     }else{
       throw new Error('未获取到模型配置');
     }
@@ -6982,15 +7062,11 @@ onUnmounted(() => {
 /* 上部分：缩略图和描述 */
 .generation-header {
   display: flex;
+  flex-wrap: wrap; /* 允许换行 */
   gap: 6px;
-  align-items: center; /* 默认垂直居中 */
+  align-items: flex-start; /* 顶部对齐 */
   margin-bottom: 2px;
   min-height: 80px; /* 确保最小高度与缩略图一致 */
-}
-
-/* 当提示词较长时，改为顶部对齐 */
-.generation-header:has(.generation-prompt.long-prompt) {
-  align-items: flex-start;
 }
 
 .generation-thumbnail-wrapper {
@@ -7368,13 +7444,13 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  justify-content: center; /* 默认垂直居中 */
+  justify-content: flex-start;
 }
 
-/* 当提示词较长时，改为顶部对齐 */
-.generation-header:has(.generation-prompt.long-prompt) .generation-info {
-  justify-content: flex-start;
-  padding-top: 4px; /* 与缩略图顶部对齐时稍微下移 */
+/* 只有在展开时才占据整行，换行到下方 */
+.generation-header:has(.generation-prompt.expanded) .generation-info {
+  flex-basis: 100%; /* 占据整行，自动换行到下方 */
+  max-width: 100%;
 }
 
 /* 提示词容器 */
@@ -7391,13 +7467,12 @@ onUnmounted(() => {
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: pre-wrap;
-  max-height: 4.8em; /* 约3行 */
   overflow: hidden;
   position: relative;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* 长文本样式 */
+/* 长文本样式 - 在右侧时最多显示3行 */
 .generation-prompt.long-prompt {
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -7407,6 +7482,7 @@ onUnmounted(() => {
   cursor: pointer;
   padding-right: 28px;
   position: relative;
+  max-height: 5.1em; /* 3行高度 */
 }
 
 .generation-prompt.long-prompt::after {
@@ -7429,6 +7505,7 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 1);
 }
 
+/* 展开后显示全部内容，最多2000字 */
 .generation-prompt.long-prompt.expanded {
   -webkit-line-clamp: unset;
   max-height: none;
@@ -7468,15 +7545,33 @@ onUnmounted(() => {
   transform: translateY(2px);
 }
 
-/* 极短文本（少于50字）- 单行显示 */
-.generation-prompt:not(.long-prompt) {
-  max-height: 1.7em;
+/* 收起提示 */
+.prompt-collapse-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.15), rgba(102, 126, 234, 0.15));
+  border: 1px solid rgba(74, 144, 226, 0.3);
+  border-radius: 6px;
+  color: rgba(74, 144, 226, 0.9);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+  font-size: 13px;
 }
 
-/* 中等文本（50-200字）- 最多2行 */
-.generation-prompt:not(.long-prompt)[data-length="medium"] {
-  max-height: 3.4em;
-  -webkit-line-clamp: 2;
+.prompt-collapse-hint:hover {
+  color: rgba(74, 144, 226, 1);
+  background: linear-gradient(135deg, rgba(74, 144, 226, 0.25), rgba(102, 126, 234, 0.25));
+  border-color: rgba(74, 144, 226, 0.5);
+  box-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
+}
+
+.prompt-collapse-hint:active {
+  transform: scale(0.98);
 }
 
 /* 中部分：模型标签等信息 */
@@ -8798,7 +8893,7 @@ onUnmounted(() => {
 
 /* 提示词区域 */
 .preview-prompt-section {
-  flex: 1;
+  flex: 0 0 auto; /* 不伸缩，保持内容高度 */
   margin-bottom: 20px;
   display: flex;
   flex-direction: column;
@@ -8823,7 +8918,6 @@ onUnmounted(() => {
 }
 
 .prompt-text {
-  flex: 1;
   font-size: 13px;
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.95);
@@ -8837,7 +8931,7 @@ onUnmounted(() => {
   transition: all 0.3s ease;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
   min-height: 80px;
-  max-height: 250px;
+  max-height: 280px; /* 减小最大高度，确保下载按钮可见 */
 }
 
 .prompt-text:hover {
@@ -8866,7 +8960,6 @@ onUnmounted(() => {
 
 /* 占位符 */
 .prompt-placeholder {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -8884,6 +8977,96 @@ onUnmounted(() => {
 
 .prompt-placeholder .el-icon {
   font-size: 18px;
+}
+
+/* 元数据区域 */
+.preview-metadata-section {
+  margin-bottom: 16px;
+}
+
+/* 横向一排显示的元数据 */
+.metadata-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.metadata-item-compact {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.metadata-item-compact:hover {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+}
+
+.metadata-icon-compact {
+  width: 14px;
+  height: 14px;
+  color: rgba(102, 126, 234, 0.9);
+  flex-shrink: 0;
+  margin-right: 6px;
+}
+
+.metadata-text-compact {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* 旧的网格布局样式（保留以防需要） */
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.metadata-item {
+  background: rgba(0, 0, 0, 0.25);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.3s ease;
+}
+
+.metadata-item:hover {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(102, 126, 234, 0.3);
+  transform: translateY(-2px);
+}
+
+.metadata-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metadata-icon {
+  width: 14px;
+  height: 14px;
+  color: rgba(102, 126, 234, 0.8);
+}
+
+.metadata-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  word-break: break-word;
 }
 
 /* 操作按钮 */
@@ -9870,127 +10053,184 @@ body.el-popup-parent--hidden {
 }
 
 @media (max-width: 968px) {
+  .preview-dialog :deep(.el-dialog) {
+    width: 95% !important;
+  }
+  
   .preview-layout {
-    flex-direction: column;
+    flex-direction: row;
   }
   
   .preview-media-section {
-    min-height: 50vh;
-    padding: 30px 20px;
+    padding: 20px 16px;
   }
   
   .preview-info-section {
-    width: 100%;
-    max-height: 40vh;
-    border-left: none;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    width: 280px;
+    flex-shrink: 0;
   }
   
   .info-content {
-    padding: 24px 20px;
+    padding: 20px 16px;
   }
   
   .preview-header {
-    margin-bottom: 20px;
-    padding-bottom: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
   }
   
   .header-icon {
-    width: 40px;
-    height: 40px;
-    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
   }
   
   .header-title {
-    font-size: 18px;
+    font-size: 14px;
   }
   
   .preview-prompt-section {
-    margin-bottom: 20px;
+    margin-bottom: 16px;
+  }
+  
+  .prompt-label {
+    font-size: 10px;
+    margin-bottom: 6px;
+    gap: 4px;
+  }
+  
+  .prompt-label .el-icon {
+    font-size: 12px;
   }
   
   .prompt-text {
+    font-size: 11px;
+    padding: 10px;
+    line-height: 1.5;
+    min-height: 60px;
+    max-height: 180px;
+  }
+  
+  .prompt-placeholder {
+    padding: 16px 10px;
+    min-height: 60px;
+    font-size: 11px;
+  }
+  
+  .prompt-placeholder .el-icon {
     font-size: 14px;
-    padding: 16px;
+  }
+  
+  .preview-actions {
+    padding-top: 0;
+    gap: 8px;
   }
   
   .preview-action-btn {
-    height: 48px;
+    height: 38px;
+    font-size: 12px;
+  }
+  
+  .preview-action-btn .el-icon {
     font-size: 14px;
   }
 }
 
 @media (max-width: 768px) {
   .preview-dialog :deep(.el-dialog) {
-    width: 95% !important;
-    max-height: 95vh;
-    margin: 2.5vh auto !important;
+    width: 98% !important;
+    max-height: 96vh;
+    margin: 2vh auto !important;
   }
   
   .preview-close-btn {
-    top: 16px;
-    right: 16px;
-    width: 40px;
-    height: 40px;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
   }
   
   .preview-close-btn .el-icon {
-    font-size: 18px;
+    font-size: 14px;
   }
   
   .preview-media-section {
-    min-height: 45vh;
-    padding: 20px 16px;
+    padding: 16px 12px;
   }
   
   .preview-image,
   .preview-video {
-    max-height: calc(45vh - 40px);
-    border-radius: 16px;
+    border-radius: 10px;
+  }
+  
+  .preview-info-section {
+    width: 240px;
   }
   
   .info-content {
-    padding: 20px 16px;
+    padding: 16px 12px;
   }
   
   .preview-header {
-    gap: 10px;
-    margin-bottom: 16px;
-    padding-bottom: 12px;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
   }
   
   .header-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 18px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
   }
   
   .header-title {
-    font-size: 16px;
+    font-size: 13px;
+  }
+  
+  .preview-prompt-section {
+    margin-bottom: 12px;
   }
   
   .prompt-label {
-    font-size: 11px;
-    gap: 8px;
+    font-size: 9px;
+    gap: 4px;
+    margin-bottom: 5px;
   }
   
   .prompt-label .el-icon {
-    font-size: 16px;
+    font-size: 11px;
   }
   
   .prompt-text {
-    font-size: 13px;
-    padding: 14px;
-    line-height: 1.6;
+    font-size: 10px;
+    padding: 8px;
+    line-height: 1.4;
+    min-height: 50px;
+    max-height: 150px;
+  }
+  
+  .prompt-placeholder {
+    padding: 12px 8px;
+    min-height: 50px;
+    font-size: 10px;
+  }
+  
+  .prompt-placeholder .el-icon {
+    font-size: 12px;
+  }
+  
+  .preview-actions {
+    gap: 6px;
   }
   
   .preview-action-btn {
-    height: 44px;
-    font-size: 13px;
+    height: 34px;
+    font-size: 11px;
+    padding: 0 12px;
   }
   
   .preview-action-btn .el-icon {
-    font-size: 18px;
+    font-size: 13px;
   }
 }
 
