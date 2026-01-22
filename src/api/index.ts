@@ -73,7 +73,7 @@ export const login = (data: { mobile: string; code: string }) => {
 };
 // 登出接口
 export const logout = () => {
-  return get('/api/v1/user_/logout');
+  return get('/api/v1/user_auth/logout');
 };
 // 验证码接口
 export const getCode = (data: { mobile: string }) => {

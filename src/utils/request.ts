@@ -32,11 +32,15 @@ const handleAuthError = () => {
   if (isHandlingAuthError) return;
   isHandlingAuthError = true;
   
+  // 取消所有待处理的请求
+  pendingMap.forEach((cancel) => cancel('授权失败，取消所有请求'));
+  pendingMap.clear();
+  
   // 清空登录信息
   const authStore = useAuthStore();
   authStore.clearAuth();
   
-  // 提示用户
+  // 提示用户（只显示一次）
   ElMessage.error('登录已过期，请重新登录');
   
   // 跳转到登录页
@@ -99,8 +103,6 @@ service.interceptors.response.use(
 
     // const { code, msg, data } = response.data;
     const resData = response.data;
-    // 添加调试日志
-    console.log('响应拦截器 - 接口返回:', resData);
     
     // 根据你的后端接口规范调整成功状态码判断
     if (resData.code === 200 || resData.code === 0) {  // 通常后端用0表示成功
@@ -109,6 +111,8 @@ service.interceptors.response.use(
       // 授权失败处理（401 未授权 或 403 禁止访问）
       if (resData.code === 401 || resData.code === 403) {
         handleAuthError();
+        // 授权失败时不再显示额外的错误提示
+        return Promise.reject({ msg: '授权失败', code: resData.code, authError: true });
       }
       // 显示错误提示
       const errorMsg = resData.msg || '接口请求失败';
@@ -123,9 +127,9 @@ service.interceptors.response.use(
       const pendingKey = getPendingKey(error.config);
       pendingMap.delete(pendingKey);
     }
+    
     // 区分取消请求和其他错误
     if (axios.isCancel(error)) {
-      console.log('请求已取消：', error.message);
       return Promise.reject({ msg: '请求已取消', cancelled: true });
     }
     
@@ -134,13 +138,17 @@ service.interceptors.response.use(
       const status = error.response.status;
       if (status === 401 || status === 403) {
         handleAuthError();
+        // 授权失败时不再显示额外的错误提示
+        return Promise.reject({ msg: '授权失败', code: status, authError: true });
       }
     }
     
-    // 处理网络错误
-    const errorMsg = error.message || '网络异常';
-    // ElMessage.error(errorMsg);
-    return Promise.reject({ msg: errorMsg, error });
+    // 处理网络错误（非授权失败的情况才显示）
+    if (!isHandlingAuthError) {
+      const errorMsg = error.message || '网络异常';
+      // ElMessage.error(errorMsg);
+    }
+    return Promise.reject({ msg: error.message || '网络异常', error });
   }
 );
 

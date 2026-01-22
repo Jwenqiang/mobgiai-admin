@@ -114,17 +114,10 @@ const runDiagnosis = async () => {
   
   try {
     const baseUrl = import.meta.env.VITE_API_BASE_URL
-    console.log('开始TOS诊断，API地址:', baseUrl)
     
     const report = await diagnoseTosUpload(baseUrl)
     diagnosisResult.value = report
     printDiagnosisReport(report)
-    
-    if (report.overallStatus === 'success') {
-      console.log('✅ TOS配置正常，可以进行文件上传')
-    } else {
-      console.log('❌ TOS配置存在问题，请查看上方诊断结果')
-    }
   } catch (error: any) {
     console.error('诊断过程出错:', error)
     errorMessage.value = `诊断失败: ${error?.message || error}`
@@ -157,9 +150,7 @@ const handleVideoUpload = async (e: Event) => {
   });
 
   try {
-    console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken() as TosTokenResponse;
-    console.log('获取到的TOS临时配置：', tosConfig);
 
     // 检查配置完整性
     if (!tosConfig) {
@@ -182,7 +173,6 @@ const handleVideoUpload = async (e: Event) => {
     const result = await uploadBigVideoToTOS(file, tosConfig);
     
     uploadResult.value = result.videoUrl;
-    console.log('视频上传成功！地址：', result.videoUrl);
     
     // 显示成功消息
     ElMessage.success({
@@ -209,7 +199,6 @@ const handleVideoUpload = async (e: Event) => {
 const handleImageUpload = async (e: Event) => {
   const target = e.target as HTMLInputElement;
   const file = target.files?.[0];
-  console.log(file,"上传的图片")
   if (!file) return;
   if (!file.type.includes('image')) {
     errorMessage.value = '请选择正确的图片文件';
@@ -229,7 +218,6 @@ const handleImageUpload = async (e: Event) => {
   });
 
   try {
-    console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken() as TosTokenResponse;
     
     if (!tosConfig) {
@@ -240,7 +228,6 @@ const handleImageUpload = async (e: Event) => {
     const result = await uploadImageToTOS(file, tosConfig);
     
     uploadResult.value = result.imageUrl;
-    console.log('图片上传成功！地址：', result.imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();

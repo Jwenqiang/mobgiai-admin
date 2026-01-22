@@ -2222,7 +2222,6 @@ const selectModel = (model: Model) => {
   // 关闭 Popover
   modelPopoverRef.value?.hide()
   panelModelPopoverRef.value?.hide()
-  console.log('选择模型：', model)
   fetchModelConfig(model.aiDriver);
 }
 
@@ -2405,7 +2404,6 @@ const handleFirstFrameUpload = async (file: File) => {
   });
   
   try {
-    console.log('开始上传首帧图到TOS...');
     const tosConfig = await getTosToken();
     
     if (!tosConfig) {
@@ -2419,8 +2417,6 @@ const handleFirstFrameUpload = async (file: File) => {
     
     firstFrameImage.value = imageUrl;
     firstFrameImageVal.value = uploadFileName;
-    
-    console.log('首帧图上传成功！地址：', imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();
@@ -2451,7 +2447,6 @@ const handleLastFrameUpload = async (file: File) => {
   });
   
   try {
-    console.log('开始上传尾帧图到TOS...');
     const tosConfig = await getTosToken();
     
     if (!tosConfig) {
@@ -2465,8 +2460,6 @@ const handleLastFrameUpload = async (file: File) => {
     
     lastFrameImage.value = imageUrl;
     lastFrameImageVal.value = uploadFileName;
-    
-    console.log('尾帧图上传成功！地址：', imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();
@@ -2496,7 +2489,6 @@ const swapFrameImages = () => {
 }
 
 const handleVideoUpload = async (file: File) => {
-  console.log(file,"上传的视频")
   if (!file) return false;
   
   // 检查视频时长
@@ -2539,7 +2531,6 @@ const handleVideoUpload = async (file: File) => {
     
     referenceVideo.value = videoData.videoUrl;
     referenceVideoVal.value = videoData.uploadFileName;
-    console.log('视频上传成功！地址对象：', videoData);
     
     // 显示成功消息
     ElMessage.success({
@@ -2607,7 +2598,6 @@ const handleReferenceImageUpload = async (file: File) => {
   });
   
   try {
-    console.log('开始上传参考图片到TOS...');
     const tosConfig = await getTosToken();
     
     if (!tosConfig) {
@@ -2621,8 +2611,6 @@ const handleReferenceImageUpload = async (file: File) => {
     
     videoReferenceImages.value[emptyIndex] = imageUrl;
     videoReferenceImagesVal.value[emptyIndex] = uploadFileName;
-    
-    console.log(`第${emptyIndex + 1}张参考图片上传成功！地址：`, imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();
@@ -2720,7 +2708,6 @@ const handleImageUpload = async (uploadFile: any) => {
 
   // 上传到火山引擎tos上
   const file = uploadFile.raw;
-  console.log(file,"上传的图片")
   if (!file) return;
   if (!file.type.includes('image')) {
     ElMessage.warning("请选择正确的图片文件");
@@ -2754,7 +2741,6 @@ const handleImageUpload = async (uploadFile: any) => {
       val: imageuploadFileName
     }
     referenceImages.value.push(img);
-    console.log('图片上传成功！地址：', imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();
@@ -3187,8 +3173,6 @@ const downloadVideo = async (video: VideoResult) => {
       return
     }
     
-    console.log('开始下载视频:', videoUrl)
-    
     // 从 URL 中提取文件扩展名
     const urlParts = videoUrl.split('?')[0]
     if (!urlParts) return
@@ -3198,7 +3182,6 @@ const downloadVideo = async (video: VideoResult) => {
     const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'mp4'
     
     const filename = `generated_video_${video.id}.${ext}`
-    console.log('下载文件名:', filename, '扩展名:', ext)
     
     await downloadFile(videoUrl, filename)
     ElMessage.success('开始下载视频')
@@ -3211,7 +3194,6 @@ const downloadVideo = async (video: VideoResult) => {
 // 下载图片URL
 const downloadImageUrl = async (imageUrl: string, id: string | number, index: number) => {
   try {
-    console.log('开始下载图片:', imageUrl)
     
     // 从 URL 中提取文件扩展名
     const urlParts = imageUrl.split('?')[0] // 移除查询参数
@@ -3222,7 +3204,6 @@ const downloadImageUrl = async (imageUrl: string, id: string | number, index: nu
     const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'jpg'
     
     const filename = `generated_image_${id}_${index + 1}.${ext}`
-    console.log('下载文件名:', filename)
     
     await downloadFile(imageUrl, filename)
     ElMessage.success('图片下载成功')
@@ -3235,7 +3216,6 @@ const downloadImageUrl = async (imageUrl: string, id: string | number, index: nu
 // 下载视频URL
 const downloadVideoUrl = async (videoUrl: string, id: string | number) => {
   try {
-    console.log('开始下载视频:', videoUrl)
     await downloadFile(videoUrl, `generated_video_${id}.mp4`)
     ElMessage.success('视频下载成功')
   } catch (error) {
@@ -3246,7 +3226,6 @@ const downloadVideoUrl = async (videoUrl: string, id: string | number) => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const saveVideoToAssets = (video: VideoResult) => {
-  console.log('Saving video to assets:', video.id)
   ElMessage.success('视频已保存到资产库')
 }
 
@@ -3266,8 +3245,6 @@ const downloadImage = async (image: ImageResult) => {
       ElMessage.error('图片 URL 不存在，无法下载')
       return
     }
-    
-    console.log('开始下载图片:', imageUrl)
     
     // 从 URL 中提取文件扩展名
     const urlParts = imageUrl.split('?')[0] // 移除查询参数

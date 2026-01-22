@@ -685,76 +685,27 @@
           >
             <!-- 上部分：缩略图和描述 -->
             <div class="generation-header">
-              <div class="generation-thumbnail yes" 
-                   :class="{ 
-                     'failed-thumbnail': result.status === 3,
-                     'generating-thumbnail': result.status === 1,
-                     'queuing-thumbnail': result.status === 0
-                   }">
-                <!-- 排队中状态 (status === 0) -->
-                <div v-if="result.status === 0" class="queuing-placeholder">
-                  <div class="queuing-icon-wrapper">
-                    <el-icon size="32" class="queuing-icon">
-                      <VideoCamera v-if="result.type === 2" />
-                      <Picture v-else />
-                    </el-icon>
-                    <div class="queuing-overlay">
-                      <el-icon size="20" class="clock-icon"><Clock /></el-icon>
-                    </div>
-                  </div>
-                  <div class="queuing-text">排队中</div>
-                </div>
+              <!-- 只在有参考图或参考视频时显示缩略图 -->
+              <div 
+                v-if="getReferenceImages(result).length > 0"
+                class="generation-thumbnail-wrapper"
+              >
                 
-                <!-- 生成中状态 (status === 1) -->
-                <div v-else-if="result.status === 1" class="processing-placeholder">
-                  <div class="processing-icon-wrapper">
-                    <el-icon size="32" class="processing-icon">
-                      <VideoCamera v-if="result.type === 2" />
-                      <Picture v-else />
-                    </el-icon>
-                    <div class="processing-spinner">
-                      <el-icon size="20" class="loading-icon"><Loading /></el-icon>
-                    </div>
-                  </div>
-                  <div class="processing-text">生成中</div>
-                </div>
-                
-                <!-- 生成失败状态 (status === 3) -->
-                <div v-else-if="result.status === 3" class="failed-placeholder">
-                  <div class="failed-icon-wrapper">
-                    <el-icon size="32" class="failed-icon">
-                      <VideoCamera v-if="result.type === 2" />
-                      <Picture v-else />
-                    </el-icon>
-                    <div class="failed-overlay">
-                      <el-icon size="20" class="error-icon"><CircleClose /></el-icon>
-                    </div>
-                  </div>
-                  <div class="failed-text">生成失败</div>
-                </div>
-                
-                <!-- 正常状态 (status === 2) -->
-                <template v-else>
-                  <!-- 参考图片叠加效果 -->
-                  <div 
-                    v-if="getReferenceImages(result).length > 0" 
-                    class="reference-thumbnails-stack"
-                    :class="{ 'has-hover': getReferenceImages(result).length > 1 }"
-                  >
+                <!-- 照片堆叠容器 -->
+                <div class="photos-stack">
+                  <!-- 正常状态 (status === 2) - 显示参考图片，最多5张 -->
+                  <template v-if="result.status === 2">
                     <div 
-                      v-for="(refImg, idx) in getReferenceImages(result)" 
+                      v-for="(refImg, idx) in getReferenceImages(result).slice(0, 5)" 
                       :key="idx"
-                      class="reference-thumb-item"
-                      :style="{ 
-                        zIndex: getReferenceImages(result).length - idx,
-                        transform: `translateX(${idx * 8}px) translateY(${idx * 8}px)`
-                      }"
+                      class="photo-item"
+                      :class="`photo-${idx + 1}`"
                     >
                       <!-- 如果是视频URL（第一个且是参考视频），使用video标签 -->
                       <video
                         v-if="idx === 0 && result.tags?.find(t => t.key === 'uploadVideo')?.showVal === refImg"
                         :src="convertToProxyUrl(refImg)"
-                        class="reference-thumb-image"
+                        class="photo-image"
                         crossorigin="anonymous"
                         muted
                         preload="metadata"
@@ -764,39 +715,51 @@
                         v-else
                         :src="convertToProxyUrl(refImg)"
                         alt="参考图"
-                        class="reference-thumb-image"
+                        class="photo-image"
                         crossorigin="anonymous"
                       />
                     </div>
-                  </div>
+                  </template>
                   
-                  <!-- 没有参考图时显示默认缩略图 -->
-                  <template v-else>
-                    <!-- 图片生成结果：显示第一张生成的图片 -->
-                    <img v-if="result.type === 1 && result.assets?.length > 0 && result.assets[0]?.coverUrl" 
-                         :src="convertToProxyUrl(result.assets[0]?.coverUrl)" 
-                         alt="生成缩略图" 
-                         class="thumbnail-image" 
-                         crossorigin="anonymous" />
-                    <!-- 视频生成结果：显示默认视频缺省图 -->
-                    <div v-else-if="result.type === 2" class="thumbnail-video-wrapper">
-                      <div class="video-thumbnail-bg"></div>
-                      <div class="video-icon-wrapper">
-                        <div class="video-play-icon">
-                          <el-icon size="28"><VideoCamera /></el-icon>
-                        </div>
-                        <div class="video-pulse-ring"></div>
-                      </div>
-                    </div>
-                    <!-- 完全没有图片时的缺省图 -->
-                    <div v-else class="default-placeholder">
-                      <el-icon size="32" class="default-icon">
+                  <!-- 排队中状态 (status === 0) -->
+                  <div v-else-if="result.status === 0" class="photo-item photo-1 status-photo">
+                    <div class="status-placeholder queuing-state">
+                      <el-icon size="32" class="status-icon">
                         <VideoCamera v-if="result.type === 2" />
                         <Picture v-else />
                       </el-icon>
+                      <div class="status-badge queuing-badge">
+                        <el-icon size="16"><Clock /></el-icon>
+                      </div>
                     </div>
-                  </template>
-                </template>
+                  </div>
+                  
+                  <!-- 生成中状态 (status === 1) -->
+                  <div v-else-if="result.status === 1" class="photo-item photo-1 status-photo">
+                    <div class="status-placeholder processing-state">
+                      <el-icon size="32" class="status-icon">
+                        <VideoCamera v-if="result.type === 2" />
+                        <Picture v-else />
+                      </el-icon>
+                      <div class="status-badge processing-badge">
+                        <el-icon size="16" class="rotating"><Loading /></el-icon>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- 生成失败状态 (status === 3) -->
+                  <div v-else-if="result.status === 3" class="photo-item photo-1 status-photo">
+                    <div class="status-placeholder failed-state">
+                      <el-icon size="32" class="status-icon">
+                        <VideoCamera v-if="result.type === 2" />
+                        <Picture v-else />
+                      </el-icon>
+                      <div class="status-badge failed-badge">
+                        <el-icon size="16"><CircleClose /></el-icon>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="generation-info">
                 <div class="generation-prompt-wrapper">
@@ -2224,32 +2187,31 @@ const currentResolution = ref<Resolution | null>(null)
 const getCalculatedSize = () => {
   if (!currentSize.value) return { width: 0, height: 0 };
   
-  // 如果已经有 width 和 height，直接使用（后端返回的是最终值，不需要再乘以倍数）
-  if (currentSize.value.width && currentSize.value.height) {
-    return {
-      width: currentSize.value.width,
-      height: currentSize.value.height
-    };
-  }
-  
-  // 否则根据比例值计算默认尺寸
-  const aspectRatio = currentSize.value.value || '1:1';
-  const [w, h] = aspectRatio.split(':').map(Number);
-  
-  // 基础尺寸（2K）
-  const baseSize = 1440;
   let width = 0;
   let height = 0;
   
-  // 根据比例计算
-  if (w !== undefined && h !== undefined && w >= h) {
-    // 横向或正方形
-    width = baseSize;
-    height = Math.round(baseSize * h / w);
-  } else if (w !== undefined && h !== undefined) {
-    // 纵向
-    height = baseSize;
-    width = Math.round(baseSize * w / h);
+  // 如果已经有 width 和 height，使用这些值作为基础
+  if (currentSize.value.width && currentSize.value.height) {
+    width = currentSize.value.width;
+    height = currentSize.value.height;
+  } else {
+    // 否则根据比例值计算默认尺寸
+    const aspectRatio = currentSize.value.value || '1:1';
+    const [w, h] = aspectRatio.split(':').map(Number);
+    
+    // 基础尺寸（2K）
+    const baseSize = 1440;
+    
+    // 根据比例计算
+    if (w !== undefined && h !== undefined && w >= h) {
+      // 横向或正方形
+      width = baseSize;
+      height = Math.round(baseSize * h / w);
+    } else if (w !== undefined && h !== undefined) {
+      // 纵向
+      height = baseSize;
+      width = Math.round(baseSize * w / h);
+    }
   }
   
   // 如果是 4K，尺寸翻倍
@@ -2368,7 +2330,6 @@ const selectModel = (model: Model) => {
   // 关闭 Popover
   modelPopoverRef.value?.hide()
   panelModelPopoverRef.value?.hide()
-  console.log('选择模型：', model)
   
   // 清空所有配置参数（fetchModelConfig会重新设置默认值）
   // 图片相关配置
@@ -2669,8 +2630,8 @@ const getReferenceImages = (result: HistoryResult): string[] => {
     }
   })
   
-  // 去重并返回（最多返回4张）
-  return [...new Set(referenceImages)].slice(0, 4)
+  // 去重并返回（最多返回5张）
+  return [...new Set(referenceImages)].slice(0, 5)
 }
 
 // 视频上传处理方法
@@ -2689,7 +2650,6 @@ const handleFirstFrameUpload = async (file: File) => {
   });
   
   try {
-    console.log('开始上传首帧图到TOS...');
     const tosConfig = await getTosToken();
     
     if (!tosConfig) {
@@ -2703,8 +2663,6 @@ const handleFirstFrameUpload = async (file: File) => {
     
     firstFrameImage.value = imageUrl;
     firstFrameImageVal.value = uploadFileName;
-    
-    console.log('首帧图上传成功！地址：', imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();
@@ -2735,7 +2693,6 @@ const handleLastFrameUpload = async (file: File) => {
   });
   
   try {
-    console.log('开始上传尾帧图到TOS...');
     const tosConfig = await getTosToken();
     
     if (!tosConfig) {
@@ -2749,8 +2706,6 @@ const handleLastFrameUpload = async (file: File) => {
     
     lastFrameImage.value = imageUrl;
     lastFrameImageVal.value = uploadFileName;
-    
-    console.log('尾帧图上传成功！地址：', imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();
@@ -2794,13 +2749,11 @@ const removeLastFrameImage = () => {
 }
 
 const handleVideoUpload = async (file: File) => {
-  console.log(file,"上传的视频")
   if (!file) return false;
   
   // 检查视频时长
   try {
     const duration = await getVideoDuration(file);
-    console.log('视频时长：', duration, '秒');
     
     if (duration > 10) {
       ElMessage.warning('视频时长不能超过10秒');
@@ -2825,7 +2778,6 @@ const handleVideoUpload = async (file: File) => {
   });
   
   try {
-    console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken();
     
     if (!tosConfig) {
@@ -2837,7 +2789,6 @@ const handleVideoUpload = async (file: File) => {
     
     referenceVideo.value = videoData.videoUrl;
     referenceVideoVal.value = videoData.uploadFileName;
-    console.log('视频上传成功！地址对象：', videoData);
     
     // 显示成功消息
     ElMessage.success({
@@ -2905,7 +2856,6 @@ const handleReferenceImageUpload = async (file: File) => {
   });
   
   try {
-    console.log('开始上传参考图片到TOS...');
     const tosConfig = await getTosToken();
     
     if (!tosConfig) {
@@ -2919,8 +2869,6 @@ const handleReferenceImageUpload = async (file: File) => {
     
     videoReferenceImages.value[emptyIndex] = imageUrl;
     videoReferenceImagesVal.value[emptyIndex] = uploadFileName;
-    
-    console.log(`第${emptyIndex + 1}张参考图片上传成功！地址：`, imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();
@@ -3018,7 +2966,6 @@ const handleImageUpload = async (uploadFile: any) => {
 
   // 上传到火山引擎tos上
   const file = uploadFile.raw;
-  console.log(file,"上传的图片")
   if (!file) return;
   if (!file.type.includes('image')) {
     ElMessage.warning("请选择正确的图片文件");
@@ -3034,7 +2981,6 @@ const handleImageUpload = async (uploadFile: any) => {
   });
   
   try {
-    console.log('开始请求TOS配置...');
     const tosConfig = await getTosToken();
     
     if (!tosConfig) {
@@ -3052,7 +2998,6 @@ const handleImageUpload = async (uploadFile: any) => {
       val: imageuploadFileName
     }
     referenceImages.value.push(img);
-    console.log('图片上传成功！地址：', imageUrl);
     
     // 关闭loading并显示成功消息
     loadingMessage.close();
@@ -3508,8 +3453,6 @@ const downloadVideo = async (video: VideoResult) => {
       return
     }
     
-    console.log('开始下载视频:', videoUrl)
-    
     // 从 URL 中提取文件扩展名
     const urlParts = videoUrl.split('?')[0]
     if (!urlParts) return
@@ -3519,7 +3462,6 @@ const downloadVideo = async (video: VideoResult) => {
     const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'mp4'
     
     const filename = `generated_video_${video.id}.${ext}`
-    console.log('下载文件名:', filename, '扩展名:', ext)
     
     await downloadFile(videoUrl, filename)
     ElMessage.success('开始下载视频')
@@ -3532,8 +3474,6 @@ const downloadVideo = async (video: VideoResult) => {
 // 下载图片URL
 const downloadImageUrl = async (imageUrl: string, id: string | number, index: number) => {
   try {
-    console.log('开始下载图片:', imageUrl)
-    
     // 从 URL 中提取文件扩展名
     const urlParts = imageUrl.split('?')[0] // 移除查询参数
     if (!urlParts) return
@@ -3543,7 +3483,6 @@ const downloadImageUrl = async (imageUrl: string, id: string | number, index: nu
     const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'jpg'
     
     const filename = `generated_image_${id}_${index + 1}.${ext}`
-    console.log('下载文件名:', filename)
     
     await downloadFile(imageUrl, filename)
     ElMessage.success('图片下载成功')
@@ -3556,7 +3495,6 @@ const downloadImageUrl = async (imageUrl: string, id: string | number, index: nu
 // 下载视频URL
 const downloadVideoUrl = async (videoUrl: string, id: string | number) => {
   try {
-    console.log('开始下载视频:', videoUrl)
     await downloadFile(videoUrl, `generated_video_${id}.mp4`)
     ElMessage.success('视频下载成功')
   } catch (error) {
@@ -3567,7 +3505,6 @@ const downloadVideoUrl = async (videoUrl: string, id: string | number) => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const saveVideoToAssets = (video: VideoResult) => {
-  console.log('Saving video to assets:', video.id)
   ElMessage.success('视频已保存到资产库')
 }
 
@@ -3583,12 +3520,9 @@ const downloadImage = async (image: ImageResult) => {
     }
     
     if (!imageUrl) {
-      console.error('图片 URL 不存在:', image)
       ElMessage.error('图片 URL 不存在，无法下载')
       return
     }
-    
-    console.log('开始下载图片:', imageUrl)
     
     // 从 URL 中提取文件扩展名
     const urlParts = imageUrl.split('?')[0] // 移除查询参数
@@ -3599,7 +3533,6 @@ const downloadImage = async (image: ImageResult) => {
     const ext = urlFilename.includes('.') ? urlFilename.split('.').pop() : 'jpg'
     
     const filename = `generated_image_${image.id}.${ext}`
-    console.log('下载文件名:', filename, '扩展名:', ext)
     
     await downloadFile(imageUrl, filename)
     ElMessage.success('图片下载成功')
@@ -3611,7 +3544,6 @@ const downloadImage = async (image: ImageResult) => {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const saveToAssets = (image: ImageResult) => {
-  console.log('Saving image to assets:', image.id)
   ElMessage.success('图片已保存到资产库')
 }
 
@@ -3695,8 +3627,6 @@ const editGeneration = async (result: HistoryResult) => {
     const imageTags = result.tags?.filter(t => t.key === 'images' && t.type === 1) || []
     const imageAssets = result.assets?.filter(a => a.type === 1) || []
     
-    console.log('开始恢复参考图片:', { imageTags, imageAssets })
-    
     imageTags.forEach((imgTag, index) => {
       if (imgTag.val) {
         
@@ -3715,13 +3645,8 @@ const editGeneration = async (result: HistoryResult) => {
               val: imgTag.val
             })
             
-            console.log(`参考图片${index + 1}已恢复（原始上传）:`, imageUrl)
           }
       }
-    })
-    
-    console.log('图片生成参数已恢复:', {
-      referenceImages: referenceImages.value.map(img => img.url)
     })
     
   } else if (result.type === 2) {
@@ -3790,14 +3715,11 @@ const editGeneration = async (result: HistoryResult) => {
     const imageAssets = result.assets?.filter(a => a.type === 1) || []
     const videoAssets = result.assets?.filter(a => a.type === 2) || []
     
-    console.log('开始恢复视频参数:', { imageAssets, videoAssets, tags: result.tags })
-    
     // 填充首帧图 - 直接使用 tag 的 showVal
     const imageFirstTag = result.tags?.find(t => t.key === 'imageFirst')
     if (imageFirstTag) {
       firstFrameImageVal.value = imageFirstTag.val || ''
       firstFrameImage.value = imageFirstTag.showVal || imageFirstTag.val || ''
-      console.log('首帧图已恢复（原始上传）:', firstFrameImage.value)
     }
     
     // 填充尾帧图 - 直接使用 tag 的 showVal
@@ -3805,7 +3727,6 @@ const editGeneration = async (result: HistoryResult) => {
     if (imageTailTag) {
       lastFrameImageVal.value = imageTailTag.val || ''
       lastFrameImage.value = imageTailTag.showVal || imageTailTag.val || ''
-      console.log('尾帧图已恢复（原始上传）:', lastFrameImage.value)
     }
     
     // 填充参考视频 - 使用原始上传的视频（showVal）
@@ -3813,7 +3734,6 @@ const editGeneration = async (result: HistoryResult) => {
     if (uploadVideoTag && uploadVideoTag.val) {
       referenceVideoVal.value = uploadVideoTag.val
       referenceVideo.value = uploadVideoTag.showVal || uploadVideoTag.val
-      console.log('参考视频已恢复（原始上传）:', referenceVideo.value)
     }
     
     // 填充参考图片（多模态）
@@ -3833,17 +3753,10 @@ const editGeneration = async (result: HistoryResult) => {
         if (imageUrl) {
           videoReferenceImages.value[tagIndex] = imageUrl
           usedAssetUrls.add(imageUrl)
-          console.log(`参考图片${tagIndex + 1}已恢复（原始上传）:`, imageUrl)
         }
       }
     })
     
-    console.log('视频生成参数已恢复:', {
-      firstFrame: firstFrameImage.value,
-      lastFrame: lastFrameImage.value,
-      video: referenceVideo.value,
-      referenceImages: videoReferenceImages.value.filter(img => img)
-    })
   }
   
   // 5. 滚动到顶部，让用户看到输入区域
@@ -3893,7 +3806,6 @@ const regenerateFromHistory = async (result: HistoryResult) => {
   try {
     // 调用再次生成接口，传入结果的id到userInputId
     const response = await postAIGenerateRetry({ userInputId: result.id }) as ApiResponse<GenerateResponse>
-    console.log('再次生成请求成功:', response)
     
     // 如果响应中包含 userInputId，保存到任务中并添加到轮询列表
     if (response && response.data && response.data.userInputId) {
@@ -3962,7 +3874,6 @@ const fetchModelConfig = async (aiDriver?: string) => {
         if(genType===1){
           // 图片生成配置处理
           imageModels.value = config.supports||[];
-          console.log('图片生成模型列表：', imageModels.value);
           // 图片尺寸选项
           imageSizes.value = config.optionsInfo.optionsConf.aspectRatio?.conf.select||[];
           
@@ -4002,13 +3913,9 @@ const fetchModelConfig = async (aiDriver?: string) => {
           }
           
           currentImageCount.value = config.optionsInfo.optionsDef.genImageNum||imageCounts.value[0];
-          console.log('默认图片尺寸：', currentSize.value);
-          console.log('默认分辨率：', currentResolution.value);   
-          console.log('默认图片张数：', currentImageCount.value);   
           
         }else if(genType===2){  
           // 视频生成配置处理
-          console.log('视频生成模型配置：', config);
           videoModels.value = config.supports||[];
           hasEnableAudio.value=config.optionsInfo.optionsConf.generateAudio?.name?true:false;
           // 视频比例选项
@@ -4021,7 +3928,6 @@ const fetchModelConfig = async (aiDriver?: string) => {
           keepOriginalAudioOptions.value = config.optionsInfo.optionsConf.keepOriginalSound?.conf.select||[];
           //参考模型选项
           keLingOptions.value = config.optionsInfo.optionsConf.referType?.conf.select||[];
-          console.log(keLingOptions.value)
           
           // 默认选中的选项
           enableAudio.value=config.optionsInfo.optionsDef.generateAudio?.value;
@@ -4166,7 +4072,6 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
             initialLoading.value = false
             // 首次加载完成后设置Observer
             setTimeout(() => {
-              console.log('🎯 Initial load complete, setting up observer')
               setupIntersectionObserver()
             }, 200)
           }, 500)
@@ -4183,7 +4088,6 @@ const sendGenerateRequest = async (task: GenerationObj, taskId: string) => {
   try {
     // 这里调用实际的生成接口
     const response = await postAIGenerate(task) as ApiResponse<GenerateResponse>
-    console.log('生成请求成功:', response)
     
     // 如果响应中包含 userInputId，保存到任务中并添加到轮询列表
     if (response && response.data && response.data.userInputId) {
@@ -4358,16 +4262,12 @@ const scrollToBottom = () => {
     // 方法2：直接操作 main-content
     const mainContent = document.querySelector('.main-content') as HTMLElement
     if (mainContent) {
-      console.log('Using main-content, scrollHeight:', mainContent.scrollHeight)
       // 尝试多次设置，确保生效
       mainContent.scrollTop = mainContent.scrollHeight
       setTimeout(() => {
         mainContent.scrollTop = mainContent.scrollHeight
-        console.log('After double scroll, scrollTop:', mainContent.scrollTop)
       }, 50)
     }
-    
-    console.log('✅ scrollToBottom completed')
   }, 100)
 }
 
@@ -4394,43 +4294,12 @@ const handleScroll = () => {
     scrollDirection.value = 'up'
   }
   
-  // 调试信息
-  if (currentScrollTop < 300) {
-    console.log('📊 Scroll debug:', {
-      currentScrollTop,
-      lastScrollTop: lastScrollTop.value,
-      currentDirection,
-      hasMore: hasMore.value,
-      loadingMore: loadingMore.value,
-      initialLoading: initialLoading.value,
-      isInitialScrollDone: isInitialScrollDone.value,
-      isLoadingTriggered: isLoadingTriggered.value,
-      willTrigger: currentScrollTop < 200 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value
-    })
-  }
-  
-  console.log('🔍 Before if check:', {
-    condition1: currentScrollTop < 200,
-    condition2: hasMore.value,
-    condition3: !loadingMore.value,
-    condition4: isInitialScrollDone.value,
-    condition5: !isLoadingTriggered.value,
-    allConditions: currentScrollTop < 200 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value
-  })
-  
   // 检测是否滚动到顶部附近（距离顶部小于200px）
   // 简化逻辑：只要满足条件就触发，用标记防止重复
   if (currentScrollTop < 200 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value) {
-    console.log('🎯 Scrolled near top, loading more data', {
-      currentScrollTop,
-      hasMore: hasMore.value,
-      loadingMore: loadingMore.value
-    })
     isLoadingTriggered.value = true
     currentPage.value++
     fetchGenerateResults(currentPage.value, true)
-  } else {
-    console.log('❌ Condition not met')
   }
   
   // 当滚动离开顶部区域时，重置触发标记
@@ -4490,7 +4359,6 @@ onMounted(() => {
   window.addEventListener('scroll', handleScroll, { passive: true })
   
   // 不在这里设置 Observer，等初始加载完成后再设置
-  console.log('🎯 Component mounted, waiting for initial load to complete')
 })
 
 // 设置 Intersection Observer 监听底部元素
@@ -4525,18 +4393,9 @@ const setupIntersectionObserver = () => {
   loadMoreObserver.value = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        console.log('IntersectionObserver triggered:', {
-          isIntersecting: entry.isIntersecting,
-          hasMore: hasMore.value,
-          loadingMore: loadingMore.value,
-          currentPage: currentPage.value,
-          intersectionRatio: entry.intersectionRatio,
-          boundingClientRect: entry.boundingClientRect
-        })
         // 只有当元素真正进入视口时才触发加载
         // 使用 intersectionRatio > 0 确保元素至少部分可见
         if (entry.isIntersecting && entry.intersectionRatio > 0 && hasMore.value && !loadingMore.value) {
-          console.log('✅ Loading more data, page:', currentPage.value + 1)
           currentPage.value++
           fetchGenerateResults(currentPage.value, true)
         }
@@ -4549,7 +4408,6 @@ const setupIntersectionObserver = () => {
     }
   )
   
-  console.log('✅ IntersectionObserver setup complete, observing:', sentinelEl)
   loadMoreObserver.value.observe(sentinelEl)
 }
 
@@ -7124,7 +6982,7 @@ onUnmounted(() => {
 /* 上部分：缩略图和描述 */
 .generation-header {
   display: flex;
-  gap: 20px;
+  gap: 6px;
   align-items: center; /* 默认垂直居中 */
   margin-bottom: 2px;
   min-height: 80px; /* 确保最小高度与缩略图一致 */
@@ -7133,6 +6991,255 @@ onUnmounted(() => {
 /* 当提示词较长时，改为顶部对齐 */
 .generation-header:has(.generation-prompt.long-prompt) {
   align-items: flex-start;
+}
+
+.generation-thumbnail-wrapper {
+  position: relative;
+  width: auto;
+  height: 70px;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* 引号水印 - 左下角，大的白色圆形背景 */
+.quote-watermark {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.quote-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(220, 220, 225, 0.45);
+  line-height: 1;
+  font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+  letter-spacing: -1px;
+}
+
+/* 照片堆叠容器 */
+.photos-stack {
+  position: relative;
+  height: 100%;
+  display: inline-block;
+}
+
+/* 根据照片数量动态计算宽度 */
+.photos-stack:has(.photo-1:only-child) {
+  width: 52px; /* 1张照片：0px(左边距) + 52px(照片宽度) */
+}
+
+.photos-stack:has(.photo-2:last-child) {
+  width: 87px; /* 2张照片：0px + 35px + 52px */
+}
+
+.photos-stack:has(.photo-3:last-child) {
+  width: 122px; /* 3张照片：0px + 35px + 35px + 52px */
+}
+
+.photos-stack:has(.photo-4:last-child) {
+  width: 157px; /* 4张照片：0px + 35px*3 + 52px */
+}
+
+.photos-stack:has(.photo-5:last-child) {
+  width: 192px; /* 5张照片：0px + 35px*4 + 52px */
+}
+
+/* 单张照片样式 - 类似真实照片，3:4竖版比例 */
+.photo-item {
+  position: absolute;
+  width: 52px;
+  height: 70px;
+  background: #ffffff;
+  padding: 2px;
+  border-radius: 1px;
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.1),
+    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 3px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 第一张照片 - 最底层，左侧，轻微左旋 */
+.photo-1 {
+  left: 0px;
+  top: 0;
+  transform: rotate(-8deg);
+  z-index: 1;
+}
+
+/* 第二张照片 - 盖住第一张的三分之一 */
+.photo-2 {
+  left: 35px;
+  top: 2px;
+  transform: rotate(5deg);
+  z-index: 2;
+}
+
+/* 第三张照片 - 盖住第二张的三分之一 */
+.photo-3 {
+  left: 70px;
+  top: 1px;
+  transform: rotate(-3deg);
+  z-index: 3;
+}
+
+/* 第四张照片 - 盖住第三张的三分之一 */
+.photo-4 {
+  left: 105px;
+  top: 3px;
+  transform: rotate(6deg);
+  z-index: 4;
+}
+
+/* 第五张照片 - 盖住第四张的三分之一 */
+.photo-5 {
+  left: 140px;
+  top: 2px;
+  transform: rotate(-4deg);
+  z-index: 5;
+}
+
+/* hover效果 - 展开分离 */
+.generation-thumbnail-wrapper:hover .photo-1 {
+  left: 5px;
+  top: 0;
+  transform: rotate(-12deg) scale(1.05);
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.generation-thumbnail-wrapper:hover .photo-2 {
+  left: 80px;
+  top: 0;
+  transform: rotate(8deg) scale(1.05);
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.1);
+  z-index: 11;
+}
+
+.generation-thumbnail-wrapper:hover .photo-3 {
+  left: 155px;
+  top: 0;
+  transform: rotate(-5deg) scale(1.05);
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.1);
+  z-index: 12;
+}
+
+.generation-thumbnail-wrapper:hover .photo-4 {
+  left: 230px;
+  top: 0;
+  transform: rotate(7deg) scale(1.05);
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.1);
+  z-index: 13;
+}
+
+.generation-thumbnail-wrapper:hover .photo-5 {
+  left: 305px;
+  top: 0;
+  transform: rotate(-6deg) scale(1.05);
+  box-shadow: 
+    0 2px 6px rgba(0, 0, 0, 0.15),
+    0 4px 12px rgba(0, 0, 0, 0.12),
+    0 8px 24px rgba(0, 0, 0, 0.1);
+  z-index: 14;
+}
+
+/* 照片内的图片 */
+.photo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 1px;
+}
+
+/* 状态占位符 */
+.status-photo {
+  background: linear-gradient(135deg, #f8f8f8 0%, #ececec 100%);
+}
+
+.status-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-radius: 1px;
+}
+
+.status-icon {
+  color: rgba(120, 120, 120, 0.35);
+  font-size: 24px;
+}
+
+.status-badge {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.status-badge .el-icon {
+  font-size: 12px;
+}
+
+.queuing-badge {
+  background: linear-gradient(135deg, #ffc107 0%, #ffb300 100%);
+  animation: thumbPulse 2s infinite;
+}
+
+.processing-badge {
+  background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+}
+
+.failed-badge {
+  background: linear-gradient(135deg, #ff4d4f 0%, #e63946 100%);
+}
+
+.rotating {
+  animation: thumbRotate 1s linear infinite;
+}
+
+@keyframes thumbPulse {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes thumbRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .generation-thumbnail {
