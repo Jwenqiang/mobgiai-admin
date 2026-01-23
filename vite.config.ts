@@ -11,7 +11,7 @@ export default defineConfig({
     vueDevTools(),
   ],
   // 核心：base 必须和访问路径一致，结尾带 /
-  base: '/data/mobgi/', 
+  base: '/', 
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

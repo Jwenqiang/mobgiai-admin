@@ -4349,34 +4349,37 @@ const pollGenerateStatus = async () => {
             // 在 historyResults 中找到对应的记录并替换
             const resultIndex = historyResults.value.findIndex(r => r.id === itemId)
             if (resultIndex > -1) {
-              // 构建新的结果对象
-              const updatedResult: HistoryResult = {
-                id: itemId,
-                type: statusItem.type || historyResults.value[resultIndex].type,
-                status: statusItem.status,
-                createTime: statusItem.createTime || historyResults.value[resultIndex].createTime,
-                assets: statusItem.assets,
-                tags: statusItem.tags || historyResults.value[resultIndex].tags,
-                prompt: statusItem.tags?.find(t => t.key === 'prompt')?.val || historyResults.value[resultIndex].prompt,
-                genType: statusItem.type || historyResults.value[resultIndex].genType,
-                aiDriver: statusItem.tags?.find(t => t.key === 'aiDriver')?.val || historyResults.value[resultIndex].aiDriver,
-                // 提取图片URLs
-                images: statusItem.assets
-                  ?.filter((asset) => asset.type === 1)
-                  .map((asset) => asset.materialUrl || asset.coverUrl) || [],
-                // 提取视频URL
-                videoUrl: statusItem.assets?.find((asset) => asset.type === 2)?.materialUrl || '',
-                createdAt: new Date(statusItem.createTime || historyResults.value[resultIndex].createTime).getTime()
+              const existingResult = historyResults.value[resultIndex]
+              if (existingResult) {
+                // 构建新的结果对象
+                const updatedResult: HistoryResult = {
+                  id: itemId,
+                  type: statusItem.type || existingResult.type,
+                  status: statusItem.status,
+                  createTime: statusItem.createTime || existingResult.createTime,
+                  assets: statusItem.assets,
+                  tags: statusItem.tags || existingResult.tags,
+                  prompt: statusItem.tags?.find(t => t.key === 'prompt')?.val || existingResult.prompt,
+                  genType: statusItem.type || existingResult.genType,
+                  aiDriver: statusItem.tags?.find(t => t.key === 'aiDriver')?.val || existingResult.aiDriver,
+                  // 提取图片URLs
+                  images: statusItem.assets
+                    ?.filter((asset) => asset.type === 1)
+                    .map((asset) => asset.materialUrl || asset.coverUrl) || [],
+                  // 提取视频URL
+                  videoUrl: statusItem.assets?.find((asset) => asset.type === 2)?.materialUrl || '',
+                  createdAt: new Date(statusItem.createTime || existingResult.createTime).getTime()
+                }
+                
+                // 替换原有记录
+                historyResults.value.splice(resultIndex, 1, updatedResult)
+                
+                // 显示成功提示
+                ElMessage.success({
+                  message: `${statusItem.type === 2 ? '视频' : '图片'}生成完成`,
+                  duration: 3000
+                })
               }
-              
-              // 替换原有记录
-              historyResults.value.splice(resultIndex, 1, updatedResult)
-              
-              // 显示成功提示
-              ElMessage.success({
-                message: `${statusItem.type === 2 ? '视频' : '图片'}生成完成`,
-                duration: 3000
-              })
             }
           }
           // 检查是否是新生成任务（generationTasks 中的任务）
@@ -4428,8 +4431,11 @@ const pollGenerateStatus = async () => {
           // 检查是否在历史记录中
           const resultIndex = historyResults.value.findIndex(r => r.id === itemId)
           if (resultIndex > -1) {
-            // 更新状态为失败
-            historyResults.value[resultIndex].status = 3
+            const existingResult = historyResults.value[resultIndex]
+            if (existingResult) {
+              // 更新状态为失败
+              existingResult.status = 3
+            }
           }
           
           // 从任务列表中移除对应的任务

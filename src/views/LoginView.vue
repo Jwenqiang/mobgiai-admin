@@ -182,7 +182,7 @@ const handleLogin = async () => {
       
       // 跳转到主页面
       setTimeout(() => {
-        router.push('/dashboard/image-generate')
+        router.push('/mobgiAI/generate')
       }, 500)
     } 
     else {

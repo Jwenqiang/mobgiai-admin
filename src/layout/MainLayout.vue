@@ -27,17 +27,17 @@
           :collapse-transition="false"
           router
         >
-          <!-- <el-menu-item index="/dashboard/assets">
+          <!-- <el-menu-item index="/mobgiAI/assets">
             <el-icon><Wallet /></el-icon>
             <template #title>资产</template>
           </el-menu-item> -->
           
-          <!-- <el-menu-item index="/dashboard/video-generate">
+          <!-- <el-menu-item index="/mobgiAI/video-generate">
             <el-icon><VideoCamera /></el-icon>
             <template #title>视频生成</template>
           </el-menu-item> -->
           
-          <el-menu-item index="/dashboard/image-generate">
+          <el-menu-item index="/mobgiAI/generate">
             <!-- <el-icon><Picture /></el-icon> -->
             <el-icon><Opportunity /></el-icon>
             <template #title>MobgiAI创作</template>
@@ -55,7 +55,7 @@
       <div class="content-header">
         <div class="breadcrumb">
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item :to="{ path: '/dashboard' }">首页</el-breadcrumb-item>
+            <el-breadcrumb-item :to="{ path: '/mobgiAI' }">首页</el-breadcrumb-item>
             <el-breadcrumb-item>{{ currentPageTitle }}</el-breadcrumb-item>
           </el-breadcrumb>
         </div>
@@ -118,9 +118,9 @@ const activeMenu = computed(() => route.path)
 
 const currentPageTitle = computed(() => {
   const titleMap: Record<string, string> = {
-    '/dashboard/assets': '资产管理',
-    '/dashboard/video-generate': '视频生成',
-    '/dashboard/image-generate': 'MobgiAI创作'
+    '/mobgiAI/assets': '资产管理',
+    '/mobgiAI/video-generate': '视频生成',
+    '/mobgiAI/generate': 'MobgiAI创作'
   }
   return titleMap[route.path] || '首页'
 })

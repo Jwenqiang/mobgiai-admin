@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import MainLayout from '../layout/MainLayout.vue'
 import AssetsView from '../views/AssetsView.vue'
-import ImageGenerateView from '../views/ImageGenerateView.vue'
+import GenerateView from '../views/ImageGenerateView.vue'
 import { useAuthStore } from '../stores/auth'
 // 取消所有请求  用于路由跳转前取消所有请求
 import { cancelAllPending } from '@/utils/request';
@@ -21,9 +21,9 @@ const router = createRouter({
       meta: { requiresAuth: false }
     },
     {
-      path: '/dashboard',
+      path: '/mobgiAI',
       component: MainLayout,
-      redirect: '/dashboard/image-generate',
+      redirect: '/mobgiAI/generate',
       meta: { requiresAuth: true },
       children: [
         {
@@ -33,9 +33,9 @@ const router = createRouter({
           meta: { requiresAuth: true }
         },
         {
-          path: 'image-generate',
-          name: 'image-generate',
-          component: ImageGenerateView,
+          path: 'generate',
+          name: 'generate',
+          component: GenerateView,
           meta: { requiresAuth: true }
         }
       ]
@@ -62,7 +62,7 @@ router.beforeEach((to, _from, next) => {
     }
   } else if (to.path === '/login' && authStore.isLoggedIn) {
     // 已登录用户访问登录页，跳转到主页
-    next('/dashboard/image-generate')
+    next('/mobgiAI/generate')
     return
   }
   // 路由跳转前取消所有请求
