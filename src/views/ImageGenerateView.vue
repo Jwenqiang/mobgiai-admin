@@ -1843,6 +1843,27 @@
           <el-icon><Close /></el-icon>
         </div>
         
+        <!-- 左右切换按钮 -->
+        <div 
+          v-if="previewImageList.length > 1 && currentPreviewIndex > 0" 
+          class="preview-nav-btn prev-btn"
+          @click="prevImage"
+        >
+          <el-icon><ArrowLeft /></el-icon>
+        </div>
+        <div 
+          v-if="previewImageList.length > 1 && currentPreviewIndex < previewImageList.length - 1" 
+          class="preview-nav-btn next-btn"
+          @click="nextImage"
+        >
+          <el-icon><ArrowRight /></el-icon>
+        </div>
+        
+        <!-- 图片计数器 -->
+        <div v-if="previewImageList.length > 1" class="preview-counter">
+          {{ currentPreviewIndex + 1 }} / {{ previewImageList.length }}
+        </div>
+        
         <div class="preview-layout">
           <!-- 左侧：媒体展示区 -->
           <div class="preview-media-section">
@@ -2195,6 +2216,9 @@ const previewImageUrl = ref('')
 const previewImageData = ref<ImageResult | null>(null)
 const previewPrompt = ref('')
 const previewMetadata = ref<HistoryResult | null>(null) // 存储预览的元数据（模型、尺寸等）
+// 新增：图片列表预览相关状态
+const previewImageList = ref<Asset[]>([]) // 当前预览的图片列表
+const currentPreviewIndex = ref(0) // 当前预览的图片索引
 const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
 // 控制提示词输入框字数限制
@@ -3548,7 +3572,84 @@ const previewImage = (imageUrl: string, imageData?: Asset, promptText?: string, 
   previewPrompt.value = promptText || ''
   // 存储元数据
   previewMetadata.value = resultData || null
+  
+  // 如果 resultData 存在且有 assets，提取所有图片资源
+  if (resultData && resultData.assets) {
+    const imageAssets = resultData.assets.filter(asset => asset.type === 1)
+    if (imageAssets.length > 0) {
+      previewImageList.value = imageAssets
+      // 找到当前图片在列表中的索引
+      const currentIndex = imageAssets.findIndex(
+        asset => (asset.materialUrl || asset.coverUrl) === imageUrl
+      )
+      currentPreviewIndex.value = currentIndex >= 0 ? currentIndex : 0
+    } else {
+      // 如果没有图片资源，创建单个图片的列表
+      previewImageList.value = [imageData || {
+        id: Date.now(),
+        materialUrl: imageUrl,
+        coverUrl: imageUrl,
+        type: 1
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any]
+      currentPreviewIndex.value = 0
+    }
+  } else {
+    // 如果没有 resultData，创建单个图片的列表
+    previewImageList.value = [imageData || {
+      id: Date.now(),
+      materialUrl: imageUrl,
+      coverUrl: imageUrl,
+      type: 1
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any]
+    currentPreviewIndex.value = 0
+  }
+  
   previewVisible.value = true
+}
+
+// 切换到上一张图片
+const prevImage = () => {
+  if (currentPreviewIndex.value > 0) {
+    currentPreviewIndex.value--
+    updatePreviewImage()
+  }
+}
+
+// 切换到下一张图片
+const nextImage = () => {
+  if (currentPreviewIndex.value < previewImageList.value.length - 1) {
+    currentPreviewIndex.value++
+    updatePreviewImage()
+  }
+}
+
+// 更新预览图片
+const updatePreviewImage = () => {
+  const currentImage = previewImageList.value[currentPreviewIndex.value]
+  if (currentImage) {
+    previewImageUrl.value = currentImage.materialUrl || currentImage.coverUrl || ''
+    // 转换为 ImageResult 格式
+    previewImageData.value = {
+      id: currentImage.id.toString(),
+      url: currentImage.materialUrl || currentImage.coverUrl || '',
+      thumbnail: currentImage.coverUrl || currentImage.materialUrl || ''
+    }
+  }
+}
+
+// 键盘事件处理
+const handlePreviewKeydown = (event: KeyboardEvent) => {
+  if (!previewVisible.value) return
+  
+  if (event.key === 'ArrowLeft') {
+    prevImage()
+  } else if (event.key === 'ArrowRight') {
+    nextImage()
+  } else if (event.key === 'Escape') {
+    previewVisible.value = false
+  }
 }
 
 const previewVideo = (videoUrl: string, videoData?: Asset, promptText?: string, resultData?: HistoryResult) => {
@@ -4436,6 +4537,30 @@ const pollGenerateStatus = async () => {
               // 更新状态为失败
               existingResult.status = 3
             }
+          } else {
+            // 如果不在历史记录中（新生成的任务），插入失败记录到列表底部
+            const failedResult: HistoryResult = {
+              id: itemId,
+              type: statusItem.type || 1,
+              status: 3,
+              createTime: statusItem.createTime || new Date().toISOString(),
+              assets: statusItem.assets || [],
+              tags: statusItem.tags || [],
+              prompt: statusItem.tags?.find(t => t.key === 'prompt')?.val || '',
+              genType: statusItem.type || 1,
+              aiDriver: statusItem.tags?.find(t => t.key === 'aiDriver')?.val || 'AI模型',
+              images: [],
+              videoUrl: '',
+              createdAt: new Date(statusItem.createTime || new Date().toISOString()).getTime()
+            }
+            
+            // 插入到结果列表底部
+            historyResults.value.push(failedResult)
+            
+            // 滚动到底部
+            setTimeout(() => {
+              scrollToBottom()
+            }, 100)
           }
           
           // 从任务列表中移除对应的任务
@@ -4590,6 +4715,9 @@ onMounted(() => {
   
   window.addEventListener('scroll', handleScroll, { passive: true })
   
+  // 添加键盘事件监听（用于图片预览左右切换）
+  window.addEventListener('keydown', handlePreviewKeydown)
+  
   // 不在这里设置 Observer，等初始加载完成后再设置
 })
 
@@ -4663,6 +4791,9 @@ onUnmounted(() => {
   
   // 移除 window 滚动监听
   window.removeEventListener('scroll', handleScroll)
+  
+  // 移除键盘事件监听
+  window.removeEventListener('keydown', handlePreviewKeydown)
   
   // 断开 Intersection Observer
   if (loadMoreObserver.value) {
@@ -8882,6 +9013,78 @@ onUnmounted(() => {
   font-weight: 600;
   position: relative;
   z-index: 1;
+}
+
+/* 左右切换按钮 */
+.preview-nav-btn {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.preview-nav-btn.prev-btn {
+  left: 32px;
+}
+
+.preview-nav-btn.next-btn {
+  right: 32px;
+}
+
+.preview-nav-btn:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.18) 100%);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #ffffff;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 0 20px rgba(255, 255, 255, 0.2);
+}
+
+.preview-nav-btn:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.preview-nav-btn .el-icon {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+/* 图片计数器 */
+.preview-counter {
+  position: fixed;
+  top: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 24px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 10000;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.5px;
 }
 
 /* 左右布局 */

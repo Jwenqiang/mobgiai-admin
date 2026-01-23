@@ -136,7 +136,7 @@ service.interceptors.response.use(
     // 处理 HTTP 状态码错误（401/403）
     if (error.response) {
       const status = error.response.status;
-      if (status === 401 || status === 403) {
+      if (status === 401 || status === 403 || status === 200003) {
         handleAuthError();
         // 授权失败时不再显示额外的错误提示
         return Promise.reject({ msg: '授权失败', code: status, authError: true });

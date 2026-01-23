@@ -19,6 +19,8 @@
 - ⚡ **实时任务管理** - 支持多任务并发，实时显示生成进度
 - 🎯 **精细参数控制** - 比例、分辨率、时长、音频等全方位配置
 - 🌐 **TOS云存储集成** - 火山引擎TOS对象存储，安全可靠
+- 🔄 **智能轮询机制** - 自动轮询生成中的任务，完成后自动更新结果
+- 🖼️ **多图预览切换** - 支持左右切换查看同一结果的多张图片，键盘快捷键操作
 
 ## 🛠️ 技术栈
 
@@ -233,15 +235,50 @@ mobgiai-admin/
 - 任务状态实时更新
 
 #### 任务状态
-- **生成中**: 显示进度动画
-- **已完成**: 显示生成结果
-- **失败**: 显示错误信息，支持重试
+- **排队中 (status=0)**: 等待处理
+- **生成中 (status=1)**: 显示进度动画，自动轮询状态
+- **已完成 (status=2)**: 显示生成结果
+- **失败 (status=3)**: 显示错误信息，支持重试
+
+#### 智能轮询机制
+- 自动检测列表中 `status === 1` 的记录
+- 每 10 秒轮询一次任务状态
+- 状态变为已完成时自动替换数据并显示结果
+- 所有任务完成后自动停止轮询
+- 组件卸载时自动清理定时器
 
 #### 历史记录
 - 自动保存生成历史
 - 按时间倒序排列
 - 支持查看详细参数
 - 一键重新生成
+
+### 7. 图片预览功能
+
+#### 多图片浏览
+- 自动识别生成结果中的所有图片
+- 支持在同一预览窗口中浏览多张图片
+- 显示当前图片位置（如：2 / 4）
+
+#### 切换方式
+- **左右箭头按钮**: 点击切换上一张/下一张
+- **键盘快捷键**: 
+  - `←` 左箭头键：上一张
+  - `→` 右箭头键：下一张
+  - `Esc` 键：关闭预览
+- 到达首尾时自动隐藏对应按钮
+
+#### 信息展示
+- 生成提示词
+- AI 模型信息
+- 图片尺寸比例
+- 分辨率
+- 图片张数
+
+#### 操作功能
+- 下载当前预览的图片
+- 关闭预览窗口
+- 毛玻璃效果的现代化 UI 设计
 
 ## 🔧 API 接口说明
 
@@ -269,11 +306,19 @@ Response: { models: Model[], sizes: Size[], ... }
 // 提交生成任务
 POST /api/v1/user_input/generate
 Body: { prompt: string, model: string, params: object }
-Response: { taskId: string }
+Response: { userInputId: number }
 
-// 查询任务状态
-GET /api/v1/user_input/status?taskId=xxx
-Response: { status: string, result?: object }
+// 查询任务状态（支持批量查询）
+GET /api/v1/user_input/status?userInputIds=1,2,3
+Response: { 
+  list: [{
+    id: number,
+    userInputId: number,
+    status: number,  // 0=排队中, 1=生成中, 2=已完成, 3=失败
+    assets: Asset[],
+    tags: Tag[]
+  }]
+}
 
 // 获取生成历史
 GET /api/v1/user_input/list?page=1&size=20
@@ -281,7 +326,7 @@ Response: { list: GenerateResult[], total: number }
 
 // 重新生成
 POST /api/v1/user_input/retry
-Body: { taskId: string }
+Body: { userInputId: number }
 ```
 
 ### TOS 相关
@@ -433,6 +478,16 @@ VITE_APP_UPLOAD_URL=https://coforge-test.mobgi.com
 - 检查浏览器是否阻止下载
 - 尝试使用其他浏览器
 - 检查网络连接
+
+### 5. 生成中的任务不更新
+- 系统会自动每 10 秒轮询一次状态
+- 如果长时间未更新，可以刷新页面
+- 检查网络连接是否稳定
+
+### 6. 图片预览无法切换
+- 确保生成结果包含多张图片
+- 使用键盘左右箭头键或点击屏幕两侧按钮
+- 单张图片时不显示切换按钮
 
 ## 📄 许可证
 
