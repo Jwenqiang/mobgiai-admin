@@ -1724,7 +1724,7 @@
     </el-button> -->
 
     <!-- 上传图片预览对话框 -->
-    <el-dialog v-model="uploadPreviewVisible" title="图片预览" width="60%" center class="preview-dialog">
+    <el-dialog v-model="uploadPreviewVisible" title="图片预览" fullscreen class="preview-dialog upload-preview-dialog">
       <div class="preview-content">
         <img :src="uploadPreviewUrl" class="preview-image" />
       </div>
@@ -1734,8 +1734,7 @@
     <el-dialog 
       v-model="previewVisible" 
       title="" 
-      width="90%" 
-      center 
+      fullscreen
       class="preview-dialog image-preview-dialog" 
       :show-close="false"
       :close-on-click-modal="true"
@@ -1743,6 +1742,7 @@
       :lock-scroll="true"
       :modal="true"
       append-to-body
+    > append-to-body
     >
       <div v-if="previewImageData" class="preview-content">
         <div class="preview-close-btn" @click="previewVisible = false">
@@ -1804,8 +1804,7 @@
     <el-dialog 
       v-model="videoPreviewVisible" 
       title="" 
-      width="90%" 
-      center 
+      fullscreen
       class="preview-dialog video-preview-dialog" 
       :show-close="false"
       :close-on-click-modal="true"
@@ -1873,7 +1872,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { uploadBigVideoToTOS, uploadImageToTOS } from '../services/tos.js'
 import { getTosToken } from '../api/index'
 import { ElMessage } from 'element-plus'
@@ -2514,8 +2513,7 @@ const handleVideoUpload = async (file: File) => {
   ElMessage({
     message: '开始上传视频，请耐心等待...',
     type: 'info',
-    duration: 2000,
-    icon: 'VideoCamera'
+    duration: 2000
   });
   
   try {
@@ -4057,6 +4055,17 @@ onMounted(() => {
   setTimeout(() => {
     setupIntersectionObserver()
   }, 1000)
+})
+
+// 监听预览对话框状态，控制页面滚动
+watch([previewVisible, videoPreviewVisible, uploadPreviewVisible], ([newPreview, newVideoPreview, newUploadPreview]) => {
+  if (newPreview || newVideoPreview || newUploadPreview) {
+    // 打开预览时禁止滚动
+    document.body.style.overflow = 'hidden'
+  } else {
+    // 关闭预览时恢复滚动
+    document.body.style.overflow = ''
+  }
 })
 
 // 设置 Intersection Observer 监听底部元素
@@ -7304,14 +7313,6 @@ onUnmounted(() => {
   flex-shrink: 0; /* 防止缩小 */
 }
 
-/* 1张、2张、3张、4张图片都使用相同的样式 */
-.generation-images.count-1,
-.generation-images.count-2,
-.generation-images.count-3,
-.generation-images.count-4 {
-  /* 不需要特殊样式，所有图片都是固定宽度 */
-}
-
 /* 动态宽高比样式 - 根据设置的比例自动调整 */
 .generation-image-item.ratio-1-1 {
   aspect-ratio: 1/1;
@@ -7703,15 +7704,18 @@ onUnmounted(() => {
   box-shadow: 0 4px 16px rgba(74, 144, 226, 0.3);
 }
 
-/* 预览对话框 */
+/* 预览对话框 - 全屏样式 */
 .preview-dialog :deep(.el-dialog) {
-  background: transparent !important;
+  background: #000 !important;
   backdrop-filter: none;
   border: none !important;
   box-shadow: none !important;
-  max-width: 1100px;
-  max-height: 80vh;
-  margin: 5vh auto !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -7724,15 +7728,16 @@ onUnmounted(() => {
 .preview-dialog :deep(.el-dialog__body) {
   padding: 0;
   background: transparent;
-  height: 80vh;
-  max-height: 80vh;
+  height: 100vh;
+  max-height: 100vh;
+  width: 100vw;
   overflow: hidden;
   display: flex;
   align-items: center;
 }
 
 .preview-dialog :deep(.el-overlay) {
-  background-color: rgba(0, 0, 0, 0.94) !important;
+  background-color: rgba(0, 0, 0, 0.98) !important;
   backdrop-filter: blur(30px);
   overflow: hidden !important;
 }
@@ -7744,35 +7749,32 @@ onUnmounted(() => {
 
 .preview-content {
   position: relative;
-  height: 100%;
-  max-height: 80vh;
+  height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
-  width: 100%;
+  width: 100vw;
   overflow: hidden;
 }
 
 .preview-close-btn {
   position: fixed;
-  top: 24px;
-  right: 24px;
-  width: 48px;
-  height: 48px;
+  top: 32px;
+  right: 32px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
-  backdrop-filter: blur(30px) saturate(180%);
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10000;
+  z-index: 10001;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .preview-close-btn::before {
@@ -7780,20 +7782,17 @@ onUnmounted(() => {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
+  background: rgba(255, 255, 255, 0.1);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .preview-close-btn:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.15) 100%);
+  background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.4);
   color: #ffffff;
-  transform: rotate(90deg) scale(1.08);
-  box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 0 20px rgba(255, 255, 255, 0.15);
+  transform: scale(1.1);
+  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.6);
 }
 
 .preview-close-btn:hover::before {
@@ -7801,21 +7800,21 @@ onUnmounted(() => {
 }
 
 .preview-close-btn:active {
-  transform: rotate(90deg) scale(0.95);
+  transform: scale(0.95);
 }
 
 .preview-close-btn .el-icon {
-  font-size: 22px;
+  font-size: 24px;
   font-weight: 600;
   position: relative;
   z-index: 1;
 }
 
-/* 左右布局 */
+/* 左右布局 - 全屏 */
 .preview-layout {
   display: flex;
-  height: 100%;
-  max-height: 75vh;
+  height: 100vh;
+  max-height: 100vh;
   gap: 0;
   overflow: hidden;
 }
@@ -7884,26 +7883,20 @@ onUnmounted(() => {
 .preview-image,
 .preview-video {
   max-width: 100%;
-  max-height: calc(80vh - 48px);
+  max-height: 100vh;
   width: auto;
   height: auto;
   object-fit: contain;
-  border-radius: 16px;
-  box-shadow: 
-    0 30px 80px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 60px rgba(102, 126, 234, 0.15);
+  border-radius: 0;
+  box-shadow: none;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   background: #000;
 }
 
 .preview-image:hover,
 .preview-video:hover {
-  box-shadow: 
-    0 40px 100px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 0 80px rgba(102, 126, 234, 0.25);
-  transform: scale(1.01);
+  box-shadow: none;
+  transform: none;
 }
 
 /* 右侧信息区域 */

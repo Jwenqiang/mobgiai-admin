@@ -132,7 +132,6 @@ service.interceptors.response.use(
     if (axios.isCancel(error)) {
       return Promise.reject({ msg: '请求已取消', cancelled: true });
     }
-    
     // 处理 HTTP 状态码错误（401/403）
     if (error.response) {
       const status = error.response.status;

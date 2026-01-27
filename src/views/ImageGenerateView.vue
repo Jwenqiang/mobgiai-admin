@@ -659,6 +659,148 @@
 
       <!-- 结果展示区域 -->
       <div class="results-section">
+        <!-- 筛选器区域 - 悬浮在右上角 -->
+        <div v-if="historyResults.length > 0 || generationTasks.length > 0" class="filter-section-floating">
+          <div class="filter-container">
+            <!-- 时间筛选 -->
+            <el-popover
+              ref="timeFilterPopoverRef"
+              placement="bottom-end"
+              :width="360"
+              trigger="click"
+              popper-class="time-filter-popover"
+              :teleported="true"
+              :visible="timeFilterVisible"
+              @update:visible="handleTimeFilterVisibleChange"
+            >
+              <template #reference>
+                <div class="filter-btn-floating">
+                  <span>时间</span>
+                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                </div>
+              </template>
+              <div class="time-filter-content" @click.stop>
+                <!-- 日期范围选择 -->
+                <div class="date-range-section">
+                  <el-date-picker
+                    v-model="startDate"
+                    type="date"
+                    placeholder="开始日期"
+                    class="date-picker"
+                    :clearable="true"
+                    format="YYYY-MM-DD"
+                    value-format="YYYY-MM-DD"
+                    :disabled-date="disabledStartDate"
+                    @change="handleStartDateChange"
+                    @visible-change="handleDatePickerVisibleChange"
+                  />
+                  <span class="date-separator">-</span>
+                  <el-date-picker
+                    v-model="endDate"
+                    type="date"
+                    placeholder="结束日期"
+                    class="date-picker"
+                    :clearable="true"
+                    format="YYYY-MM-DD"
+                    value-format="YYYY-MM-DD"
+                    :disabled-date="disabledEndDate"
+                    @change="handleEndDateChange"
+                    @visible-change="handleDatePickerVisibleChange"
+                  />
+                </div>
+                
+                <!-- 快捷选项 -->
+                <div class="quick-options">
+                  <div 
+                    class="option-item"
+                    :class="{ active: selectedTimeRange === 'all' }"
+                    @click="selectTimeRange('all')"
+                  >
+                    <span>全部</span>
+                    <el-icon v-if="selectedTimeRange === 'all'" class="check-icon"><Check /></el-icon>
+                  </div>
+                  <div 
+                    class="option-item"
+                    :class="{ active: selectedTimeRange === 'week' }"
+                    @click="selectTimeRange('week')"
+                  >
+                    <span>最近一周</span>
+                    <el-icon v-if="selectedTimeRange === 'week'" class="check-icon"><Check /></el-icon>
+                  </div>
+                  <div 
+                    class="option-item"
+                    :class="{ active: selectedTimeRange === 'month' }"
+                    @click="selectTimeRange('month')"
+                  >
+                    <span>最近三个月</span>
+                    <el-icon v-if="selectedTimeRange === 'month'" class="check-icon"><Check /></el-icon>
+                  </div>
+                </div>
+                
+                <!-- 应用按钮 -->
+                <div v-if="startDate || endDate" class="filter-actions">
+                  <el-button 
+                    type="primary" 
+                    size="small" 
+                    @click="applyDateFilter"
+                    :disabled="!startDate || !endDate"
+                    class="apply-btn"
+                  >
+                    应用筛选
+                  </el-button>
+                </div>
+              </div>
+            </el-popover>
+
+            <div class="filter-divider-floating"></div>
+
+            <!-- 生成类型筛选 -->
+            <el-popover
+              ref="typeFilterPopoverRef"
+              placement="bottom-end"
+              :width="240"
+              trigger="click"
+              popper-class="type-filter-popover"
+              :teleported="true"
+              :visible="typeFilterVisible"
+              @update:visible="(val) => typeFilterVisible = val"
+            >
+              <template #reference>
+                <div class="filter-btn-floating">
+                  <span>生成类型</span>
+                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                </div>
+              </template>
+              <div class="type-filter-content">
+                <div 
+                  class="type-option"
+                  :class="{ active: selectedType === 'all' }"
+                  @click="selectType('all')"
+                >
+                  <span>全部</span>
+                  <el-icon v-if="selectedType === 'all'" class="check-icon"><Check /></el-icon>
+                </div>
+                <div 
+                  class="type-option"
+                  :class="{ active: selectedType === 'image' }"
+                  @click="selectType('image')"
+                >
+                  <span>图片</span>
+                  <el-icon v-if="selectedType === 'image'" class="check-icon"><Check /></el-icon>
+                </div>
+                <div 
+                  class="type-option"
+                  :class="{ active: selectedType === 'video' }"
+                  @click="selectType('video')"
+                >
+                  <span>视频</span>
+                  <el-icon v-if="selectedType === 'video'" class="check-icon"><Check /></el-icon>
+                </div>
+              </div>
+            </el-popover>
+          </div>
+        </div>
+
         <!-- 生成结果 - 新布局 -->
         <div v-if="historyResults.length > 0 || generationTasks.length > 0" class="results-display" ref="resultsDisplayRef">
           <!-- 滚动哨兵元素 - 用于触发上拉加载，放在顶部 -->
@@ -1009,10 +1151,10 @@
                 <el-icon class="button-icon"><Download /></el-icon>
                 <span>下载</span>
               </el-button>
-              <!-- <el-button class="action-button delete-button" @click="deleteHistoryItem(result.id)">
+              <el-button class="action-button delete-button" @click="deleteHistoryItem(result.id)">
                 <el-icon class="button-icon"><Delete /></el-icon>
                 <span>删除</span>
-              </el-button> -->
+              </el-button>
             </div>
           </div>
           
@@ -1818,7 +1960,7 @@
     </el-button> -->
 
     <!-- 上传图片预览对话框 -->
-    <el-dialog v-model="uploadPreviewVisible" title="图片预览" width="60%" center class="preview-dialog">
+    <el-dialog v-model="uploadPreviewVisible" title="图片预览" fullscreen class="preview-dialog upload-preview-dialog">
       <div class="preview-content">
         <img :src="uploadPreviewUrl" class="preview-image" />
       </div>
@@ -1828,8 +1970,7 @@
     <el-dialog 
       v-model="previewVisible" 
       title="" 
-      width="90%" 
-      center 
+      fullscreen
       class="preview-dialog image-preview-dialog" 
       :show-close="false"
       :close-on-click-modal="true"
@@ -1843,32 +1984,32 @@
           <el-icon><Close /></el-icon>
         </div>
         
-        <!-- 左右切换按钮 -->
-        <div 
-          v-if="previewImageList.length > 1 && currentPreviewIndex > 0" 
-          class="preview-nav-btn prev-btn"
-          @click="prevImage"
-        >
-          <el-icon><ArrowLeft /></el-icon>
-        </div>
-        <div 
-          v-if="previewImageList.length > 1 && currentPreviewIndex < previewImageList.length - 1" 
-          class="preview-nav-btn next-btn"
-          @click="nextImage"
-        >
-          <el-icon><ArrowRight /></el-icon>
-        </div>
-        
-        <!-- 图片计数器 -->
-        <div v-if="previewImageList.length > 1" class="preview-counter">
-          {{ currentPreviewIndex + 1 }} / {{ previewImageList.length }}
-        </div>
-        
         <div class="preview-layout">
           <!-- 左侧：媒体展示区 -->
           <div class="preview-media-section">
             <div class="media-container">
               <img :src="convertToProxyUrl(previewImageUrl)" class="preview-image" alt="预览图片" crossorigin="anonymous" />
+              
+              <!-- 左右切换按钮 -->
+              <div 
+                v-if="previewImageList.length > 1 && currentPreviewIndex > 0" 
+                class="preview-nav-btn prev-btn"
+                @click="prevImage"
+              >
+                <el-icon><ArrowLeft /></el-icon>
+              </div>
+              <div 
+                v-if="previewImageList.length > 1 && currentPreviewIndex < previewImageList.length - 1" 
+                class="preview-nav-btn next-btn"
+                @click="nextImage"
+              >
+                <el-icon><ArrowRight /></el-icon>
+              </div>
+              
+              <!-- 图片计数器 -->
+              <div v-if="previewImageList.length > 1" class="preview-counter">
+                {{ currentPreviewIndex + 1 }} / {{ previewImageList.length }}
+              </div>
             </div>
           </div>
           
@@ -1944,8 +2085,7 @@
     <el-dialog 
       v-model="videoPreviewVisible" 
       title="" 
-      width="90%" 
-      center 
+      fullscreen
       class="preview-dialog video-preview-dialog" 
       :show-close="false"
       :close-on-click-modal="true"
@@ -2039,17 +2179,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { uploadBigVideoToTOS, uploadImageToTOS } from '../services/tos.js'
 import { getTosToken } from '../api/index'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Picture, Plus, Download, Clock, Close,
   ArrowDown, ArrowUp, FullScreen, Check, Refresh, Edit, Delete, VideoCamera, Setting, Switch, VideoPlay, Loading, CircleClose
 } from '@element-plus/icons-vue'
 import { formatTime } from '../utils'
 import { downloadFile, convertToProxyUrl } from '../utils'
-import { getImgModelConfig, getGenerateResults, postAIGenerate, getGenerateStatus,postAIGenerateRetry } from '../api/generate'
+import { getImgModelConfig, getGenerateResults, postAIGenerate, getGenerateStatus,postAIGenerateRetry, deleteGenerate } from '../api/generate'
 
 interface UploadFile {
   uid: string
@@ -2266,6 +2406,17 @@ const videoParamsPopoverRef = ref()
 const panelVideoParamsPopoverRef = ref()
 const keLingPopoverRef = ref()
 const panelKeLingPopoverRef = ref()
+const timeFilterPopoverRef = ref()
+const typeFilterPopoverRef = ref()
+
+// 筛选相关状态
+const selectedTimeRange = ref<'all' | 'week' | 'month' | 'custom'>('all')
+const selectedType = ref<'all' | 'image' | 'video'>('all')
+const startDate = ref<string>('')
+const endDate = ref<string>('')
+const timeFilterVisible = ref(false)
+const typeFilterVisible = ref(false)
+const isSelectingDate = ref(false) // 标记是否正在选择日期
 
 // 图片生成模型选项
 const imageModels = ref<Model[]>([])
@@ -2878,8 +3029,7 @@ const handleVideoUpload = async (file: File) => {
   ElMessage({
     message: '开始上传视频，请耐心等待...',
     type: 'info',
-    duration: 2000,
-    icon: 'VideoCamera'
+    duration: 2000
   });
   
   try {
@@ -4094,16 +4244,149 @@ const regenerateFromHistory = async (result: HistoryResult) => {
 // 删除历史记录项
 const deleteHistoryItem = async (id: number) => {
   try {
-    // 这里应该调用删除接口
-    // await deleteGenerateResult(id)
+    // 二次确认
+    await ElMessageBox.confirm(
+      '确定要删除这条记录吗？删除后将无法恢复。',
+      '删除确认',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        customClass: 'custom-delete-confirm',
+        confirmButtonClass: 'custom-confirm-btn',
+        cancelButtonClass: 'custom-cancel-btn',
+        center: false,
+        showClose: true,
+        closeOnClickModal: false,
+        closeOnPressEscape: true,
+        draggable: false
+      }
+    )
+    
+    // 这里调用删除接口
+    await deleteGenerate({ id })
     
     // 从列表中移除
     historyResults.value = historyResults.value.filter(item => item.id !== id)
     ElMessage.success('已删除')
   } catch (error) {
+    // 用户取消删除
+    if (error === 'cancel') {
+      return
+    }
     console.error('删除失败:', error)
     ElMessage.error('删除失败，请重试')
   }
+}
+
+// 时间筛选方法
+const selectTimeRange = (range: 'all' | 'week' | 'month') => {
+  selectedTimeRange.value = range
+  
+  const now = new Date()
+  
+  if (range === 'all') {
+    startDate.value = ''
+    endDate.value = ''
+  } else if (range === 'week') {
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    startDate.value = weekAgo.toISOString().split('T')[0]
+    endDate.value = now.toISOString().split('T')[0]
+  } else if (range === 'month') {
+    const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+    startDate.value = threeMonthsAgo.toISOString().split('T')[0]
+    endDate.value = now.toISOString().split('T')[0]
+  }
+  
+  // 应用筛选
+  applyFilters()
+  
+  // 关闭弹窗
+  timeFilterVisible.value = false
+}
+
+// 类型筛选方法
+const selectType = (type: 'all' | 'image' | 'video') => {
+  selectedType.value = type
+  
+  // 应用筛选
+  applyFilters()
+  
+  // 关闭弹窗
+  typeFilterVisible.value = false
+}
+
+// 应用筛选
+const applyFilters = () => {
+  // 重置分页
+  currentPage.value = 1
+  historyResults.value = []
+  
+  // 重新加载数据
+  fetchGenerateResults(1, false)
+}
+
+// 禁用开始日期（不能大于结束日期）
+const disabledStartDate = (time: Date) => {
+  if (!endDate.value) return false
+  return time.getTime() > new Date(endDate.value).getTime()
+}
+
+// 禁用结束日期（不能小于开始日期）
+const disabledEndDate = (time: Date) => {
+  if (!startDate.value) return false
+  return time.getTime() < new Date(startDate.value).getTime()
+}
+
+// 处理开始日期变化
+const handleStartDateChange = (value: string) => {
+  if (value && endDate.value) {
+    // 如果开始日期大于结束日期，清空结束日期
+    if (new Date(value).getTime() > new Date(endDate.value).getTime()) {
+      endDate.value = ''
+      ElMessage.warning('开始日期不能大于结束日期')
+    }
+  }
+  // 设置为自定义模式
+  selectedTimeRange.value = 'all'
+}
+
+// 处理结束日期变化
+const handleEndDateChange = (value: string) => {
+  if (value && startDate.value) {
+    // 如果结束日期小于开始日期，清空开始日期
+    if (new Date(value).getTime() < new Date(startDate.value).getTime()) {
+      startDate.value = ''
+      ElMessage.warning('结束日期不能小于开始日期')
+    }
+  }
+  // 设置为自定义模式
+  selectedTimeRange.value = 'all'
+}
+
+// 应用日期筛选
+const applyDateFilter = () => {
+  if (startDate.value && endDate.value) {
+    applyFilters()
+    timeFilterVisible.value = false
+  }
+}
+
+// 处理时间筛选弹窗显示状态变化
+const handleTimeFilterVisibleChange = (visible: boolean) => {
+  // 如果正在选择日期，阻止关闭
+  if (!visible && isSelectingDate.value) {
+    nextTick(() => {
+      timeFilterVisible.value = true
+    })
+    return
+  }
+  timeFilterVisible.value = visible
+}
+
+// 处理日期选择器显示状态变化
+const handleDatePickerVisibleChange = (visible: boolean) => {
+  isSelectingDate.value = visible
 }
 
 //获取下拉框配置信息 genType=1 图片生成 genType=2 视频生成
@@ -4222,7 +4505,33 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
     if (page === 1 && !append) {
       initialLoading.value = true
     }
-    const results = await getGenerateResults({ page, pageSize: pageSize.value }) as ApiResponse<{ list: HistoryResult[], total: number }>
+    
+    // 构建筛选参数
+    const params: {
+      page: number
+      pageSize: number
+      startTime?: string
+      endTime?: string
+      type?: number
+    } = { 
+      page, 
+      pageSize: pageSize.value 
+    }
+    
+    // 添加时间筛选
+    if (startDate.value) {
+      params.startTime = startDate.value
+    }
+    if (endDate.value) {
+      params.endTime = endDate.value
+    }
+    
+    // 添加类型筛选
+    if (selectedType.value !== 'all') {
+      params.type = selectedType.value === 'image' ? 1 : 2
+    }
+    
+    const results = await getGenerateResults(params) as ApiResponse<{ list: HistoryResult[], total: number }>
     
     if (results && results.data) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -4719,6 +5028,17 @@ onMounted(() => {
   window.addEventListener('keydown', handlePreviewKeydown)
   
   // 不在这里设置 Observer，等初始加载完成后再设置
+})
+
+// 监听预览对话框状态，控制页面滚动
+watch([previewVisible, videoPreviewVisible, uploadPreviewVisible], ([newPreview, newVideoPreview, newUploadPreview]) => {
+  if (newPreview || newVideoPreview || newUploadPreview) {
+    // 打开预览时禁止滚动
+    document.body.style.overflow = 'hidden'
+  } else {
+    // 关闭预览时恢复滚动
+    document.body.style.overflow = ''
+  }
 })
 
 // 设置 Intersection Observer 监听底部元素
@@ -8508,14 +8828,6 @@ onUnmounted(() => {
   flex-shrink: 0; /* 防止缩小 */
 }
 
-/* 1张、2张、3张、4张图片都使用相同的样式 */
-.generation-images.count-1,
-.generation-images.count-2,
-.generation-images.count-3,
-.generation-images.count-4 {
-  /* 不需要特殊样式，所有图片都是固定宽度 */
-}
-
 /* 动态宽高比样式 - 根据设置的比例自动调整 */
 .generation-image-item.ratio-1-1 {
   aspect-ratio: 1/1;
@@ -8907,36 +9219,62 @@ onUnmounted(() => {
   box-shadow: 0 4px 16px rgba(74, 144, 226, 0.3);
 }
 
-/* 预览对话框 */
+/* 预览对话框 - 全屏样式 */
 .preview-dialog :deep(.el-dialog) {
-  background: transparent !important;
+  background: #000 !important;
   backdrop-filter: none;
   border: none !important;
   box-shadow: none !important;
-  max-width: 1100px;
-  max-height: 80vh;
-  margin: 5vh auto !important;
-  overflow: hidden;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
   display: flex;
   align-items: center;
+  left: 0 !important;
+  top: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
+/* 去掉全屏对话框的默认内边距 */
+.preview-dialog :deep(.el-dialog.is-fullscreen) {
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  left: 0 !important;
+  top: 0 !important;
 }
 
 .preview-dialog :deep(.el-dialog__header) {
-  display: none;
+  display: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  line-height: 0 !important;
 }
 
 .preview-dialog :deep(.el-dialog__body) {
-  padding: 0;
+  padding: 0 !important;
+  margin: 0 !important;
   background: transparent;
-  height: 80vh;
-  max-height: 80vh;
-  overflow: hidden;
+  height: 100vh !important;
+  max-height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
   display: flex;
   align-items: center;
 }
 
 .preview-dialog :deep(.el-overlay) {
-  background-color: rgba(0, 0, 0, 0.94) !important;
+  background-color: rgba(0, 0, 0, 0.98) !important;
   backdrop-filter: blur(30px);
   overflow: hidden !important;
 }
@@ -8944,117 +9282,139 @@ onUnmounted(() => {
 /* 确保对话框包装器不产生滚动 */
 .preview-dialog.el-overlay {
   overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 全局覆盖 Element Plus 全屏对话框样式 */
+.el-dialog.is-fullscreen {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  left: 0 !important;
+  top: 0 !important;
+}
+
+/* 强制去除所有可能的边距和滚动 */
+.preview-dialog,
+.preview-dialog * {
+  box-sizing: border-box;
+}
+
+.preview-dialog :deep(.el-dialog__wrapper) {
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* 确保body在预览时不滚动 */
+body:has(.preview-dialog.el-overlay) {
+  overflow: hidden !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.el-dialog .is-fullscreen{
+  padding: 0 !important;
+}
+/* 去掉所有滚动条 */
+.preview-dialog :deep(*) {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.preview-dialog :deep(*::-webkit-scrollbar) {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .preview-content {
   position: relative;
-  height: 100%;
-  max-height: 80vh;
+  height: 100vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   width: 100%;
-  overflow: hidden;
+  overflow: hidden !important;
+  margin: 0;
+  padding: 0;
 }
 
 .preview-close-btn {
   position: fixed;
-  top: 24px;
-  right: 24px;
-  width: 48px;
-  height: 48px;
+  top: 10px;
+  right: 14px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.08) 100%);
-  backdrop-filter: blur(30px) saturate(180%);
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10000;
+  z-index: 10002;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  overflow: hidden;
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 .preview-close-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
+  display: none;
 }
 
 .preview-close-btn:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.15) 100%);
-  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(0, 0, 0, 0.6);
   color: #ffffff;
-  transform: rotate(90deg) scale(1.08);
-  box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 0 20px rgba(255, 255, 255, 0.15);
-}
-
-.preview-close-btn:hover::before {
-  opacity: 1;
+  transform: scale(1.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .preview-close-btn:active {
-  transform: rotate(90deg) scale(0.95);
+  transform: scale(0.95);
 }
 
 .preview-close-btn .el-icon {
-  font-size: 22px;
-  font-weight: 600;
-  position: relative;
-  z-index: 1;
+  font-size: 20px;
+  font-weight: 500;
 }
 
 /* 左右切换按钮 */
 .preview-nav-btn {
-  position: fixed;
+  position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 56px;
-  height: 56px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10000;
+  z-index: 10;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: rgba(255, 255, 255, 0.95);
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 .preview-nav-btn.prev-btn {
-  left: 32px;
+  left: 20px;
 }
 
 .preview-nav-btn.next-btn {
-  right: 32px;
+  right: 20px;
 }
 
 .preview-nav-btn:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.18) 100%);
-  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   color: #ffffff;
   transform: translateY(-50%) scale(1.1);
-  box-shadow: 
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3),
-    0 0 20px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .preview-nav-btn:active {
@@ -9068,32 +9428,34 @@ onUnmounted(() => {
 
 /* 图片计数器 */
 .preview-counter {
-  position: fixed;
-  top: 32px;
+  position: absolute;
+  bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 10px 24px;
-  border-radius: 24px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1.5px solid rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.95);
+  padding: 8px 20px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  border: none;
+  color: #ffffff;
   font-size: 14px;
-  font-weight: 600;
-  z-index: 10000;
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  font-weight: 500;
+  z-index: 10;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
   letter-spacing: 0.5px;
+  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* 左右布局 */
+/* 左右布局 - 全屏 */
 .preview-layout {
   display: flex;
-  height: 100%;
-  max-height: 75vh;
+  height: 100vh;
+  max-height: 100vh;
   gap: 0;
-  overflow: hidden;
+  overflow: hidden !important;
+  margin: 0;
+  padding: 0;
+  width: 100vw;
 }
 
 /* 左侧媒体区域 */
@@ -9103,37 +9465,35 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, rgba(18, 18, 28, 0.4) 0%, rgba(10, 10, 20, 0.6) 100%);
-  padding: 20px;
+  background: #000; /* 纯黑色背景 */
+  padding: 0; /* 去除所有padding */
   position: relative;
-  overflow: hidden;
+  overflow: hidden !important;
+  margin: 0;
+  height: 100vh;
+  max-height: 100vh;
 }
 
+/* 媒体容器需要相对定位，以便箭头和计数器相对于它定位 */
+.media-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0; /* 去掉所有padding */
+}
+
+/* 移除装饰性背景效果 */
 .preview-media-section::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 500px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(102, 126, 234, 0.12) 0%, transparent 70%);
-  pointer-events: none;
-  filter: blur(80px);
-  animation: pulseGlow 6s ease-in-out infinite;
+  display: none;
 }
 
 .preview-media-section::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 30%, rgba(102, 126, 234, 0.08) 0%, transparent 40%),
-    radial-gradient(circle at 80% 70%, rgba(118, 75, 162, 0.08) 0%, transparent 40%);
-  pointer-events: none;
+  display: none;
 }
 
 @keyframes pulseGlow {
@@ -9147,39 +9507,26 @@ onUnmounted(() => {
   }
 }
 
-.media-container {
-  position: relative;
-  z-index: 1;
-  max-width: 100%;
-  max-height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .preview-image,
 .preview-video {
-  max-width: 100%;
-  max-height: calc(80vh - 48px);
+  max-width: calc(100% - 40px); /* 减去左右padding */
+  max-height: 80vh; /* 限制最大高度为80vh，配合10%上下边距 */
   width: auto;
   height: auto;
   object-fit: contain;
-  border-radius: 16px;
-  box-shadow: 
-    0 30px 80px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 0 60px rgba(102, 126, 234, 0.15);
+  border-radius: 0;
+  box-shadow: none;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  background: #000;
+  background: transparent;
+  margin: 0;
+  padding: 0;
+  display: block;
 }
 
 .preview-image:hover,
 .preview-video:hover {
-  box-shadow: 
-    0 40px 100px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(255, 255, 255, 0.12),
-    0 0 80px rgba(102, 126, 234, 0.25);
-  transform: scale(1.01);
+  box-shadow: none;
+  transform: none;
 }
 
 /* 右侧信息区域 */
@@ -9195,8 +9542,12 @@ onUnmounted(() => {
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden !important;
   position: relative;
+  height: 100vh;
+  max-height: 100vh;
+  margin: 0;
+  padding: 0;
 }
 
 .preview-info-section::before {
@@ -9215,30 +9566,20 @@ onUnmounted(() => {
 .info-content {
   position: relative;
   z-index: 1;
-  padding: 24px 20px;
+  padding: 60px 20px 24px 20px; /* 减少顶部padding */
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow-y: auto;
+  scrollbar-width: none; /* Firefox 隐藏滚动条 */
+  -ms-overflow-style: none; /* IE/Edge 隐藏滚动条 */
 }
 
+/* 隐藏 Webkit 浏览器滚动条 */
 .info-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.info-content::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 3px;
-}
-
-.info-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
-  transition: background 0.3s ease;
-}
-
-.info-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* 标题区域 */
@@ -10224,6 +10565,28 @@ body.el-popup-parent--hidden {
   overflow: hidden !important;
 }
 
+/* 强制去除全屏对话框的所有边距 */
+.el-dialog.is-fullscreen {
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  left: 0 !important;
+  top: 0 !important;
+  border-radius: 0 !important;
+}
+
+/* 强制隐藏对话框header */
+.el-dialog__header {
+  display: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  line-height: 0 !important;
+  overflow: hidden !important;
+}
+
 /* 预览对话框样式 */
 .preview-dialog.el-dialog__wrapper {
   overflow: hidden !important;
@@ -10688,6 +11051,408 @@ body.el-popup-parent--hidden {
 .video-result-item .video-wrapper.ratio-3-2,
 .video-result-item .video-wrapper.ratio-4-3 {
   max-height: 400px; /* 限制横屏视频的最大高度 */
+}
+</style>
+
+<style>
+/* 自定义删除确认对话框样式 */
+.custom-delete-confirm {
+  background: linear-gradient(135deg, 
+    rgba(30, 41, 59, 0.98) 0%, 
+    rgba(51, 65, 85, 0.98) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 16px !important;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 0 80px rgba(99, 102, 241, 0.15) !important;
+  backdrop-filter: blur(20px) !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+/* 对话框头部 */
+.custom-delete-confirm .el-message-box__header {
+  padding: 24px 24px 16px !important;
+  background: linear-gradient(135deg, 
+    rgba(255, 77, 79, 0.08) 0%, 
+    rgba(255, 77, 79, 0.03) 100%) !important;
+  border-bottom: 1px solid rgba(255, 77, 79, 0.15) !important;
+}
+
+.custom-delete-confirm .el-message-box__title {
+  color: #ffffff !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* 关闭按钮 */
+.custom-delete-confirm .el-message-box__headerbtn {
+  top: 20px !important;
+  right: 20px !important;
+}
+
+.custom-delete-confirm .el-message-box__headerbtn .el-message-box__close {
+  color: rgba(255, 255, 255, 0.6) !important;
+  font-size: 18px !important;
+  transition: all 0.3s ease !important;
+}
+
+.custom-delete-confirm .el-message-box__headerbtn:hover .el-message-box__close {
+  color: #ff4d4f !important;
+  transform: rotate(90deg) !important;
+}
+
+/* 对话框内容 */
+.custom-delete-confirm .el-message-box__content {
+  padding: 24px !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+}
+
+.custom-delete-confirm .el-message-box__message {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* 警告图标 */
+.custom-delete-confirm .el-message-box__status {
+  font-size: 28px !important;
+  color: #ff9800 !important;
+  filter: drop-shadow(0 0 8px rgba(255, 152, 0, 0.4)) !important;
+}
+
+/* 按钮容器 */
+.custom-delete-confirm .el-message-box__btns {
+  padding: 16px 24px 24px !important;
+  display: flex !important;
+  gap: 12px !important;
+  justify-content: flex-end !important;
+}
+
+/* 取消按钮 */
+.custom-cancel-btn {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
+  padding: 10px 24px !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.custom-cancel-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.custom-cancel-btn:active {
+  transform: translateY(0) !important;
+}
+
+/* 确认删除按钮 */
+.custom-confirm-btn {
+  background: linear-gradient(135deg, 
+    rgba(255, 77, 79, 0.9) 0%, 
+    rgba(220, 38, 38, 0.9) 100%) !important;
+  border: 1px solid rgba(255, 77, 79, 0.3) !important;
+  color: #ffffff !important;
+  padding: 10px 24px !important;
+  border-radius: 10px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 
+    0 4px 12px rgba(255, 77, 79, 0.3),
+    0 0 20px rgba(255, 77, 79, 0.2) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.custom-confirm-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.custom-confirm-btn:hover::before {
+  left: 100%;
+}
+
+.custom-confirm-btn:hover {
+  background: linear-gradient(135deg, 
+    rgba(255, 77, 79, 1) 0%, 
+    rgba(220, 38, 38, 1) 100%) !important;
+  border-color: rgba(255, 77, 79, 0.5) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 
+    0 6px 20px rgba(255, 77, 79, 0.5),
+    0 0 30px rgba(255, 77, 79, 0.3) !important;
+}
+
+.custom-confirm-btn:active {
+  transform: translateY(0) !important;
+}
+
+/* 对话框动画效果 */
+.custom-delete-confirm::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at 50% 0%, 
+    rgba(255, 77, 79, 0.1) 0%, 
+    transparent 60%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.custom-delete-confirm > * {
+  position: relative;
+  z-index: 1;
+}
+</style>
+
+<style>
+/* 筛选器区域样式 - 固定在内容页右上角 */
+.filter-section-floating {
+  position: fixed;
+  top: 96px;
+  right: 30px;
+  z-index: 1000;
+}
+
+.filter-container {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 6px 10px;
+  background: rgba(45, 45, 45, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.filter-btn-floating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+  border-radius: 10px;
+}
+
+.filter-btn-floating:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.filter-btn-floating .arrow-icon {
+  font-size: 13px;
+  transition: transform 0.3s ease;
+}
+
+.filter-btn-floating:hover .arrow-icon {
+  transform: translateY(2px);
+}
+
+.filter-divider-floating {
+  width: 1px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 2px;
+}
+
+/* 时间筛选弹窗内容 */
+.time-filter-content {
+  padding: 20px;
+}
+
+.date-range-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.date-picker {
+  flex: 1;
+}
+
+.date-separator {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+}
+
+.quick-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.option-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 4px;
+}
+
+.option-item:last-child {
+  margin-bottom: 0;
+}
+
+.option-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.option-item.active {
+  background: rgba(80, 80, 80, 0.8);
+  color: #ffffff;
+}
+
+.option-item .check-icon {
+  color: #ffffff;
+  font-size: 18px;
+}
+
+/* 筛选操作按钮 */
+.filter-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.apply-btn {
+  background: linear-gradient(135deg, #4A90E2, #357ABD) !important;
+  border: none !important;
+  color: #ffffff !important;
+  padding: 8px 20px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  transition: all 0.3s ease !important;
+}
+
+.apply-btn:hover:not(:disabled) {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4) !important;
+}
+
+.apply-btn:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+/* 类型筛选弹窗内容 */
+.type-filter-content {
+  padding: 16px;
+}
+
+.type-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 4px;
+}
+
+.type-option:last-child {
+  margin-bottom: 0;
+}
+
+.type-option:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.type-option.active {
+  background: rgba(80, 80, 80, 0.8);
+  color: #ffffff;
+}
+
+.type-option .check-icon {
+  color: #ffffff;
+  font-size: 18px;
+}
+
+/* 自定义弹窗样式 */
+.time-filter-popover,
+.type-filter-popover {
+  background: rgba(50, 50, 50, 0.98) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+  padding: 0 !important;
+}
+
+.time-filter-popover .el-popper__arrow::before,
+.type-filter-popover .el-popper__arrow::before {
+  background: rgba(50, 50, 50, 0.98) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+/* 日期选择器样式覆盖 */
+.time-filter-popover .el-date-picker,
+.time-filter-popover .el-input__wrapper {
+  background: rgba(60, 60, 60, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+.time-filter-popover .el-input__inner {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.time-filter-popover .el-input__wrapper:hover {
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+.time-filter-popover .el-input__wrapper.is-focus {
+  border-color: rgba(74, 144, 226, 0.5) !important;
+  box-shadow: 0 0 0 1px rgba(74, 144, 226, 0.2) inset !important;
 }
 </style>
 

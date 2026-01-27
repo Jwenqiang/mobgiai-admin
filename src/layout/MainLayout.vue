@@ -27,10 +27,10 @@
           :collapse-transition="false"
           router
         >
-          <!-- <el-menu-item index="/mobgiAI/assets">
+          <el-menu-item index="/mobgiAI/assets">
             <el-icon><Wallet /></el-icon>
             <template #title>资产</template>
-          </el-menu-item> -->
+          </el-menu-item>
           
           <!-- <el-menu-item index="/mobgiAI/video-generate">
             <el-icon><VideoCamera /></el-icon>
@@ -619,8 +619,9 @@ onMounted(() => {
 
 .content-body {
   flex: 1;
-  overflow: hidden;
+  overflow: auto;
   background: #f5f7fa;
+  position: relative;
 }
 
 /* 折叠状态下的样式调整 */

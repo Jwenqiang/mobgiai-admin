@@ -20,3 +20,7 @@ export const getGenerateStatus = (params:object) => {
 export const postAIGenerateRetry = (data:object) => {
   return post('/api/v1/user_input/retry', data);
 }
+//删除接口
+export const deleteGenerate = (data:object) => {
+  return post('/api/v1/user_input/delete', data);
+}
