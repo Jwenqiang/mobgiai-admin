@@ -86,7 +86,7 @@
             <el-checkbox 
               :checked="dateGroup.allSelected"
               :indeterminate="dateGroup.indeterminate"
-              @change="(val) => toggleDateGroupSelection(dateGroup, val)"
+              @change="(val: boolean) => toggleDateGroupSelection(dateGroup, val)"
             >
               全选
             </el-checkbox>

@@ -767,7 +767,7 @@
               popper-class="type-filter-popover"
               :teleported="true"
               :visible="typeFilterVisible"
-              @update:visible="(val) => typeFilterVisible = val"
+              @update:visible="(val: boolean) => typeFilterVisible = val"
             >
               <template #reference>
                 <div class="filter-btn-floating">
@@ -4373,12 +4373,12 @@ const selectTimeRange = (range: 'all' | 'week' | 'month') => {
     endDate.value = ''
   } else if (range === 'week') {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    startDate.value = weekAgo.toISOString().split('T')[0]
-    endDate.value = now.toISOString().split('T')[0]
+    startDate.value = weekAgo.toISOString().split('T')[0] || ''
+    endDate.value = now.toISOString().split('T')[0] || ''
   } else if (range === 'month') {
     const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
-    startDate.value = threeMonthsAgo.toISOString().split('T')[0]
-    endDate.value = now.toISOString().split('T')[0]
+    startDate.value = threeMonthsAgo.toISOString().split('T')[0] || ''
+    endDate.value = now.toISOString().split('T')[0] || ''
   }
   
   // 应用筛选
@@ -4847,13 +4847,13 @@ const pollGenerateStatus = async () => {
                 // 如果没有 assets 或 assets 为空，使用缺省图
                 const hasAssets = statusItem.assets && statusItem.assets.length > 0
                 const images = hasAssets 
-                  ? statusItem.assets
+                  ? (statusItem.assets || [])
                       .filter((asset) => asset.type === 1)
                       .map((asset) => asset.materialUrl || asset.coverUrl)
                   : ['data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7nlJ/miJDlpLHotKU8L3RleHQ+PC9zdmc+'] // 缺省图的 base64
                 
                 const videoUrl = hasAssets 
-                  ? statusItem.assets.find((asset) => asset.type === 2)?.materialUrl || ''
+                  ? (statusItem.assets || []).find((asset) => asset.type === 2)?.materialUrl || ''
                   : ''
                 
                 // 构建新的结果对象
@@ -4899,13 +4899,13 @@ const pollGenerateStatus = async () => {
             // 如果没有 assets 或 assets 为空，使用缺省图
             const hasAssets = statusItem.assets && statusItem.assets.length > 0
             const images = hasAssets 
-              ? statusItem.assets
+              ? (statusItem.assets || [])
                   .filter((asset) => asset.type === 1)
                   .map((asset) => asset.materialUrl || asset.coverUrl)
               : ['data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7nlJ/miJDlpLHotKU8L3RleHQ+PC9zdmc+'] // 缺省图的 base64
             
             const videoUrl = hasAssets 
-              ? statusItem.assets.find((asset) => asset.type === 2)?.materialUrl || ''
+              ? (statusItem.assets || []).find((asset) => asset.type === 2)?.materialUrl || ''
               : ''
             
             // 动态将完成的结果插入到列表底部
