@@ -84,9 +84,9 @@
           <div class="date-title">{{ dateGroup.date }}</div>
           <div class="date-actions" v-if="batchMode">
             <el-checkbox 
-              v-model="dateGroup.allSelected"
+              :checked="dateGroup.allSelected"
               :indeterminate="dateGroup.indeterminate"
-              @change="toggleDateGroupSelection(dateGroup)"
+              @change="(val) => toggleDateGroupSelection(dateGroup, val)"
             >
               全选
             </el-checkbox>
@@ -109,9 +109,21 @@
                 :alt="asset.name"
                 class="asset-image"
               />
-              <div v-else-if="asset.type === 2" class="video-thumbnail">
-                <video :src="asset.url || asset.materialUrl" class="asset-image" />
-                <div class="video-overlay">
+              <div 
+                v-else-if="asset.type === 2" 
+                class="video-thumbnail"
+                @mouseenter="handleVideoHover(asset, true)"
+                @mouseleave="handleVideoHover(asset, false)"
+              >
+                <video 
+                  :ref="el => setVideoRef(el, asset.id)"
+                  :src="asset.url || asset.materialUrl" 
+                  class="asset-image"
+                  muted
+                  loop
+                  playsinline
+                />
+                <div class="video-overlay" :class="{ 'video-playing': asset.isPlaying }">
                   <el-icon size="24"><VideoPlay /></el-icon>
                 </div>
               </div>
@@ -299,7 +311,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, type ComponentPublicInstance } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, VideoPlay, Download, Close, Select, Loading, Picture, VideoCamera, Edit, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { downloadFile, downloadFiles } from '../utils'
@@ -315,6 +327,7 @@ interface Asset {
   type: number // 1: 图片, 2: 视频
   userInputId: number
   selected?: boolean
+  isPlaying?: boolean
   // 计算属性
   name?: string
   url?: string
@@ -390,6 +403,8 @@ const currentPreviewIndex = ref(0)
 const batchMode = ref(false) // 批量操作模式
 // 资产数据
 const assets = ref<Asset[]>([])
+// 视频元素引用映射
+const videoRefs = new Map<number, HTMLVideoElement>()
 //获取资产列表数据
 const getAssetsList = async (page: number = 1, append: boolean = false) => {
   if (loadingMore.value) return
@@ -591,12 +606,11 @@ const toggleAssetSelection = (asset: Asset, dateGroup: DateGroup) => {
 }
 
 // 切换日期组选择状态
-const toggleDateGroupSelection = (dateGroup: DateGroup) => {
-  const newState = !dateGroup.allSelected
+const toggleDateGroupSelection = (dateGroup: DateGroup, newState: boolean) => {
+  // 直接使用传入的新状态值
   dateGroup.assets.forEach(asset => {
     asset.selected = newState
   })
-  updateDateGroupSelection(dateGroup)
 }
 
 // 更新日期组选择状态
@@ -889,6 +903,33 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 // 添加键盘事件监听
 document.addEventListener('keydown', handleKeydown)
+
+// 设置视频元素引用
+const setVideoRef = (el: Element | ComponentPublicInstance | null, assetId: number) => {
+  if (el && el instanceof HTMLVideoElement) {
+    videoRefs.set(assetId, el)
+  }
+}
+
+// 处理视频 hover 事件
+const handleVideoHover = async (asset: Asset, isHovering: boolean) => {
+  const videoEl = videoRefs.get(asset.id)
+  if (!videoEl) return
+
+  try {
+    if (isHovering) {
+      asset.isPlaying = true
+      videoEl.currentTime = 0 // 从头开始播放
+      await videoEl.play()
+    } else {
+      asset.isPlaying = false
+      videoEl.pause()
+      videoEl.currentTime = 0 // 重置到开始
+    }
+  } catch (error) {
+    console.error('视频播放控制失败:', error)
+  }
+}
 </script>
 
 <style scoped>
@@ -1137,6 +1178,13 @@ document.addEventListener('keydown', handleKeydown)
   align-items: center;
   justify-content: center;
   color: white;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+
+.video-overlay.video-playing {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.8);
 }
 
 .selection-overlay {
@@ -1613,7 +1661,7 @@ body:has(.preview-dialog.el-overlay) {
   transition: all 0.3s ease;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
   min-height: 80px;
-  max-height: 280px;
+  max-height: 486px;
 }
 
 .prompt-text:hover {

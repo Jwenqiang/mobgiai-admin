@@ -85,8 +85,6 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { Avatar } from '@element-plus/icons-vue'
-// import { authAPI } from '../services/api'
 import { login,getCode } from '../api/index'
 import { useAuthStore } from '../stores/auth'
 

@@ -80,10 +80,6 @@ export const getCode = (data: { mobile: string }) => {
   return post('/api/v1/misc/send_sms', data);
 };
 
-export const getUserList = (params: { page: number; size: number }) => {
-  return get('/user/list', params);
-};
-
 // 导入TOS类型
 import type { TosTokenResponse as ToSConfig } from '@/services/tos'
 

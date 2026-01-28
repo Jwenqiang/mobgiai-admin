@@ -356,7 +356,8 @@
                 <template #reference>
                   <div class="param-btn model-btn">
                     <div class="btn-icon">
-                      <div class="model-dot" :style="{ background: currentModel?.iconUrl || '#4A90E2' }"></div>
+                      <img v-if="currentModel?.iconUrl" :src="currentModel.iconUrl" class="model-icon-img" alt="model icon" />
+                      <div v-else class="model-dot" style="background: #4A90E2;"></div>
                     </div>
                     <span>{{ currentModel?.name }}</span>
                     <el-icon class="arrow-icon"><ArrowDown /></el-icon>
@@ -373,8 +374,11 @@
                       @click="selectModel(model)"
                     >
                       <div class="model-info">
-                        <div class="model-avatar" :style="{ background: model.iconUrl }">
-                          <span class="model-initial">{{ model.name.charAt(0) }}</span>
+                        <div class="model-avatar-wrapper">
+                          <img v-if="model.iconUrl" :src="model.iconUrl" class="model-avatar-img" alt="model icon" />
+                          <div v-else class="model-avatar" style="background: #4A90E2;">
+                            <span class="model-initial">{{ model.name.charAt(0) }}</span>
+                          </div>
                         </div>
                         <div class="model-details">
                           <div class="model-name">{{ model.name }}</div>
@@ -1611,7 +1615,8 @@
               <template #reference>
                 <div class="param-btn model-btn">
                   <div class="btn-icon">
-                    <div class="model-dot" :style="{ background: currentModel?.iconUrl || '#4A90E2' }"></div>
+                    <img v-if="currentModel?.iconUrl" :src="currentModel.iconUrl" class="model-icon-img" alt="model icon" />
+                    <div v-else class="model-dot" style="background: #4A90E2;"></div>
                   </div>
                   <span>{{ currentModel?.name}}</span>
                   <el-icon class="arrow-icon"><ArrowDown /></el-icon>
@@ -1629,7 +1634,8 @@
                   >
                     <div class="model-info">
                       <div class="model-icon">
-                        <div class="icon-circle" :style="{ background: model.iconUrl }"></div>
+                        <img v-if="model.iconUrl" :src="model.iconUrl" class="icon-circle-img" alt="model icon" />
+                        <div v-else class="icon-circle" style="background: #4A90E2;"></div>
                       </div>
                       <div class="model-details">
                         <div class="model-name">{{ model.name }}</div>
@@ -2455,8 +2461,15 @@ const getCalculatedSize = () => {
     const aspectRatio = currentSize.value.value || '1:1';
     const [w, h] = aspectRatio.split(':').map(Number);
     
-    // 基础尺寸（2K）
-    const baseSize = 1440;
+    // 检查可用的分辨率选项，确定基础尺寸
+    const hasOneK = resolutions.value.some(r => r.value?.toLowerCase() === '1k');
+    const hasTwoK = resolutions.value.some(r => r.value?.toLowerCase() === '2k');
+    
+    // 如果有1K选项，基础尺寸为1024；否则如果有2K选项，基础尺寸为2048
+    let baseSize = 1024;
+    if (!hasOneK && hasTwoK) {
+      baseSize = 2048;
+    }
     
     // 根据比例计算
     if (w !== undefined && h !== undefined && w >= h) {
@@ -2470,10 +2483,30 @@ const getCalculatedSize = () => {
     }
   }
   
-  // 如果是 4K，尺寸翻倍
-  if (currentResolution.value?.value?.toLowerCase() === '4k') {
-    width *= 2;
-    height *= 2;
+  // 根据分辨率调整尺寸
+  const resolutionValue = currentResolution.value?.value?.toLowerCase();
+  
+  // 检查可用的分辨率选项
+  const hasOneK = resolutions.value.some(r => r.value?.toLowerCase() === '1k');
+  const hasTwoK = resolutions.value.some(r => r.value?.toLowerCase() === '2k');
+  
+  if (!hasOneK && hasTwoK) {
+    // 如果没有1K但有2K，则2K是基础，4K是2倍
+    if (resolutionValue === '4k') {
+      width *= 2;
+      height *= 2;
+    }
+    // 2K保持原尺寸不变
+  } else {
+    // 如果有1K，则1K是基础，2K是2倍，4K是4倍
+    if (resolutionValue === '2k') {
+      width *= 2;
+      height *= 2;
+    } else if (resolutionValue === '4k') {
+      width *= 4;
+      height *= 4;
+    }
+    // 1K保持原尺寸不变
   }
   
   return { width, height };
@@ -3451,10 +3484,30 @@ const buildGenerateRequestTask = () => {
       let width = currentSize.value.width
       let height = currentSize.value.height
       
-      // 如果选择了 4K，尺寸翻倍（兼容大小写）
-      if (currentResolution.value?.value?.toLowerCase() === '4k') {
-        width = width * 2
-        height = height * 2
+      // 根据分辨率调整尺寸（兼容大小写）
+      const resolutionValue = currentResolution.value?.value?.toLowerCase();
+      
+      // 检查可用的分辨率选项
+      const hasOneK = resolutions.value.some(r => r.value?.toLowerCase() === '1k');
+      const hasTwoK = resolutions.value.some(r => r.value?.toLowerCase() === '2k');
+      
+      if (!hasOneK && hasTwoK) {
+        // 如果没有1K但有2K，则2K是基础，4K是2倍
+        if (resolutionValue === '4k') {
+          width = width * 2;
+          height = height * 2;
+        }
+        // 2K保持原尺寸不变
+      } else {
+        // 如果有1K，则1K是基础，2K是2倍，4K是4倍
+        if (resolutionValue === '2k') {
+          width = width * 2;
+          height = height * 2;
+        } else if (resolutionValue === '4k') {
+          width = width * 4;
+          height = height * 4;
+        }
+        // 1K保持原尺寸不变
       }
       
       tags.push({
@@ -4423,8 +4476,8 @@ const fetchModelConfig = async (aiDriver?: string) => {
               currentResolution.value = resolutions.value[0] || null;
             }
           } else {
-            resolutions.value = config.optionsInfo.optionsConf.resolutionRatio?.conf.select||[];
-            const defaultResolution = config.optionsInfo.optionsDef.resolutionRatio;
+            resolutions.value = config.optionsInfo.optionsConf.resolutionRatio?.conf.select||config.optionsInfo.optionsConf.resolution?.conf.select||[];
+            const defaultResolution = config.optionsInfo.optionsDef.resolutionRatio||config.optionsInfo.optionsDef.resolution
             if (defaultResolution && defaultResolution.value) {
               const matchedResolution = resolutions.value.find(res => res.value === defaultResolution.value);
               currentResolution.value = matchedResolution || resolutions.value[0] || null;
@@ -4434,7 +4487,7 @@ const fetchModelConfig = async (aiDriver?: string) => {
           }
           
           // 图片张数选项
-          imageCounts.value = config.optionsInfo.optionsConf.genImageNum.conf.select||[];
+          imageCounts.value = config.optionsInfo.optionsConf?.genImageNum?.conf.select||[];
           
           // 当前选中的选项 - 需要从完整的选项列表中找到匹配的对象（包含 width 和 height）
           const defaultAspectRatio = config.optionsInfo.optionsDef.aspectRatio;
@@ -5837,6 +5890,13 @@ onUnmounted(() => {
   height: 10px;
   border-radius: 50%;
   background: #4A90E2;
+}
+
+.model-icon-img {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .style-emoji {
@@ -9667,7 +9727,7 @@ body:has(.preview-dialog.el-overlay) {
   transition: all 0.3s ease;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
   min-height: 80px;
-  max-height: 280px; /* 减小最大高度，确保下载按钮可见 */
+  max-height: 486px; /* 减小最大高度，确保下载按钮可见 */
 }
 
 .prompt-text:hover {
@@ -10020,6 +10080,39 @@ body:has(.preview-dialog.el-overlay) {
   font-size: 10px;
   flex-shrink: 0;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.model-avatar-wrapper {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.model-avatar-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.model-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.icon-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: #4A90E2;
+}
+
+.icon-circle-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .model-details {

@@ -101,11 +101,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Expand, Fold, VideoCamera, User, 
+  Expand, Fold, User, 
   More, SwitchButton, Opportunity
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
-// import { authAPI } from '../services/api'
 import { logout } from '../api/index'
 
 const route = useRoute()
