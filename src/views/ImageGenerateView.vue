@@ -1091,54 +1091,84 @@
             </div>
             
             <!-- 图片结果显示 (status === 2) -->
-            <div v-else-if="result.type === 1 && result.assets" class="generation-images" :class="`count-${result.assets.filter(a => a.type === 1).length}`">
-              <div 
-                v-for="(asset, imgIndex) in result.assets.filter(a => a.type === 1)" 
-                :key="asset.id"
-                class="generation-image-item"
-                :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '1:1')"
-                @click="previewImage(asset.materialUrl||asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val, result)"
-              >
-                <div class="image-wrapper">
-                  <img :src="convertToProxyUrl(asset.coverUrl||asset.materialUrl)" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" crossorigin="anonymous" />
-                  <div class="image-overlay">
-                    <div class="overlay-actions">
-                      <el-button 
-                        type="primary" 
-                        size="small" 
-                        circle
-                        @click.stop="downloadImageUrl(asset.materialUrl || asset.coverUrl, result.id, imgIndex)"
-                        class="action-btn"
-                      >
-                        <el-icon><Download /></el-icon>
-                      </el-button>
+            <div v-else-if="result.type === 1" class="generation-images" :class="result.assets && result.assets.filter(a => a.type === 1).length > 0 ? `count-${result.assets.filter(a => a.type === 1).length}` : 'count-1'">
+              <!-- 有图片资源时显示图片 -->
+              <template v-if="result.assets && result.assets.filter(a => a.type === 1).length > 0">
+                <div 
+                  v-for="(asset, imgIndex) in result.assets.filter(a => a.type === 1)" 
+                  :key="asset.id"
+                  class="generation-image-item"
+                  :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '1:1')"
+                  @click="previewImage(asset.materialUrl||asset.coverUrl, asset, result.prompt || result.tags?.find(t => t.key === 'prompt')?.val, result)"
+                >
+                  <div class="image-wrapper">
+                    <img :src="convertToProxyUrl(asset.coverUrl||asset.materialUrl)" :alt="`生成的图片 ${imgIndex + 1}`" class="generated-image" crossorigin="anonymous" />
+                    <div class="image-overlay">
+                      <div class="overlay-actions">
+                        <el-button 
+                          type="primary" 
+                          size="small" 
+                          circle
+                          @click.stop="downloadImageUrl(asset.materialUrl || asset.coverUrl, result.id, imgIndex)"
+                          class="action-btn"
+                        >
+                          <el-icon><Download /></el-icon>
+                        </el-button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </template>
+              <!-- 没有图片资源时显示缺省图 -->
+              <template v-else>
+                <div class="generation-image-item no-asset-item" :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '1:1')">
+                  <div class="image-wrapper no-asset-wrapper">
+                    <div class="no-asset-placeholder">
+                      <el-icon size="64" class="no-asset-icon"><Picture /></el-icon>
+                      <div class="no-asset-text">无图片资源</div>
+                      <div class="no-asset-desc">生成完成但未返回图片数据</div>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </div>
 
             <!-- 视频结果显示 -->
-            <div v-else-if="result.type === 2 && result.assets?.find(a => a.type === 2)" class="generation-images video-result-container">
-              <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.assets.find(a => a.type === 2)?.materialUrl || '', result.assets.find(a => a.type === 2), result.prompt || result.tags?.find(t => t.key === 'prompt')?.val, result)">
-                <div class="image-wrapper video-wrapper" :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '16:9')">
-                  <video 
-                    :src="convertToProxyUrl(result.assets.find(a => a.type === 2)?.materialUrl)" 
-                    class="generated-image generated-video"
-                    muted
-                    preload="metadata"
-                    crossorigin="anonymous"
-                    @mouseenter="handleVideoHover"
-                    @mouseleave="handleVideoLeave"
-                  >
-                  </video>
-                  <div class="image-overlay video-overlay">
-                    <div class="play-button">
-                      <el-icon size="24"><VideoPlay /></el-icon>
+            <div v-else-if="result.type === 2" class="generation-images video-result-container">
+              <!-- 有视频资源时显示视频 -->
+              <template v-if="result.assets?.find(a => a.type === 2)">
+                <div class="generation-image-item video-result-item single-video" @click="previewVideo(result.assets.find(a => a.type === 2)?.materialUrl || '', result.assets.find(a => a.type === 2), result.prompt || result.tags?.find(t => t.key === 'prompt')?.val, result)">
+                  <div class="image-wrapper video-wrapper" :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '16:9')">
+                    <video 
+                      :src="convertToProxyUrl(result.assets.find(a => a.type === 2)?.materialUrl)" 
+                      class="generated-image generated-video"
+                      muted
+                      preload="metadata"
+                      crossorigin="anonymous"
+                      @mouseenter="handleVideoHover"
+                      @mouseleave="handleVideoLeave"
+                    >
+                    </video>
+                    <div class="image-overlay video-overlay">
+                      <div class="play-button">
+                        <el-icon size="24"><VideoPlay /></el-icon>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </template>
+              <!-- 没有视频资源时显示缺省图 -->
+              <template v-else>
+                <div class="generation-image-item video-result-item single-video no-asset-item" :class="getRatioClass(result.tags?.find(t => t.key === 'aspectRatio')?.val || '16:9')">
+                  <div class="image-wrapper video-wrapper no-asset-wrapper">
+                    <div class="no-asset-placeholder">
+                      <el-icon size="64" class="no-asset-icon"><VideoCamera /></el-icon>
+                      <div class="no-asset-text">无视频资源</div>
+                      <div class="no-asset-desc">生成完成但未返回视频数据</div>
+                    </div>
+                  </div>
+                </div>
+              </template>
             </div>
             
             <!-- 底部：操作按钮 -->
@@ -2226,7 +2256,7 @@ interface ImageHistoryItem {
   createdAt: number
 }
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   data: T
   code?: number
   msg?: string
@@ -4079,9 +4109,9 @@ const editGeneration = async (result: HistoryResult) => {
     // 填充参考图片
     referenceImages.value = []
     const imageTags = result.tags?.filter(t => t.key === 'images' && t.type === 1) || []
-    const imageAssets = result.assets?.filter(a => a.type === 1) || []
+    // const imageAssets = result.assets?.filter(a => a.type === 1) || []
     
-    imageTags.forEach((imgTag, index) => {
+    imageTags.forEach(imgTag => {
       if (imgTag.val) {
         
         // 直接使用 showVal（原始上传的图片）
@@ -4166,8 +4196,8 @@ const editGeneration = async (result: HistoryResult) => {
     videoReferenceImagesVal.value = ['', '', '', '']
     
     // 获取所有图片和视频资源
-    const imageAssets = result.assets?.filter(a => a.type === 1) || []
-    const videoAssets = result.assets?.filter(a => a.type === 2) || []
+    // const imageAssets = result.assets?.filter(a => a.type === 1) || []
+    // const videoAssets = result.assets?.filter(a => a.type === 2) || []
     
     // 填充首帧图 - 直接使用 tag 的 showVal
     const imageFirstTag = result.tags?.find(t => t.key === 'imageFirst')
@@ -4451,7 +4481,7 @@ const fetchModelConfig = async (aiDriver?: string) => {
     genType=2;
   }
   try {
-    const modelCofig = await getImgModelConfig({ genType: genType,aiDriver:aiDriver||'' }) as ApiResponse<any>;
+    const modelCofig = await getImgModelConfig({ genType: genType,aiDriver:aiDriver||'' }) as ApiResponse<Record<string, unknown>>;
     if(modelCofig && modelCofig.data){
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const config = modelCofig.data as Record<string, any>;
@@ -4802,8 +4832,8 @@ const pollGenerateStatus = async () => {
       for (const statusItem of statusList) {
         const itemId = statusItem.id || statusItem.userInputId
         
-        // 如果状态为成功（status === 2 表示成功）且有资源数据
-        if (statusItem.status === 2 && statusItem.assets && statusItem.assets.length > 0) {
+        // 如果状态为成功（status === 2），不管有没有 assets 都停止轮询
+        if (statusItem.status === 2) {
           // 检查是否是历史记录中的项（status === 1 的记录）
           if (pendingResultIds.value.has(itemId)) {
             // 从待轮询列表中移除
@@ -4814,23 +4844,31 @@ const pollGenerateStatus = async () => {
             if (resultIndex > -1) {
               const existingResult = historyResults.value[resultIndex]
               if (existingResult) {
+                // 如果没有 assets 或 assets 为空，使用缺省图
+                const hasAssets = statusItem.assets && statusItem.assets.length > 0
+                const images = hasAssets 
+                  ? statusItem.assets
+                      .filter((asset) => asset.type === 1)
+                      .map((asset) => asset.materialUrl || asset.coverUrl)
+                  : ['data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7nlJ/miJDlpLHotKU8L3RleHQ+PC9zdmc+'] // 缺省图的 base64
+                
+                const videoUrl = hasAssets 
+                  ? statusItem.assets.find((asset) => asset.type === 2)?.materialUrl || ''
+                  : ''
+                
                 // 构建新的结果对象
                 const updatedResult: HistoryResult = {
                   id: itemId,
                   type: statusItem.type || existingResult.type,
                   status: statusItem.status,
                   createTime: statusItem.createTime || existingResult.createTime,
-                  assets: statusItem.assets,
+                  assets: statusItem.assets || [],
                   tags: statusItem.tags || existingResult.tags,
                   prompt: statusItem.tags?.find(t => t.key === 'prompt')?.val || existingResult.prompt,
                   genType: statusItem.type || existingResult.genType,
                   aiDriver: statusItem.tags?.find(t => t.key === 'aiDriver')?.val || existingResult.aiDriver,
-                  // 提取图片URLs
-                  images: statusItem.assets
-                    ?.filter((asset) => asset.type === 1)
-                    .map((asset) => asset.materialUrl || asset.coverUrl) || [],
-                  // 提取视频URL
-                  videoUrl: statusItem.assets?.find((asset) => asset.type === 2)?.materialUrl || '',
+                  images,
+                  videoUrl,
                   createdAt: new Date(statusItem.createTime || existingResult.createTime).getTime()
                 }
                 
@@ -4839,7 +4877,9 @@ const pollGenerateStatus = async () => {
                 
                 // 显示成功提示
                 ElMessage.success({
-                  message: `${statusItem.type === 2 ? '视频' : '图片'}生成完成`,
+                  message: hasAssets 
+                    ? `${statusItem.type === 2 ? '视频' : '图片'}生成完成`
+                    : `${statusItem.type === 2 ? '视频' : '图片'}生成完成（无资源数据）`,
                   duration: 3000
                 })
               }
@@ -4856,23 +4896,31 @@ const pollGenerateStatus = async () => {
               generationTasks.value.splice(taskIndex, 1)
             }
             
+            // 如果没有 assets 或 assets 为空，使用缺省图
+            const hasAssets = statusItem.assets && statusItem.assets.length > 0
+            const images = hasAssets 
+              ? statusItem.assets
+                  .filter((asset) => asset.type === 1)
+                  .map((asset) => asset.materialUrl || asset.coverUrl)
+              : ['data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2Y1ZjVmNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj7nlJ/miJDlpLHotKU8L3RleHQ+PC9zdmc+'] // 缺省图的 base64
+            
+            const videoUrl = hasAssets 
+              ? statusItem.assets.find((asset) => asset.type === 2)?.materialUrl || ''
+              : ''
+            
             // 动态将完成的结果插入到列表底部
             const newResult: HistoryResult = {
               id: itemId,
               type: statusItem.type || 1,
               status: statusItem.status,
               createTime: statusItem.createTime || new Date().toISOString(),
-              assets: statusItem.assets,
+              assets: statusItem.assets || [],
               tags: statusItem.tags || [],
               prompt: statusItem.tags?.find(t => t.key === 'prompt')?.val || '',
               genType: statusItem.type,
               aiDriver: statusItem.tags?.find(t => t.key === 'aiDriver')?.val || 'AI模型',
-              // 提取图片URLs
-              images: statusItem.assets
-                ?.filter((asset) => asset.type === 1)
-                .map((asset) => asset.materialUrl || asset.coverUrl) || [],
-              // 提取视频URL
-              videoUrl: statusItem.assets?.find((asset) => asset.type === 2)?.materialUrl || '',
+              images,
+              videoUrl,
               createdAt: new Date(statusItem.createTime || new Date().toISOString()).getTime()
             }
             
@@ -5004,12 +5052,9 @@ const handleScroll = () => {
   }
   
   // 先判断滚动方向
-  let currentDirection = 'none'
   if (currentScrollTop > lastScrollTop.value) {
-    currentDirection = 'down'
     scrollDirection.value = 'down'
   } else if (currentScrollTop < lastScrollTop.value) {
-    currentDirection = 'up'
     scrollDirection.value = 'up'
   }
   
@@ -9009,6 +9054,50 @@ onUnmounted(() => {
 
 .generation-image-item:hover .image-overlay {
   opacity: 1;
+}
+
+/* 无资源缺省图样式 */
+.generation-image-item.no-asset-item {
+  cursor: default;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.generation-image-item.no-asset-item:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.no-asset-wrapper {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.no-asset-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  width: 100%;
+  height: 100%;
+}
+
+.no-asset-icon {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+.no-asset-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.no-asset-desc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.25);
+  text-align: center;
+  max-width: 200px;
 }
 
 .overlay-actions {
