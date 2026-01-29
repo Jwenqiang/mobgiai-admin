@@ -83,7 +83,7 @@
                   :disabled="referenceImages.length >= 5"
                 >
                   <div class="upload-btn large" :class="{ disabled: referenceImages.length >= 5 }">
-                    <el-icon><Plus /></el-icon>
+                    <img src="@/assets/imgs/icon-imgGen.svg" alt="上传图片" class="upload-icon" />
                   </div>
                 </el-upload>
               </template>
@@ -94,7 +94,6 @@
                 <template v-if="!currentModel?.aiDriver?.includes('klingai-O1-video') || selectedKeLingOption === '首尾帧'">
                   <div class="video-upload-frames">
                     <div class="upload-item">
-                      <label class="upload-label">首帧图</label>
                       <el-upload
                         :show-file-list="false"
                         :before-upload="handleFirstFrameUpload"
@@ -105,6 +104,7 @@
                           <img v-if="firstFrameImage" :src="firstFrameImage" class="uploaded-image" />
                           <div v-else class="upload-placeholder">
                             <el-icon size="16"><Plus /></el-icon>
+                            <span class="upload-label-inner">首帧</span>
                           </div>
                           <el-button 
                             v-if="firstFrameImage"
@@ -131,7 +131,6 @@
                       </div>
                       
                       <div class="upload-item">
-                        <label class="upload-label">尾帧图</label>
                         <el-upload
                           :show-file-list="false"
                           :before-upload="handleLastFrameUpload"
@@ -142,6 +141,7 @@
                             <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
                             <div v-else class="upload-placeholder">
                               <el-icon size="16"><Plus /></el-icon>
+                              <span class="upload-label-inner">尾帧</span>
                             </div>
                             <el-button 
                               v-if="lastFrameImage"
@@ -1331,10 +1331,8 @@
                 @change="handleImageUpload"
                 :disabled="referenceImages.length >= 5"
               >
-                <div class="upload-btn-placeholder small" :class="{ disabled: referenceImages.length >= 5 }">
-                  <svg class="placeholder-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 304c35.3 0 64 28.7 64 64s-28.7 64-64 64-64-28.7-64-64 28.7-64 64-64zm513.9 437.1c-2.4 5.2-7.9 8.9-13.9 8.9H186c-6.6 0-12.6-4.1-15-10.3-2.3-6.2-0.8-13.1 4-17.5l167.4-151.8c3.7-3.4 9.4-3.4 13.1 0l100.6 91.2 219.3-198.9c3.7-3.4 9.4-3.4 13.1 0l232.5 211c4.8 4.4 6.3 11.3 3.9 17.4z" fill="currentColor"/>
-                  </svg>
+                <div class="upload-btn large" :class="{ disabled: referenceImages.length >= 5 }">
+                  <img src="@/assets/imgs/icon-imgGen.svg" alt="上传图片" class="upload-icon" />
                 </div>
               </el-upload>
             </template>
@@ -1343,19 +1341,19 @@
             <template v-else-if="currentGenerateMode?.value === 'video'">
               <!-- 首尾帧模式 -->
               <template v-if="!currentModel?.aiDriver?.includes('klingai-O1-video') || selectedKeLingOption === '首尾帧'">
-                <div class="video-upload-frames compact">
+                <div class="video-upload-frames">
                   <div class="upload-item">
-                    <label class="upload-label">首帧图</label>
                     <el-upload
                       :show-file-list="false"
                       :before-upload="handleFirstFrameUpload"
                       accept="image/*"
                       class="frame-uploader"
                     >
-                      <div class="upload-area small" :class="{ 'has-image': firstFrameImage }">
+                      <div class="upload-area" :class="{ 'has-image': firstFrameImage }">
                         <img v-if="firstFrameImage" :src="firstFrameImage" class="uploaded-image" />
                         <div v-else class="upload-placeholder">
-                          <el-icon size="12"><Plus /></el-icon>
+                          <el-icon size="16"><Plus /></el-icon>
+                          <span class="upload-label-inner">首帧</span>
                         </div>
                         <el-button 
                           v-if="firstFrameImage"
@@ -1373,7 +1371,7 @@
                   <template v-if="currentModel?.aiDriver!='klingai-V2-video'">
                     <div class="arrow-section">
                       <el-button 
-                        class="swap-button small" 
+                        class="swap-button" 
                         @click="swapFrameImages"
                         :disabled="!firstFrameImage && !lastFrameImage"
                       >
@@ -1382,17 +1380,17 @@
                     </div>
                     
                     <div class="upload-item">
-                      <label class="upload-label">尾帧图</label>
                       <el-upload
                         :show-file-list="false"
                         :before-upload="handleLastFrameUpload"
                         accept="image/*"
                         class="frame-uploader"
                       >
-                        <div class="upload-area small" :class="{ 'has-image': lastFrameImage }">
+                        <div class="upload-area" :class="{ 'has-image': lastFrameImage }">
                           <img v-if="lastFrameImage" :src="lastFrameImage" class="uploaded-image" />
                           <div v-else class="upload-placeholder">
-                            <el-icon size="12"><Plus /></el-icon>
+                            <el-icon size="16"><Plus /></el-icon>
+                            <span class="upload-label-inner">尾帧</span>
                           </div>
                           <el-button 
                             v-if="lastFrameImage"
@@ -1413,7 +1411,7 @@
 
               <!-- 多模态参考模式和视频编辑模式 -->
               <template v-else-if="((selectedKeLingOption === '多模态参考' || selectedKeLingOption === '视频编辑')&& currentModel?.aiDriver=='klingai-O1-video')">
-                <div class="video-upload-multimodal compact">
+                <div class="video-upload-multimodal">
                   <!-- 传视频区域 -->
                   <div class="upload-item">
                     <el-upload
@@ -1423,15 +1421,15 @@
                       class="frame-uploader"
                       :disabled="isVideoUploading"
                     >
-                      <div class="upload-area-video compact" :class="{ 'has-video': referenceVideo, 'uploading': isVideoUploading }">
+                      <div class="upload-area-video" :class="{ 'has-video': referenceVideo, 'uploading': isVideoUploading }">
                         <div v-if="referenceVideo && !isVideoUploading" class="video-preview-wrapper" @click.stop="previewReferenceVideo(referenceVideo)">
                           <video :src="referenceVideo" class="uploaded-video" muted />
                           <div class="video-play-overlay">
-                            <el-icon size="24" class="play-icon"><VideoPlay /></el-icon>
+                            <el-icon size="32" class="play-icon"><VideoPlay /></el-icon>
                           </div>
                         </div>
-                        <div v-else-if="isVideoUploading" class="upload-progress-overlay compact">
-                          <div class="progress-ring compact">
+                        <div v-else-if="isVideoUploading" class="upload-progress-overlay">
+                          <div class="progress-ring">
                             <svg class="progress-svg" viewBox="0 0 36 36">
                               <circle class="progress-bg" cx="18" cy="18" r="16" />
                               <circle 
@@ -1445,8 +1443,8 @@
                             <span class="progress-percent">{{ videoUploadProgress }}%</span>
                           </div>
                         </div>
-                        <div v-else class="upload-placeholder-video compact">
-                          <el-icon size="18"><VideoCamera /></el-icon>
+                        <div v-else class="upload-placeholder-video">
+                          <el-icon size="24"><VideoCamera /></el-icon>
                         </div>
                         <el-button 
                           v-if="referenceVideo && !isVideoUploading"
@@ -1463,7 +1461,7 @@
                   </div>
 
                   <!-- 传图片区域 -->
-                  <div class="images-upload-section compact">
+                  <div class="images-upload-section">
                     <div class="images-container">
                       <!-- 上传框 -->
                       <el-upload
@@ -1473,8 +1471,8 @@
                         class="frame-uploader"
                         :disabled="videoReferenceImages.filter(img => img).length >= 4"
                       >
-                        <div class="upload-area-image compact" :class="{ 'disabled': videoReferenceImages.filter(img => img).length >= 4 }">
-                          <div class="upload-placeholder-image compact">
+                        <div class="upload-area-image" :class="{ 'disabled': videoReferenceImages.filter(img => img).length >= 4 }">
+                          <div class="upload-placeholder-image">
                             <svg class="placeholder-icon-small" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
                               <path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 304c35.3 0 64 28.7 64 64s-28.7 64-64 64-64-28.7-64-64 28.7-64 64-64zm513.9 437.1c-2.4 5.2-7.9 8.9-13.9 8.9H186c-6.6 0-12.6-4.1-15-10.3-2.3-6.2-0.8-13.1 4-17.5l167.4-151.8c3.7-3.4 9.4-3.4 13.1 0l100.6 91.2 219.3-198.9c3.7-3.4 9.4-3.4 13.1 0l232.5 211c4.8 4.4 6.3 11.3 3.9 17.4z" fill="currentColor"/>
                             </svg>
@@ -1523,10 +1521,8 @@
                   @change="handleImageUpload"
                   :disabled="referenceImages.length >= 4"
                 >
-                  <div class="upload-btn-placeholder small" :class="{ disabled: referenceImages.length >= 4 }">
-                    <svg class="placeholder-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M928 160H96c-17.7 0-32 14.3-32 32v640c0 17.7 14.3 32 32 32h832c17.7 0 32-14.3 32-32V192c0-17.7-14.3-32-32-32zM338 304c35.3 0 64 28.7 64 64s-28.7 64-64 64-64-28.7-64-64 28.7-64 64-64zm513.9 437.1c-2.4 5.2-7.9 8.9-13.9 8.9H186c-6.6 0-12.6-4.1-15-10.3-2.3-6.2-0.8-13.1 4-17.5l167.4-151.8c3.7-3.4 9.4-3.4 13.1 0l100.6 91.2 219.3-198.9c3.7-3.4 9.4-3.4 13.1 0l232.5 211c4.8 4.4 6.3 11.3 3.9 17.4z" fill="currentColor"/>
-                    </svg>
+                  <div class="upload-btn large" :class="{ disabled: referenceImages.length >= 4 }">
+                    <el-icon><Plus /></el-icon>
                   </div>
                 </el-upload>
               </template>
@@ -6354,15 +6350,30 @@ onUnmounted(() => {
 }
 
 .upload-btn.large {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+  width: 48px;
+  height: 64px;
+  border-radius: 3px;
+  border: 1px solid #494953;
+  background: transparent;
+}
+
+.upload-btn.large .upload-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  opacity: 0.6;
+  filter: brightness(0.8);
 }
 
 .upload-btn:hover {
   border-color: #4A90E2;
   background: rgba(74, 144, 226, 0.1);
   color: #4A90E2;
+}
+
+.upload-btn.large:hover .upload-icon {
+  opacity: 1;
+  filter: brightness(1.2);
 }
 
 .upload-btn.disabled {
@@ -7132,11 +7143,12 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
+/* 首帧尾帧上传框样式 */
 .upload-area {
-  width: 56px;
-  height: 56px;
-  border: 2px dashed rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
+  width: 48px;
+  height: 64px;
+  border: 1px solid #494953;
+  border-radius: 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7144,12 +7156,12 @@ onUnmounted(() => {
   transition: all 0.3s ease;
   position: relative;
   overflow: visible;
-  background: rgba(255, 255, 255, 0.05);
+  background: transparent;
 }
 
 .upload-area.small {
   width: 40px;
-  height: 40px;
+  height: 53px;
 }
 
 .upload-area.mini {
@@ -7158,25 +7170,51 @@ onUnmounted(() => {
 }
 
 .upload-area:hover {
-  border-color: #4A90E2;
-  background: rgba(74, 144, 226, 0.1);
+  border-color: #e5e6e6;
 }
 
 .upload-area.has-image,
 .upload-area.has-video {
-  border-style: solid;
-  border-color: #4A90E2;
+  border: 2px solid #4A90E2;
 }
 
 .upload-area.disabled {
   opacity: 0.5;
   cursor: not-allowed;
-  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .upload-area.disabled:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  border-color: #f1f2f2;
+}
+
+/* 上传占位符 - 垂直布局 */
+.upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #f1f2f2;
+}
+
+/* 框内文字样式 */
+.upload-label-inner {
+  font-size: 12px;
+  color: #f1f2f2;
+  font-weight: 500;
+  text-align: center;
+}
+
+.upload-label-inner.small {
+  font-size: 10px;
+}
+
+.upload-area:hover .upload-placeholder {
+  color: #e5e6e6;
+}
+
+.upload-area:hover .upload-label-inner {
+  color: #e5e6e6;
 }
 
 .uploaded-image,
