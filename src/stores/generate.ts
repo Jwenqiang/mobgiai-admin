@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia'
+﻿import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 // 生成模式类型
@@ -121,12 +121,7 @@ export const useGenerateStore = defineStore('generate', () => {
   // 从资产详情设置配置（用于重新编辑）
   const setConfigFromAsset = (assetDetail: AssetDetail, mode: GenerateMode) => {
     const tags = assetDetail.userInput?.tags || []
-    
-    console.log('=== setConfigFromAsset 开始 ===')
-    console.log('mode:', mode)
-    console.log('assetDetail:', assetDetail)
-    console.log('tags:', tags)
-    
+
     const newConfig: GenerateConfig = {
       mode
     }
@@ -137,38 +132,38 @@ export const useGenerateStore = defineStore('generate', () => {
     )
     if (promptTag) {
       newConfig.prompt = promptTag.val || promptTag.showVal
-      console.log('提示词:', newConfig.prompt)
+
     }
 
     // 提取其他参数
     const aiDriverTag = tags.find((tag: AssetTag) => tag.key === 'aiDriver')
     if (aiDriverTag) {
       newConfig.aiDriver = aiDriverTag.val
-      console.log('AI模型:', newConfig.aiDriver)
+
     }
 
     const aspectRatioTag = tags.find((tag: AssetTag) => tag.key === 'aspectRatio')
     if (aspectRatioTag) {
       newConfig.aspectRatio = aspectRatioTag.val
-      console.log('尺寸比例:', newConfig.aspectRatio)
+
     }
 
     const resolutionTag = tags.find((tag: AssetTag) => tag.key === 'resolutionRatio')
     if (resolutionTag) {
       newConfig.resolutionRatio = resolutionTag.val
-      console.log('分辨率:', newConfig.resolutionRatio)
+
     }
 
     const durationTag = tags.find((tag: AssetTag) => tag.key === 'duration')
     if (durationTag) {
       newConfig.duration = durationTag.val
-      console.log('时长:', newConfig.duration)
+
     }
 
     const genImageNumTag = tags.find((tag: AssetTag) => tag.key === 'genImageNum')
     if (genImageNumTag) {
       newConfig.genImageNum = parseInt(genImageNumTag.val)
-      console.log('图片张数:', newConfig.genImageNum)
+
     }
 
     // 设置参考素材 - 从 tags 中提取
@@ -178,18 +173,12 @@ export const useGenerateStore = defineStore('generate', () => {
       const imageFirstTag = tags.find((tag: AssetTag) => tag.key === 'imageFirst')
       const imageLastTag = tags.find((tag: AssetTag) => tag.key === 'imageLast')
       const referenceVideoTag = tags.find((tag: AssetTag) => tag.key === 'referenceVideo' || tag.key === 'video')
-      
-      console.log('查找参考素材:')
-      console.log('- imagesTag:', imagesTag)
-      console.log('- imageFirstTag:', imageFirstTag)
-      console.log('- imageLastTag:', imageLastTag)
-      console.log('- referenceVideoTag:', referenceVideoTag)
-      
+
       if (referenceVideoTag && referenceVideoTag.val) {
         // 有参考视频
         newConfig.referenceVideo = referenceVideoTag.showVal || referenceVideoTag.val
         newConfig.referenceVideoVal = referenceVideoTag.val
-        console.log('设置参考视频:', newConfig.referenceVideo)
+
       } else if (imageFirstTag || imageLastTag || imagesTag) {
         // 有参考图片（首尾帧模式）
         newConfig.referenceImages = []
@@ -200,8 +189,7 @@ export const useGenerateStore = defineStore('generate', () => {
             val: imageFirstTag.val
           }
           newConfig.referenceImages.push(imageData)
-          console.log('设置首帧图 - tag:', imageFirstTag)
-          console.log('设置首帧图 - data:', imageData)
+
         }
         
         if (imageLastTag && imageLastTag.val) {
@@ -210,8 +198,7 @@ export const useGenerateStore = defineStore('generate', () => {
             val: imageLastTag.val
           }
           newConfig.referenceImages.push(imageData)
-          console.log('设置尾帧图 - tag:', imageLastTag)
-          console.log('设置尾帧图 - data:', imageData)
+
         }
         
         // 如果没有 imageFirst/imageLast，尝试从 images 中提取
@@ -220,31 +207,24 @@ export const useGenerateStore = defineStore('generate', () => {
             url: imagesTag.showVal || imagesTag.val,
             val: imagesTag.val
           })
-          console.log('从 images 设置参考图:', imagesTag.showVal || imagesTag.val)
+
         }
-        
-        console.log('最终参考图片数组:', newConfig.referenceImages)
+
       } else {
-        console.log('未找到任何参考素材')
+
       }
     } else if (mode === 'image') {
       // 图片模式：检查是否有参考图片
       const imagesTag = tags.find((tag: AssetTag) => tag.key === 'images')
-      
-      console.log('图片模式 - imagesTag:', imagesTag)
-      
+
       if (imagesTag && imagesTag.val) {
         newConfig.referenceImages = [{
           url: imagesTag.showVal || imagesTag.val,
           val: imagesTag.val
         }]
-        console.log('设置参考图片:', newConfig.referenceImages)
+
       }
     }
-
-    console.log('=== 最终配置 ===')
-    console.log(newConfig)
-    console.log('=== setConfigFromAsset 结束 ===')
 
     config.value = newConfig
   }

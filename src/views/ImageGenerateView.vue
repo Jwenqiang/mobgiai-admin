@@ -662,7 +662,7 @@
       </div>
 
       <!-- 结果展示区域 -->
-      <div class="results-section">
+      <div class="results-section" v-if="historyResults.length > 0 || generationTasks.length > 0">
         <!-- 筛选器区域 - 悬浮在右上角 -->
         <div v-if="historyResults.length > 0 || generationTasks.length > 0" class="filter-section-floating">
           <div class="filter-container">
@@ -751,7 +751,7 @@
               popper-class="type-filter-popover"
               :teleported="true"
               :visible="typeFilterVisible"
-              @update:visible="(val) => typeFilterVisible = val"
+              @update:visible="handleTypeFilterVisibleChange"
             >
               <template #reference>
                 <div class="filter-btn-floating" :class="{ 'has-value': selectedType !== 'all' }">
@@ -2213,8 +2213,7 @@
                 </div>
                 <div class="prompt-text">{{ previewPrompt }}</div>
               </div>
-              
-              
+
               <!-- 占位符 - 如果没有提示词和元数据 -->
               <div v-if="!previewPrompt && !previewMetadata" class="prompt-placeholder">
                 <el-icon><Edit /></el-icon>
@@ -2504,6 +2503,11 @@ const dateRange = ref<[string, string] | null>(null)
 const timeFilterVisible = ref(false)
 const typeFilterVisible = ref(false)
 const isDatePickerOpen = ref(false) // 追踪日期选择器是否打开
+
+// 处理类型筛选弹窗可见性变化
+const handleTypeFilterVisibleChange = (val: boolean) => {
+  typeFilterVisible.value = val
+}
 
 // 图片生成模型选项
 const imageModels = ref<Model[]>([])
@@ -3987,17 +3991,14 @@ const updatePreviewVideo = () => {
 
 // 图生视频功能
 const handleImageToVideo = async () => {
-  console.log('=== handleImageToVideo 开始 ===')
-  
+
   // 增加编辑操作计数
   editingOperationCount.value++
-  console.log('editingOperationCount++:', editingOperationCount.value)
-  
+
   // 设置标志，防止触发 applyStoreConfig
   isEditingFromHistory.value = true
   hasAppliedStoreConfig.value = false // 重置标志，防止延迟的清空操作
-  console.log('设置 isEditingFromHistory = true, hasAppliedStoreConfig = false')
-  
+
   // 关闭预览弹窗
   previewVisible.value = false
   
@@ -4025,7 +4026,7 @@ const handleImageToVideo = async () => {
   // 切换到视频生成模式
   const videoMode = generateModes.value.find(m => m.value === 'video')
   if (videoMode) {
-    console.log('切换到视频生成模式')
+
     selectGenerateMode(videoMode)
     await nextTick()
   }
@@ -4040,16 +4041,13 @@ const handleImageToVideo = async () => {
   setTimeout(() => {
     scrollToBottom()
   }, 100)
-  
-  console.log('=== handleImageToVideo 完成 ===')
-  
+
   // 延迟减少计数器
   setTimeout(() => {
     editingOperationCount.value--
-    console.log('editingOperationCount--:', editingOperationCount.value)
-    
+
     if (editingOperationCount.value === 0) {
-      console.log('重置 isEditingFromHistory = false')
+
       isEditingFromHistory.value = false
     }
   }, 1000)
@@ -4138,29 +4136,24 @@ const handleUseAsReference = () => {
 
 // 视频重新编辑功能
 const handleVideoReEdit = async () => {
-  console.log('=== handleVideoReEdit 开始 ===')
-  
+
   // 关闭预览弹窗
   videoPreviewVisible.value = false
   
   // 如果有完整的结果数据，使用 editGeneration 函数
   if (previewMetadata.value) {
-    console.log('使用 editGeneration 函数')
+
     await editGeneration(previewMetadata.value)
     return
   }
-  
-  console.log('使用简化逻辑')
-  
+
   // 增加编辑操作计数
   editingOperationCount.value++
-  console.log('editingOperationCount++:', editingOperationCount.value)
-  
+
   // 设置标志，防止触发 applyStoreConfig
   isEditingFromHistory.value = true
   hasAppliedStoreConfig.value = false // 重置标志，防止延迟的清空操作
-  console.log('设置 isEditingFromHistory = true, hasAppliedStoreConfig = false')
-  
+
   // 否则使用原有的简化逻辑
   const currentPrompt = previewPrompt.value
   
@@ -4173,7 +4166,7 @@ const handleVideoReEdit = async () => {
   // 确保在视频生成模式
   const videoMode = generateModes.value.find(m => m.value === 'video')
   if (videoMode && currentGenerateMode.value?.value !== 'video') {
-    console.log('切换到视频生成模式')
+
     selectGenerateMode(videoMode)
     await nextTick()
   }
@@ -4187,16 +4180,13 @@ const handleVideoReEdit = async () => {
   setTimeout(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, 100)
-  
-  console.log('=== handleVideoReEdit 完成 ===')
-  
+
   // 延迟减少计数器
   setTimeout(() => {
     editingOperationCount.value--
-    console.log('editingOperationCount--:', editingOperationCount.value)
-    
+
     if (editingOperationCount.value === 0) {
-      console.log('重置 isEditingFromHistory = false')
+
       isEditingFromHistory.value = false
     }
   }, 1000)
@@ -4410,28 +4400,24 @@ const selectHistoryItem = (historyItem: ImageHistoryItem) => {
 
 // 从历史记录重新编辑
 const editGeneration = async (result: HistoryResult) => {
-  console.log('=== editGeneration 开始 ===')
-  
+
   // 增加编辑操作计数
   editingOperationCount.value++
-  console.log('editingOperationCount++:', editingOperationCount.value)
-  
+
   // 设置标志，表示正在从历史记录编辑
   isEditingFromHistory.value = true
   hasAppliedStoreConfig.value = false // 重置标志，防止延迟的清空操作
-  console.log('设置 isEditingFromHistory = true, hasAppliedStoreConfig = false')
-  
+
   // 先清空 store 配置，避免触发 applyStoreConfig
   generateStore.resetConfig()
-  console.log('已清空 store 配置')
-  
+
   // 1. 填充提示词
   prompt.value = result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || ''
   
   // 2. 设置生成模式（图片或视频）
   const genMode = result.type === 2 ? generateModes.value[1] : generateModes.value[0]
   if (genMode) {
-    console.log('切换生成模式:', genMode.label)
+
     // 使用 selectGenerateMode 来正确切换模式和加载模型列表
     selectGenerateMode(genMode)
     // 等待模型列表加载
@@ -4441,7 +4427,7 @@ const editGeneration = async (result: HistoryResult) => {
   // 3. 查找并设置模型
   const aiDriverTag = result.tags?.find(t => t.key === 'aiDriver')?.val
   if (aiDriverTag) {
-    console.log('加载模型配置:', aiDriverTag)
+
     // 先加载该模型的配置
     await fetchModelConfig(aiDriverTag)
     
@@ -4449,7 +4435,7 @@ const editGeneration = async (result: HistoryResult) => {
     const targetModel = models.value.find(m => m.aiDriver === aiDriverTag)
     if (targetModel) {
       currentModel.value = targetModel
-      console.log('设置当前模型:', targetModel.name)
+
     }
   }
   
@@ -4640,17 +4626,14 @@ const editGeneration = async (result: HistoryResult) => {
   }, 100)
   
   ElMessage.success('已加载历史记录，可以重新编辑')
-  
-  console.log('=== editGeneration 完成 ===')
-  
+
   // 延迟减少计数器，确保所有异步操作都完成
   setTimeout(() => {
     editingOperationCount.value--
-    console.log('editingOperationCount--:', editingOperationCount.value)
-    
+
     // 如果没有其他编辑操作在进行，重置标志
     if (editingOperationCount.value === 0) {
-      console.log('重置 isEditingFromHistory = false')
+
       isEditingFromHistory.value = false
     }
   }, 1000)
@@ -4996,38 +4979,34 @@ const fetchModelConfig = async (aiDriver?: string) => {
 
 // 初始化：先检查 store 配置，如果有配置就先设置模式，再调用 fetchModelConfig
 const initializeApp = async () => {
-  console.log('=== 初始化应用开始 ===')
+
   const config = generateStore.config
-  console.log('store 配置:', config)
-  
+
   // 如果 store 中有配置，先设置生成模式
   if (config && config.mode) {
-    console.log('检测到 store 配置，模式:', config.mode)
+
     const mode = generateModes.value.find(m => m.value === config.mode)
     if (mode && currentGenerateMode.value?.value !== config.mode) {
-      console.log('初始化时设置生成模式:', mode)
+
       currentGenerateMode.value = mode
     }
   }
   
   // 调用 fetchModelConfig 加载配置
-  console.log('调用 fetchModelConfig，当前模式:', currentGenerateMode.value?.value)
+
   await fetchModelConfig()
-  
-  console.log('fetchModelConfig 完成')
-  
+
   // 如果有 store 配置，应用配置
   if (config && config.mode) {
-    console.log('延迟 500ms 后应用 store 配置')
+
     setTimeout(() => {
-      console.log('开始应用 store 配置')
+
       applyStoreConfig()
     }, 500)
   } else {
-    console.log('没有 store 配置，跳过应用')
+
   }
-  
-  console.log('=== 初始化应用完成 ===')
+
 }
 
 // 执行初始化
@@ -5464,7 +5443,6 @@ const pollGenerateStatus = async () => {
   }
 }
 
-
 // 新增方法
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const clearAllImages = () => {
@@ -5479,14 +5457,13 @@ const regenerateAll = () => {
 
 // 滚动到底部函数
 const scrollToBottom = () => {
-  console.log('🎯 scrollToBottom called')
-  
+
   // 等待一小段时间确保DOM完全渲染
   setTimeout(() => {
     // 尝试方法1：找到最后一个生成任务或结果，滚动到它
     const lastTask = document.querySelector('.generation-card:last-child')
     if (lastTask) {
-      console.log('Found last task, scrolling into view')
+
       lastTask.scrollIntoView({ behavior: 'auto', block: 'end' })
       console.log('✅ scrollToBottom completed (scrollIntoView)')
       return
@@ -5603,27 +5580,25 @@ const editingOperationCount = ref(0) // 计数器：正在进行的编辑操作�
 const applyStoreConfig = async () => {
   const config = generateStore.config
   if (!config || !config.mode) {
-    console.log('store 配置为空，跳过应用')
+
     return
   }
 
   // 防止重复执行
   if (applyingStoreConfig.value) {
-    console.log('正在应用配置中，跳过重复调用')
+
     return
   }
 
-  console.log('应用 store 配置:', config)
   applyingStoreConfig.value = true
   // 只有在没有正在进行的编辑操作时，才标记为已应用 store 配置
   if (editingOperationCount.value === 0) {
     hasAppliedStoreConfig.value = true // 标记已应用配置
-    console.log('标记 hasAppliedStoreConfig = true')
+
   }
 
   // 检查是否需要自动调用 retry 接口
   const shouldAutoRetry = !!(config.autoRetry && config.retryUserInputId)
-  console.log('shouldAutoRetry:', shouldAutoRetry, 'retryUserInputId:', config.retryUserInputId)
 
   // 先保存参考素材（在切换模式前）
   const savedReferenceImages = config.referenceImages || []
@@ -5633,22 +5608,22 @@ const applyStoreConfig = async () => {
   // 设置生成模式 - 直接设置，不调用 selectGenerateMode 以避免清空配置
   const mode = generateModes.value.find(m => m.value === config.mode)
   if (mode && currentGenerateMode.value?.value !== config.mode) {
-    console.log('applyStoreConfig: 切换生成模式:', mode)
+
     currentGenerateMode.value = mode
     
     // 根据生成方式切换可用的模型列表
     if (mode.value === 'image') {
       models.value = imageModels.value
-      console.log('切换到图片模型列表，共', imageModels.value.length, '个模型')
+
     } else if (mode.value === 'video') {
       models.value = videoModels.value
-      console.log('切换到视频模型列表，共', videoModels.value.length, '个模型')
+
     }
     
     // 重新获取配置（会设置默认值）
-    console.log('applyStoreConfig: 调用 fetchModelConfig')
+
     await fetchModelConfig()
-    console.log('applyStoreConfig: fetchModelConfig 完成')
+
   }
 
   // 设置提示词
@@ -5659,33 +5634,30 @@ const applyStoreConfig = async () => {
   // 根据生成模式设置参考素材
   if (config.mode === 'video') {
     // 视频生成模式
-    console.log('视频模式 - savedReferenceVideo:', savedReferenceVideo)
-    console.log('视频模式 - savedReferenceImages:', savedReferenceImages)
-    
+
     if (savedReferenceVideo) {
       // 有参考视频 - 用于多模态参考或视频编辑
       referenceVideo.value = savedReferenceVideo
       referenceVideoVal.value = savedReferenceVideoVal
-      console.log('设置参考视频:', savedReferenceVideo)
+
       ElMessage.success('参考视频已加载')
     } else if (savedReferenceImages.length > 0) {
       // 有参考图片 - 用于首尾帧模式
-      console.log('处理参考图片数组，长度:', savedReferenceImages.length)
-      
+
       const firstImage = savedReferenceImages[0]
-      console.log('firstImage:', firstImage)
+
       if (firstImage) {
         firstFrameImage.value = firstImage.url
         firstFrameImageVal.value = firstImage.val || ''
-        console.log('设置首帧图 - url:', firstImage.url, 'val:', firstImage.val)
+
       }
       
       const lastImage = savedReferenceImages[1]
-      console.log('lastImage:', lastImage)
+
       if (lastImage) {
         lastFrameImage.value = lastImage.url
         lastFrameImageVal.value = lastImage.val || ''
-        console.log('设置尾帧图 - url:', lastImage.url, 'val:', lastImage.val)
+
       }
       
       ElMessage.success('参考图片已加载')
@@ -5709,7 +5681,7 @@ const applyStoreConfig = async () => {
       })
       
       if (referenceImages.value.length > 0) {
-        console.log('设置参考图片:', referenceImages.value.length, '张')
+
         ElMessage.success(`已加载 ${referenceImages.value.length} 张参考图片`)
       }
     }
@@ -5725,13 +5697,12 @@ const applyStoreConfig = async () => {
 // 应用模型和其他配置
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const applyModelAndOtherConfigs = (config: any, shouldAutoRetry: boolean = false) => {
-  console.log('应用模型和其他配置:', config)
 
   // 设置 AI 模型
   if (config.aiDriver && models.value.length > 0) {
     const model = models.value.find(m => m.aiDriver === config.aiDriver)
     if (model && currentModel.value?.aiDriver !== config.aiDriver) {
-      console.log('设置模型:', model)
+
       currentModel.value = model
       
       // 调用 fetchModelConfig 加载该模型的配置
@@ -5752,13 +5723,12 @@ const applyModelAndOtherConfigs = (config: any, shouldAutoRetry: boolean = false
 // 应用其他配置（尺寸、分辨率等）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const applyOtherConfigs = (config: any, shouldAutoRetry: boolean = false) => {
-  console.log('应用其他配置:', config)
 
   if (config.aspectRatio && imageSizes.value && imageSizes.value.length > 0) {
     const size = imageSizes.value.find(s => s.value === config.aspectRatio)
     if (size && currentSize.value?.value !== config.aspectRatio) {
       currentSize.value = size
-      console.log('设置尺寸:', size)
+
     }
   }
 
@@ -5766,20 +5736,20 @@ const applyOtherConfigs = (config: any, shouldAutoRetry: boolean = false) => {
     const resolution = resolutions.value.find(r => r.value === config.resolutionRatio)
     if (resolution && currentResolution.value?.value !== config.resolutionRatio) {
       currentResolution.value = resolution
-      console.log('设置分辨率:', resolution)
+
     }
   }
 
   if (config.duration && selectedDuration.value !== config.duration) {
     selectedDuration.value = config.duration
-    console.log('设置时长:', config.duration)
+
   }
 
   if (config.genImageNum && imageCounts.value && imageCounts.value.length > 0) {
     const count = imageCounts.value.find(c => c.value === config.genImageNum)
     if (count && currentImageCount.value?.value !== config.genImageNum) {
       currentImageCount.value = count
-      console.log('设置图片张数:', count)
+
     }
   }
 
@@ -5787,8 +5757,7 @@ const applyOtherConfigs = (config: any, shouldAutoRetry: boolean = false) => {
   
   // 如果需要自动调用 retry 接口
   if (shouldAutoRetry && config.retryUserInputId) {
-    console.log('自动调用 retry 接口, userInputId:', config.retryUserInputId)
-    
+
     // 延迟调用，确保所有配置都已应用
     setTimeout(async () => {
       try {
@@ -5829,46 +5798,38 @@ const applyOtherConfigs = (config: any, shouldAutoRetry: boolean = false) => {
   
   // 配置应用完成后，延迟清空 store 配置
   // 只有在真正应用了 store 配置的情况下才清空
-  console.log('applyOtherConfigs 完成:', {
-    hasAppliedStoreConfig: hasAppliedStoreConfig.value,
-    isEditingFromHistory: isEditingFromHistory.value,
-    willClearStore: hasAppliedStoreConfig.value
-  })
-  
+
   if (hasAppliedStoreConfig.value) {
     setTimeout(() => {
-      console.log('准备清空 store 配置，当前状态:', {
-        hasAppliedStoreConfig: hasAppliedStoreConfig.value,
-        isEditingFromHistory: isEditingFromHistory.value
-      })
+
       generateStore.resetConfig()
       hasAppliedStoreConfig.value = false // 重置标志
     }, 500)
   } else {
-    console.log('不清空 store 配置，hasAppliedStoreConfig = false')
+
   }
 }
 
 // 监听模型列表变化，当模型加载完成后应用配置
 // 注意：不再在 watch 中调用 applyStoreConfig，避免重复触发
 // applyStoreConfig 只在初始化时调用一次
-watch(models, (newModels) => {
-  console.log('models 变化:', newModels?.length, '个模型')
+watch(models, () => {
+  // 仅用于监听，不执行操作
 }, { immediate: true })
 
 // 监听 imageSizes 变化
-watch(imageSizes, (newSizes) => {
-  console.log('imageSizes 变化:', newSizes?.length, '个选项')
+watch(imageSizes, () => {
+  // 仅用于监听，不执行操作
 }, { immediate: true })
 
 // 监听 resolutions 变化
-watch(resolutions, (newResolutions) => {
-  console.log('resolutions 变化:', newResolutions?.length, '个选项')
+watch(resolutions, () => {
+  // 仅用于监听，不执行操作
 }, { immediate: true })
 
 // 监听 imageCounts 变化
-watch(imageCounts, (newCounts) => {
-  console.log('imageCounts 变化:', newCounts?.length, '个选项')
+watch(imageCounts, () => {
+  // 仅用于监听，不执行操作
 }, { immediate: true })
 
 // 在所有配置应用完成后清空 store（已移至 applyOtherConfigs 中处理）
@@ -5930,18 +5891,11 @@ const setupIntersectionObserver = () => {
   loadMoreObserver.value = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        console.log('IntersectionObserver 触发:', {
-          isIntersecting: entry.isIntersecting,
-          intersectionRatio: entry.intersectionRatio,
-          hasMore: hasMore.value,
-          loadingMore: loadingMore.value,
-          currentPage: currentPage.value
-        })
-        
+
         // 只有当元素真正进入视口时才触发加载
         // 使用 intersectionRatio > 0 确保元素至少部分可见
         if (entry.isIntersecting && entry.intersectionRatio > 0 && hasMore.value && !loadingMore.value) {
-          console.log('✅ 触发上滚加载，当前页:', currentPage.value)
+
           currentPage.value++
           fetchGenerateResults(currentPage.value, true)
         }
@@ -5998,7 +5952,7 @@ onUnmounted(() => {
 
 <style scoped>
 .image-generate-container {
-  height: 100vh;
+  height: 100%;
   background: #1a1a2e;
   color: #ffffff;
   position: relative;
@@ -8035,10 +7989,6 @@ onUnmounted(() => {
   color: #ffffff;
 }
 
-
-
-
-
 /* 有内容时的底部悬浮输入面板 */
 .floating-input-panel {
   position: absolute;
@@ -8144,7 +8094,6 @@ onUnmounted(() => {
   flex-shrink: 0;
   margin-left: auto;
 }
-
 
 /* 结果展示区域 */
 .results-section {
@@ -10839,7 +10788,6 @@ body:has(.preview-dialog.el-overlay) {
   font-size: 20px;
 }
 
-
 /* 选择器样式 - 即梦风格 */
 :deep(.model-popover),
 :deep(.image-params-popover) {
@@ -11224,8 +11172,6 @@ body:has(.preview-dialog.el-overlay) {
   font-weight: 700;
   color: #ffffff;
 }
-
-
 
 .cost-badge {
   background: rgba(255, 255, 255, 0.2);

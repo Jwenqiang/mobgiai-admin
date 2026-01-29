@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="assets-container">
     <!-- 顶部工具栏 -->
     <div class="assets-toolbar">
@@ -86,7 +86,7 @@
             <el-checkbox 
               :checked="dateGroup.allSelected"
               :indeterminate="dateGroup.indeterminate"
-              @change="(val) => toggleDateGroupSelection(dateGroup, val)"
+              @change="handleDateGroupChange(dateGroup)"
             >
               全选
             </el-checkbox>
@@ -161,8 +161,6 @@
         <div class="loading-text">加载中...</div>
       </div>
     </div>
-
-
 
     <!-- 预览对话框 -->
     <el-dialog 
@@ -480,8 +478,7 @@ const getAssetsList = async (page: number = 1, append: boolean = false) => {
     }
 
     const response = await getAssetsResults(params) as ApiResponse
-    console.log('获取资产列表成功:', response)
-    
+
     if (response && response.data) {
       const { list } = response.data
       
@@ -506,8 +503,7 @@ const getAssetsList = async (page: number = 1, append: boolean = false) => {
       
       // 判断是否还有更多数据
       hasMore.value = list.length >= pageSize.value
-      
-      console.log(`加载完成 - 页码: ${page}, 新增数据: ${list.length}, 总数据: ${assets.value.length}, 还有更多: ${hasMore.value}`)
+
     }
   } catch (error) {
     console.error('获取资产列表失败:', error)
@@ -651,6 +647,11 @@ const toggleDateGroupSelection = (dateGroup: DateGroup, newState: boolean) => {
   dateGroup.assets.forEach(asset => {
     asset.selected = newState
   })
+}
+
+// 包装函数用于模板中的事件处理
+const handleDateGroupChange = (dateGroup: DateGroup) => {
+  return (val: boolean) => toggleDateGroupSelection(dateGroup, val)
 }
 
 // 更新日期组选择状态
@@ -815,30 +816,18 @@ const setupIntersectionObserver = () => {
   const sentinelEl = document.querySelector('.scroll-sentinel')
   
   if (!sentinelEl || !hasMore.value || loadingMore.value) {
-    console.log('Observer 设置条件不满足:', { 
-      sentinelEl: !!sentinelEl, 
-      hasMore: hasMore.value, 
-      loadingMore: loadingMore.value 
-    })
+
     return
   }
-  
-  console.log('设置 Intersection Observer')
-  
+
   // 创建 Intersection Observer
   loadMoreObserver.value = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        console.log('Observer 触发:', { 
-          isIntersecting: entry.isIntersecting, 
-          hasMore: hasMore.value, 
-          loadingMore: loadingMore.value,
-          currentPage: currentPage.value
-        })
-        
+
         // 简化条件判断
         if (entry.isIntersecting && hasMore.value && !loadingMore.value) {
-          console.log('触发加载更多，当前页:', currentPage.value)
+
           currentPage.value++
           getAssetsList(currentPage.value, true)
         }
@@ -852,7 +841,7 @@ const setupIntersectionObserver = () => {
   )
   
   loadMoreObserver.value.observe(sentinelEl)
-  console.log('Observer 已设置并开始监听')
+
 }
 
 // 加载资产详情

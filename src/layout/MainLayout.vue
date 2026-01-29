@@ -182,7 +182,8 @@ onMounted(() => {
 <style scoped>
 .main-layout {
   display: flex;
-  height: 100vh;
+  height: calc(100vh-80px);
+  max-height: 100vh;
   background: #f5f7fa;
 }
 
