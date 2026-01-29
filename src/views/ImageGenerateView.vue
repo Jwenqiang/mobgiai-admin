@@ -670,45 +670,42 @@
             <el-popover
               ref="timeFilterPopoverRef"
               placement="bottom-end"
-              :width="360"
+              :width="300"
               trigger="click"
               popper-class="time-filter-popover"
               :teleported="true"
               :visible="timeFilterVisible"
+              :persistent="false"
               @update:visible="handleTimeFilterVisibleChange"
             >
               <template #reference>
-                <div class="filter-btn-floating">
-                  <span>时间</span>
-                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                <div class="filter-btn-floating" :class="{ 'has-value': dateRange && dateRange.length === 2 }">
+                  <span v-if="!dateRange || dateRange.length !== 2">时间</span>
+                  <span v-else class="date-range-text">{{ formatDateRangeDisplay(dateRange) }}</span>
+                  <el-icon 
+                    v-if="dateRange && dateRange.length === 2" 
+                    class="clear-icon"
+                    @click.stop="clearDateRange"
+                  >
+                    <Close />
+                  </el-icon>
+                  <el-icon v-else class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
               <div class="time-filter-content" @click.stop>
                 <!-- 日期范围选择 -->
                 <div class="date-range-section">
                   <el-date-picker
-                    v-model="startDate"
-                    type="date"
-                    placeholder="开始日期"
-                    class="date-picker"
+                    v-model="dateRange"
+                    type="daterange"
+                    range-separator="→"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
+                    class="date-range-picker"
                     :clearable="true"
                     format="YYYY-MM-DD"
                     value-format="YYYY-MM-DD"
-                    :disabled-date="disabledStartDate"
-                    @change="handleStartDateChange"
-                    @visible-change="handleDatePickerVisibleChange"
-                  />
-                  <span class="date-separator">-</span>
-                  <el-date-picker
-                    v-model="endDate"
-                    type="date"
-                    placeholder="结束日期"
-                    class="date-picker"
-                    :clearable="true"
-                    format="YYYY-MM-DD"
-                    value-format="YYYY-MM-DD"
-                    :disabled-date="disabledEndDate"
-                    @change="handleEndDateChange"
+                    @change="handleDateRangeChange"
                     @visible-change="handleDatePickerVisibleChange"
                   />
                 </div>
@@ -740,19 +737,6 @@
                     <el-icon v-if="selectedTimeRange === 'month'" class="check-icon"><Check /></el-icon>
                   </div>
                 </div>
-                
-                <!-- 应用按钮 -->
-                <div v-if="startDate || endDate" class="filter-actions">
-                  <el-button 
-                    type="primary" 
-                    size="small" 
-                    @click="applyDateFilter"
-                    :disabled="!startDate || !endDate"
-                    class="apply-btn"
-                  >
-                    应用筛选
-                  </el-button>
-                </div>
               </div>
             </el-popover>
 
@@ -770,9 +754,17 @@
               @update:visible="(val: boolean) => typeFilterVisible = val"
             >
               <template #reference>
-                <div class="filter-btn-floating">
-                  <span>生成类型</span>
-                  <el-icon class="arrow-icon"><ArrowDown /></el-icon>
+                <div class="filter-btn-floating" :class="{ 'has-value': selectedType !== 'all' }">
+                  <span v-if="selectedType === 'all'">生成类型</span>
+                  <span v-else class="type-text">{{ getTypeLabel(selectedType) }}</span>
+                  <el-icon 
+                    v-if="selectedType !== 'all'" 
+                    class="clear-icon"
+                    @click.stop="clearTypeFilter"
+                  >
+                    <Close />
+                  </el-icon>
+                  <el-icon v-else class="arrow-icon"><ArrowDown /></el-icon>
                 </div>
               </template>
               <div class="type-filter-content">
@@ -2407,6 +2399,7 @@ const pageSize = ref(10)
 const loadingMore = ref(false)
 const hasMore = ref(true)
 const initialLoading = ref(true) // 初始加载状态
+const isFirstLoad = ref(true) // 标记是否是首次加载（页面初始化）
 const isLoadingTriggered = ref(false) // 防止重复触发加载
 const isInitialScrollDone = ref(false) // 标记初始滚动是否完成
 const resultsDisplayRef = ref<HTMLElement | null>(null)
@@ -2448,11 +2441,10 @@ const typeFilterPopoverRef = ref()
 // 筛选相关状态
 const selectedTimeRange = ref<'all' | 'week' | 'month' | 'custom'>('all')
 const selectedType = ref<'all' | 'image' | 'video'>('all')
-const startDate = ref<string>('')
-const endDate = ref<string>('')
+const dateRange = ref<[string, string] | null>(null)
 const timeFilterVisible = ref(false)
 const typeFilterVisible = ref(false)
-const isSelectingDate = ref(false) // 标记是否正在选择日期
+const isDatePickerOpen = ref(false) // 追踪日期选择器是否打开
 
 // 图片生成模型选项
 const imageModels = ref<Model[]>([])
@@ -3546,11 +3538,11 @@ const buildGenerateRequestTask = () => {
       })
     }
     
-    // 分辨率比例 - 可灵模型使用 resolution，其他模型使用 resolutionRatio
+    // 分辨率比例 - Seedream模型使用 resolutionRatio，其他模型使用 resolution
     if (currentResolution.value) {
-      const isKelingModel = currentModel.value?.aiDriver?.toLowerCase().includes('klingai') || currentModel.value?.aiDriver?.toLowerCase().includes('keling');
+      const isSeedreamModel = currentModel.value?.aiDriver?.toLowerCase().includes('seedream');
       tags.push({
-        key: isKelingModel ? 'resolution' : 'resolutionRatio',
+        key: isSeedreamModel ? 'resolutionRatio' : 'resolution',
         val: currentResolution.value.value
       })
     }
@@ -4369,16 +4361,19 @@ const selectTimeRange = (range: 'all' | 'week' | 'month') => {
   const now = new Date()
   
   if (range === 'all') {
-    startDate.value = ''
-    endDate.value = ''
+    dateRange.value = null
   } else if (range === 'week') {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    startDate.value = weekAgo.toISOString().split('T')[0] || ''
-    endDate.value = now.toISOString().split('T')[0] || ''
+    dateRange.value = [
+      weekAgo.toISOString().split('T')[0] || '',
+      now.toISOString().split('T')[0] || ''
+    ]
   } else if (range === 'month') {
     const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
-    startDate.value = threeMonthsAgo.toISOString().split('T')[0] || ''
-    endDate.value = now.toISOString().split('T')[0] || ''
+    dateRange.value = [
+      threeMonthsAgo.toISOString().split('T')[0] || '',
+      now.toISOString().split('T')[0] || ''
+    ]
   }
   
   // 应用筛选
@@ -4409,67 +4404,75 @@ const applyFilters = () => {
   fetchGenerateResults(1, false)
 }
 
-// 禁用开始日期（不能大于结束日期）
-const disabledStartDate = (time: Date) => {
-  if (!endDate.value) return false
-  return time.getTime() > new Date(endDate.value).getTime()
-}
-
-// 禁用结束日期（不能小于开始日期）
-const disabledEndDate = (time: Date) => {
-  if (!startDate.value) return false
-  return time.getTime() < new Date(startDate.value).getTime()
-}
-
-// 处理开始日期变化
-const handleStartDateChange = (value: string) => {
-  if (value && endDate.value) {
-    // 如果开始日期大于结束日期，清空结束日期
-    if (new Date(value).getTime() > new Date(endDate.value).getTime()) {
-      endDate.value = ''
-      ElMessage.warning('开始日期不能大于结束日期')
-    }
-  }
-  // 设置为自定义模式
-  selectedTimeRange.value = 'all'
-}
-
-// 处理结束日期变化
-const handleEndDateChange = (value: string) => {
-  if (value && startDate.value) {
-    // 如果结束日期小于开始日期，清空开始日期
-    if (new Date(value).getTime() < new Date(startDate.value).getTime()) {
-      startDate.value = ''
-      ElMessage.warning('结束日期不能小于开始日期')
-    }
-  }
-  // 设置为自定义模式
-  selectedTimeRange.value = 'all'
-}
-
-// 应用日期筛选
-const applyDateFilter = () => {
-  if (startDate.value && endDate.value) {
+// 处理日期范围变化
+const handleDateRangeChange = (value: [string, string] | null) => {
+  // 只有当选择了完整的日期范围（两个日期都有值且都不为空字符串）时才处理
+  if (value && Array.isArray(value) && value.length === 2 && value[0] && value[1] && value[0].trim() && value[1].trim()) {
+    // 设置为自定义模式
+    selectedTimeRange.value = 'all'
+    // 自动应用筛选
     applyFilters()
-    timeFilterVisible.value = false
+    // 延迟关闭，等待日期选择器面板关闭
+    setTimeout(() => {
+      isDatePickerOpen.value = false
+      timeFilterVisible.value = false
+    }, 200)
+  } else if (value === null) {
+    // 清空日期时应用筛选，但不关闭弹窗
+    selectedTimeRange.value = 'all'
+    applyFilters()
   }
 }
 
-// 处理时间筛选弹窗显示状态变化
-const handleTimeFilterVisibleChange = (visible: boolean) => {
-  // 如果正在选择日期，阻止关闭
-  if (!visible && isSelectingDate.value) {
-    nextTick(() => {
-      timeFilterVisible.value = true
-    })
-    return
-  }
-  timeFilterVisible.value = visible
+// 格式化日期范围显示
+const formatDateRangeDisplay = (range: [string, string]) => {
+  if (!range || range.length !== 2) return '时间'
+  // 显示完整的年月日格式：2026-01-28
+  return `${range[0]} ~ ${range[1]}`
+}
+
+// 清除日期范围
+const clearDateRange = () => {
+  dateRange.value = null
+  selectedTimeRange.value = 'all'
+  applyFilters()
 }
 
 // 处理日期选择器显示状态变化
 const handleDatePickerVisibleChange = (visible: boolean) => {
-  isSelectingDate.value = visible
+  isDatePickerOpen.value = visible
+}
+
+// 获取类型标签
+const getTypeLabel = (type: 'all' | 'image' | 'video') => {
+  const labels = {
+    all: '全部',
+    image: '图片',
+    video: '视频'
+  }
+  return labels[type]
+}
+
+// 清除类型筛选
+const clearTypeFilter = () => {
+  selectedType.value = 'all'
+  applyFilters()
+}
+
+// 处理时间筛选弹窗显示状态变化
+const handleTimeFilterVisibleChange = (visible: boolean) => {
+  // 如果要关闭弹窗，延迟检查日期选择器状态
+  if (!visible) {
+    // 延迟检查，因为日期选择器的打开事件可能还没触发
+    setTimeout(() => {
+      // 如果日期选择器没有打开，才真正关闭弹窗
+      if (!isDatePickerOpen.value) {
+        timeFilterVisible.value = false
+      }
+    }, 100)
+  } else {
+    timeFilterVisible.value = visible
+  }
 }
 
 //获取下拉框配置信息 genType=1 图片生成 genType=2 视频生成
@@ -4584,8 +4587,8 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
   
   try {
     loadingMore.value = true
-    // 首次加载时设置初始加载状态
-    if (page === 1 && !append) {
+    // 只在真正的首次加载时设置初始加载状态
+    if (page === 1 && !append && isFirstLoad.value) {
       initialLoading.value = true
     }
     
@@ -4602,11 +4605,9 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
     }
     
     // 添加时间筛选
-    if (startDate.value) {
-      params.startTime = startDate.value
-    }
-    if (endDate.value) {
-      params.endTime = endDate.value
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.startTime = dateRange.value[0]
+      params.endTime = dateRange.value[1]
     }
     
     // 添加类型筛选
@@ -4729,6 +4730,7 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
           // 等待滚动完成后再关闭loading
           setTimeout(() => {
             initialLoading.value = false
+            isFirstLoad.value = false // 标记首次加载已完成
             // 首次加载完成后设置Observer
             setTimeout(() => {
               setupIntersectionObserver()
@@ -11474,19 +11476,13 @@ body.el-popup-parent--hidden {
 .date-range-section {
   display: flex;
   align-items: center;
-  gap: 12px;
   margin-bottom: 20px;
   padding-bottom: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.date-picker {
-  flex: 1;
-}
-
-.date-separator {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
+.date-range-picker {
+  width: 100%;
 }
 
 .quick-options {
