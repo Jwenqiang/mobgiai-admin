@@ -4,7 +4,7 @@
     <div class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-header">
         <div class="logo">
-          <img src="@/assets/logo.svg" alt="MobgiAI Logo" class="logo-icon" />
+          <img src="@/assets/imgs/logo.svg" alt="MobgiAI Logo" class="logo-icon" />
           <span v-if="!sidebarCollapsed" class="logo-text">MobgiAI</span>
         </div>
         <el-button 
@@ -32,14 +32,8 @@
             <template #title>资产</template>
           </el-menu-item>
           
-          <!-- <el-menu-item index="/mobgiAI/video-generate">
-            <el-icon><VideoCamera /></el-icon>
-            <template #title>视频生成</template>
-          </el-menu-item> -->
-          
           <el-menu-item index="/mobgiAI/generate">
-            <!-- <el-icon><Picture /></el-icon> -->
-            <el-icon><Opportunity /></el-icon>
+            <img src="@/assets/imgs/icon-create.svg" alt="创作" class="menu-icon" />
             <template #title>MobgiAI创作</template>
           </el-menu-item>
         </el-menu>
@@ -102,7 +96,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Expand, Fold, User, 
-  More, SwitchButton, Opportunity
+  More, SwitchButton
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { logout } from '../api/index'
@@ -275,6 +269,23 @@ onMounted(() => {
 .sidebar-menu .el-menu-item .el-icon {
   margin-right: 12px;
   font-size: 18px;
+}
+
+.sidebar-menu .el-menu-item .menu-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 12px;
+  object-fit: contain;
+  transition: all 0.3s ease;
+  filter: brightness(0) saturate(100%) invert(40%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(95%) contrast(90%);
+}
+
+.sidebar-menu .el-menu-item:hover .menu-icon {
+  filter: brightness(0) saturate(100%) invert(52%) sepia(98%) saturate(1234%) hue-rotate(188deg) brightness(95%) contrast(86%);
+}
+
+.sidebar-menu .el-menu-item.is-active .menu-icon {
+  filter: brightness(0) saturate(100%) invert(52%) sepia(98%) saturate(1234%) hue-rotate(188deg) brightness(95%) contrast(86%);
 }
 
 .sidebar-footer {

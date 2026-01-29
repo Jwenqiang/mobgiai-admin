@@ -1013,13 +1013,19 @@ const handleVideoRegenerate = () => {
   // 清除参考视频，因为是再次生成
   generateStore.clearReferenceVideo()
   
+  // 设置自动调用 retry 的标志和 userInputId
+  generateStore.setConfig({
+    autoRetry: true,
+    retryUserInputId: currentAssetDetail.value.userInputId
+  })
+  
   // 关闭预览弹窗
   previewVisible.value = false
   
   // 跳转到生成页面
   router.push('/mobgiAI/generate')
   
-  ElMessage.success('已跳转到视频生成页面，可以再次生成')
+  ElMessage.success('正在重新生成...')
 }
 
 // 设置视频元素引用

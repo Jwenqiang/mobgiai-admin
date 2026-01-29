@@ -25,8 +25,11 @@ export interface GenerateConfig {
   // 视频生成参数
   duration?: string
   aiDriver?: string
+  // 再次生成相关
+  autoRetry?: boolean // 是否自动调用 retry 接口
+  retryUserInputId?: number // 用于 retry 的 userInputId
   // 其他参数
-  [key: string]: string | number | ReferenceImage[] | undefined
+  [key: string]: string | number | boolean | ReferenceImage[] | undefined
 }
 
 // 资产标签类型

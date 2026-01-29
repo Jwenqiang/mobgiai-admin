@@ -2,7 +2,7 @@
   <div class="login-container">
     <!-- 左上角Logo -->
     <div class="top-logo">
-      <el-icon class="logo-icon"><img src="@/assets/logo.svg" alt="MobgiAI Logo" class="logo-icon" /></el-icon>
+      <el-icon class="logo-icon"><img src="@/assets/imgs/logo.svg" alt="MobgiAI Logo" class="logo-icon" /></el-icon>
       <span class="logo-text">MobgiAI</span>
     </div>
 
@@ -11,7 +11,7 @@
       <!-- Logo和标题 -->
       <div class="card-header">
         <div class="card-logo">
-          <img src="@/assets/logo.svg" alt="MobgiAI Logo" class="logo-image" />
+          <img src="@/assets/imgs/logo.svg" alt="MobgiAI Logo" class="logo-image" />
         </div>
         <h1 class="card-title">欢迎来到 MobgiAI</h1>
         <p class="card-subtitle">手机号登录</p>

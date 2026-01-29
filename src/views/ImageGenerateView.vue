@@ -4994,14 +4994,44 @@ const fetchModelConfig = async (aiDriver?: string) => {
   }
 }
 
-// 初始化：先调用 fetchModelConfig，完成后应用 store 配置
-fetchModelConfig().then(() => {
-  console.log('初始 fetchModelConfig 完成，检查 store 配置')
-  // 延迟一下，确保所有数据都已设置
-  setTimeout(() => {
-    applyStoreConfig()
-  }, 100)
-})
+// 初始化：先检查 store 配置，如果有配置就先设置模式，再调用 fetchModelConfig
+const initializeApp = async () => {
+  console.log('=== 初始化应用开始 ===')
+  const config = generateStore.config
+  console.log('store 配置:', config)
+  
+  // 如果 store 中有配置，先设置生成模式
+  if (config && config.mode) {
+    console.log('检测到 store 配置，模式:', config.mode)
+    const mode = generateModes.value.find(m => m.value === config.mode)
+    if (mode && currentGenerateMode.value?.value !== config.mode) {
+      console.log('初始化时设置生成模式:', mode)
+      currentGenerateMode.value = mode
+    }
+  }
+  
+  // 调用 fetchModelConfig 加载配置
+  console.log('调用 fetchModelConfig，当前模式:', currentGenerateMode.value?.value)
+  await fetchModelConfig()
+  
+  console.log('fetchModelConfig 完成')
+  
+  // 如果有 store 配置，应用配置
+  if (config && config.mode) {
+    console.log('延迟 500ms 后应用 store 配置')
+    setTimeout(() => {
+      console.log('开始应用 store 配置')
+      applyStoreConfig()
+    }, 500)
+  } else {
+    console.log('没有 store 配置，跳过应用')
+  }
+  
+  console.log('=== 初始化应用完成 ===')
+}
+
+// 执行初始化
+initializeApp()
 
 //获取列表
 const fetchGenerateResults = async (page: number = 1, append: boolean = false) => {
@@ -5104,8 +5134,8 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
         historyResults.value = formattedResults
       }
       
-      // 检查是否有 status === 1 的记录，如果有则启动轮询
-      const processingResults = formattedResults.filter(item => item.status === 1)
+      // 检查是否有 status === 0 或 status === 1 的记录，如果有则启动轮询
+      const processingResults = formattedResults.filter(item => item.status === 0 || item.status === 1)
       if (processingResults.length > 0) {
         // 将这些记录的 ID 添加到待轮询集合
         processingResults.forEach(item => {
@@ -5357,6 +5387,18 @@ const pollGenerateStatus = async () => {
             }, 100)
           }
         }
+        // 如果状态为处理中或排队中（status === 0 或 status === 1），更新历史记录中的状态
+        else if (statusItem.status === 0 || statusItem.status === 1) {
+          // 检查是否在历史记录中
+          const resultIndex = historyResults.value.findIndex(r => r.id === itemId)
+          if (resultIndex > -1) {
+            const existingResult = historyResults.value[resultIndex]
+            if (existingResult && existingResult.status !== statusItem.status) {
+              // 只有当状态发生变化时才更新
+              existingResult.status = statusItem.status
+            }
+          }
+        }
         // 如果状态为失败（status === 3 表示失败）
         else if (statusItem.status === 3) {
           // 从两个待轮询列表中移除
@@ -5558,7 +5600,7 @@ const hasAppliedStoreConfig = ref(false) // 标志：是否真正应用了 store
 const isEditingFromHistory = ref(false) // 标志：是否正在从历史记录编辑
 const editingOperationCount = ref(0) // 计数器：正在进行的编辑操作数量
 
-const applyStoreConfig = () => {
+const applyStoreConfig = async () => {
   const config = generateStore.config
   if (!config || !config.mode) {
     console.log('store 配置为空，跳过应用')
@@ -5579,16 +5621,34 @@ const applyStoreConfig = () => {
     console.log('标记 hasAppliedStoreConfig = true')
   }
 
+  // 检查是否需要自动调用 retry 接口
+  const shouldAutoRetry = !!(config.autoRetry && config.retryUserInputId)
+  console.log('shouldAutoRetry:', shouldAutoRetry, 'retryUserInputId:', config.retryUserInputId)
+
   // 先保存参考素材（在切换模式前）
   const savedReferenceImages = config.referenceImages || []
   const savedReferenceVideo = config.referenceVideo || ''
   const savedReferenceVideoVal = config.referenceVideoVal || ''
 
-  // 设置生成模式 - 使用 selectGenerateMode 函数来正确切换模型列表
+  // 设置生成模式 - 直接设置，不调用 selectGenerateMode 以避免清空配置
   const mode = generateModes.value.find(m => m.value === config.mode)
   if (mode && currentGenerateMode.value?.value !== config.mode) {
-    console.log('切换生成模式:', mode)
-    selectGenerateMode(mode)
+    console.log('applyStoreConfig: 切换生成模式:', mode)
+    currentGenerateMode.value = mode
+    
+    // 根据生成方式切换可用的模型列表
+    if (mode.value === 'image') {
+      models.value = imageModels.value
+      console.log('切换到图片模型列表，共', imageModels.value.length, '个模型')
+    } else if (mode.value === 'video') {
+      models.value = videoModels.value
+      console.log('切换到视频模型列表，共', videoModels.value.length, '个模型')
+    }
+    
+    // 重新获取配置（会设置默认值）
+    console.log('applyStoreConfig: 调用 fetchModelConfig')
+    await fetchModelConfig()
+    console.log('applyStoreConfig: fetchModelConfig 完成')
   }
 
   // 设置提示词
@@ -5658,13 +5718,13 @@ const applyStoreConfig = () => {
   // 等待 selectGenerateMode 中的 fetchModelConfig 完成
   // 然后设置模型和其他配置
   setTimeout(() => {
-    applyModelAndOtherConfigs(config)
+    applyModelAndOtherConfigs(config, shouldAutoRetry)
   }, 500)
 }
 
 // 应用模型和其他配置
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const applyModelAndOtherConfigs = (config: any) => {
+const applyModelAndOtherConfigs = (config: any, shouldAutoRetry: boolean = false) => {
   console.log('应用模型和其他配置:', config)
 
   // 设置 AI 模型
@@ -5678,7 +5738,7 @@ const applyModelAndOtherConfigs = (config: any) => {
       fetchModelConfig(model.aiDriver).then(() => {
         // fetchModelConfig 完成后，再次应用其他配置
         setTimeout(() => {
-          applyOtherConfigs(config)
+          applyOtherConfigs(config, shouldAutoRetry)
         }, 100)
       })
       return // 等待 fetchModelConfig 完成
@@ -5686,12 +5746,12 @@ const applyModelAndOtherConfigs = (config: any) => {
   }
 
   // 如果不需要切换模型，直接应用其他配置
-  applyOtherConfigs(config)
+  applyOtherConfigs(config, shouldAutoRetry)
 }
 
 // 应用其他配置（尺寸、分辨率等）
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const applyOtherConfigs = (config: any) => {
+const applyOtherConfigs = (config: any, shouldAutoRetry: boolean = false) => {
   console.log('应用其他配置:', config)
 
   if (config.aspectRatio && imageSizes.value && imageSizes.value.length > 0) {
@@ -5725,6 +5785,48 @@ const applyOtherConfigs = (config: any) => {
 
   applyingStoreConfig.value = false
   
+  // 如果需要自动调用 retry 接口
+  if (shouldAutoRetry && config.retryUserInputId) {
+    console.log('自动调用 retry 接口, userInputId:', config.retryUserInputId)
+    
+    // 延迟调用，确保所有配置都已应用
+    setTimeout(async () => {
+      try {
+        // 构造一个临时的 HistoryResult 对象
+        const tempResult = {
+          id: config.retryUserInputId,
+          type: config.mode === 'video' ? 2 : 1,
+          status: 2,
+          createTime: new Date().toISOString(),
+          assets: [],
+          tags: [],
+          prompt: config.prompt || '',
+          genType: config.mode === 'video' ? 2 : 1,
+          aiDriver: config.aiDriver || '',
+          images: [],
+          videoUrl: '',
+          createdAt: Date.now()
+        }
+        
+        // 调用 regenerateFromHistory 函数
+        await regenerateFromHistory(tempResult)
+        
+        // 清空 store 配置
+        generateStore.resetConfig()
+        hasAppliedStoreConfig.value = false
+      } catch (error) {
+        console.error('自动 retry 失败:', error)
+        ElMessage.error('自动重新生成失败')
+        
+        // 即使失败也要清空配置
+        generateStore.resetConfig()
+        hasAppliedStoreConfig.value = false
+      }
+    }, 300)
+    
+    return // 提前返回，不执行下面的清空逻辑
+  }
+  
   // 配置应用完成后，延迟清空 store 配置
   // 只有在真正应用了 store 配置的情况下才清空
   console.log('applyOtherConfigs 完成:', {
@@ -5748,51 +5850,25 @@ const applyOtherConfigs = (config: any) => {
 }
 
 // 监听模型列表变化，当模型加载完成后应用配置
+// 注意：不再在 watch 中调用 applyStoreConfig，避免重复触发
+// applyStoreConfig 只在初始化时调用一次
 watch(models, (newModels) => {
-  if (newModels && newModels.length > 0) {
-    const config = generateStore.config
-    // 只有在有配置且没有正在进行的编辑操作时才应用
-    if (config && config.mode && editingOperationCount.value === 0) {
-      console.log('模型列表已加载，应用配置')
-      applyStoreConfig()
-    }
-  }
+  console.log('models 变化:', newModels?.length, '个模型')
 }, { immediate: true })
 
 // 监听 imageSizes 变化
 watch(imageSizes, (newSizes) => {
-  if (newSizes && newSizes.length > 0) {
-    const config = generateStore.config
-    // 只有在有配置且没有正在进行的编辑操作时才应用
-    if (config && config.mode && editingOperationCount.value === 0) {
-      console.log('图片尺寸列表已加载，应用配置')
-      applyStoreConfig()
-    }
-  }
+  console.log('imageSizes 变化:', newSizes?.length, '个选项')
 }, { immediate: true })
 
 // 监听 resolutions 变化
 watch(resolutions, (newResolutions) => {
-  if (newResolutions && newResolutions.length > 0) {
-    const config = generateStore.config
-    // 只有在有配置且没有正在进行的编辑操作时才应用
-    if (config && config.mode && editingOperationCount.value === 0) {
-      console.log('分辨率列表已加载，应用配置')
-      applyStoreConfig()
-    }
-  }
+  console.log('resolutions 变化:', newResolutions?.length, '个选项')
 }, { immediate: true })
 
 // 监听 imageCounts 变化
 watch(imageCounts, (newCounts) => {
-  if (newCounts && newCounts.length > 0) {
-    const config = generateStore.config
-    // 只有在有配置且没有正在进行的编辑操作时才应用
-    if (config && config.mode && editingOperationCount.value === 0) {
-      console.log('图片张数列表已加载，应用配置')
-      applyStoreConfig()
-    }
-  }
+  console.log('imageCounts 变化:', newCounts?.length, '个选项')
 }, { immediate: true })
 
 // 在所有配置应用完成后清空 store（已移至 applyOtherConfigs 中处理）
