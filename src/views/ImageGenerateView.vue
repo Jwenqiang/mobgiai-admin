@@ -751,7 +751,7 @@
               popper-class="type-filter-popover"
               :teleported="true"
               :visible="typeFilterVisible"
-              @update:visible="(val: boolean) => typeFilterVisible = val"
+              @update:visible="(val) => typeFilterVisible = val"
             >
               <template #reference>
                 <div class="filter-btn-floating" :class="{ 'has-value': selectedType !== 'all' }">
@@ -2018,25 +2018,22 @@
             <div class="media-container">
               <img :src="convertToProxyUrl(previewImageUrl)" class="preview-image" alt="预览图片" crossorigin="anonymous" />
               
-              <!-- 左右切换按钮 -->
-              <div 
-                v-if="previewImageList.length > 1 && currentPreviewIndex > 0" 
-                class="preview-nav-btn prev-btn"
-                @click="prevImage"
-              >
-                <el-icon><ArrowLeft /></el-icon>
-              </div>
-              <div 
-                v-if="previewImageList.length > 1 && currentPreviewIndex < previewImageList.length - 1" 
-                class="preview-nav-btn next-btn"
-                @click="nextImage"
-              >
-                <el-icon><ArrowRight /></el-icon>
-              </div>
-              
-              <!-- 图片计数器 -->
-              <div v-if="previewImageList.length > 1" class="preview-counter">
-                {{ currentPreviewIndex + 1 }} / {{ previewImageList.length }}
+              <!-- 右侧上下切换按钮 -->
+              <div v-if="previewImageList.length > 1" class="preview-nav-buttons">
+                <div 
+                  class="preview-nav-btn up-btn"
+                  :class="{ disabled: currentPreviewIndex === 0 }"
+                  @click="currentPreviewIndex > 0 && prevImage()"
+                >
+                  <el-icon><ArrowUp /></el-icon>
+                </div>
+                <div 
+                  class="preview-nav-btn down-btn"
+                  :class="{ disabled: currentPreviewIndex === previewImageList.length - 1 }"
+                  @click="currentPreviewIndex < previewImageList.length - 1 && nextImage()"
+                >
+                  <el-icon><ArrowDown /></el-icon>
+                </div>
               </div>
             </div>
           </div>
@@ -2097,11 +2094,30 @@
                 <el-button 
                   type="primary" 
                   @click="downloadImage(previewImageData)" 
-                  class="preview-action-btn primary-btn"
+                  class="preview-action-btn primary-btn download-btn"
                 >
                   <el-icon><Download /></el-icon>
                   <span>下载图片</span>
                 </el-button>
+                
+                <!-- 底部固定按钮组 -->
+                <div class="preview-bottom-actions">
+                  <el-button 
+                    @click="handleImageToVideo" 
+                    class="preview-bottom-btn"
+                  >
+                    <el-icon><VideoCamera /></el-icon>
+                    <span>图生视频</span>
+                  </el-button>
+                  
+                  <el-button 
+                    @click="handleUseAsReference" 
+                    class="preview-bottom-btn"
+                  >
+                    <el-icon><Picture /></el-icon>
+                    <span>作为参考图</span>
+                  </el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -2132,6 +2148,24 @@
           <div class="preview-media-section">
             <div class="media-container">
               <video :src="convertToProxyUrl(previewVideoUrl)" class="preview-video" controls autoplay crossorigin="anonymous" />
+              
+              <!-- 右侧上下切换按钮 -->
+              <div v-if="previewVideoList.length > 1" class="preview-nav-buttons">
+                <div 
+                  class="preview-nav-btn up-btn"
+                  :class="{ disabled: currentVideoPreviewIndex === 0 }"
+                  @click="currentVideoPreviewIndex > 0 && prevVideo()"
+                >
+                  <el-icon><ArrowUp /></el-icon>
+                </div>
+                <div 
+                  class="preview-nav-btn down-btn"
+                  :class="{ disabled: currentVideoPreviewIndex === previewVideoList.length - 1 }"
+                  @click="currentVideoPreviewIndex < previewVideoList.length - 1 && nextVideo()"
+                >
+                  <el-icon><ArrowDown /></el-icon>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -2192,11 +2226,30 @@
                 <el-button 
                   type="primary" 
                   @click="downloadVideo(previewVideoData)" 
-                  class="preview-action-btn primary-btn"
+                  class="preview-action-btn download-btn"
                 >
                   <el-icon><Download /></el-icon>
                   <span>下载视频</span>
                 </el-button>
+                
+                <!-- 底部固定按钮组 -->
+                <div class="preview-bottom-actions">
+                  <el-button 
+                    @click="handleVideoReEdit" 
+                    class="preview-bottom-btn"
+                  >
+                    <el-icon><Edit /></el-icon>
+                    <span>重新编辑</span>
+                  </el-button>
+                  
+                  <el-button 
+                    @click="handleVideoRegenerate" 
+                    class="preview-bottom-btn"
+                  >
+                    <el-icon><Refresh /></el-icon>
+                    <span>再次生成</span>
+                  </el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -2218,6 +2271,9 @@ import {
 import { formatTime } from '../utils'
 import { downloadFile, convertToProxyUrl } from '../utils'
 import { getImgModelConfig, getGenerateResults, postAIGenerate, getGenerateStatus,postAIGenerateRetry, deleteGenerate } from '../api/generate'
+import { useGenerateStore } from '../stores/generate'
+
+const generateStore = useGenerateStore()
 
 interface UploadFile {
   uid: string
@@ -2387,6 +2443,9 @@ const previewMetadata = ref<HistoryResult | null>(null) // 存储预览的元数
 // 新增：图片列表预览相关状态
 const previewImageList = ref<Asset[]>([]) // 当前预览的图片列表
 const currentPreviewIndex = ref(0) // 当前预览的图片索引
+// 新增：视频列表预览相关状态
+const previewVideoList = ref<Asset[]>([]) // 当前预览的视频列表
+const currentVideoPreviewIndex = ref(0) // 当前预览的视频索引
 const uploadPreviewVisible = ref(false)
 const uploadPreviewUrl = ref('')
 // 控制提示词输入框字数限制
@@ -3798,29 +3857,24 @@ const previewImage = (imageUrl: string, imageData?: Asset, promptText?: string, 
   // 存储元数据
   previewMetadata.value = resultData || null
   
-  // 如果 resultData 存在且有 assets，提取所有图片资源
-  if (resultData && resultData.assets) {
-    const imageAssets = resultData.assets.filter(asset => asset.type === 1)
-    if (imageAssets.length > 0) {
-      previewImageList.value = imageAssets
-      // 找到当前图片在列表中的索引
-      const currentIndex = imageAssets.findIndex(
-        asset => (asset.materialUrl || asset.coverUrl) === imageUrl
-      )
-      currentPreviewIndex.value = currentIndex >= 0 ? currentIndex : 0
-    } else {
-      // 如果没有图片资源，创建单个图片的列表
-      previewImageList.value = [imageData || {
-        id: Date.now(),
-        materialUrl: imageUrl,
-        coverUrl: imageUrl,
-        type: 1
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any]
-      currentPreviewIndex.value = 0
+  // 构建全局所有图片列表（从所有历史结果中提取）
+  const allImages: Asset[] = []
+  historyResults.value.forEach(result => {
+    if (result.assets) {
+      const imageAssets = result.assets.filter(asset => asset.type === 1)
+      allImages.push(...imageAssets)
     }
+  })
+  
+  if (allImages.length > 0) {
+    previewImageList.value = allImages
+    // 找到当前图片在全局列表中的索引
+    const currentIndex = allImages.findIndex(
+      asset => (asset.materialUrl || asset.coverUrl) === imageUrl
+    )
+    currentPreviewIndex.value = currentIndex >= 0 ? currentIndex : 0
   } else {
-    // 如果没有 resultData，创建单个图片的列表
+    // 如果没有图片资源，创建单个图片的列表
     previewImageList.value = [imageData || {
       id: Date.now(),
       materialUrl: imageUrl,
@@ -3836,18 +3890,20 @@ const previewImage = (imageUrl: string, imageData?: Asset, promptText?: string, 
 
 // 切换到上一张图片
 const prevImage = () => {
-  if (currentPreviewIndex.value > 0) {
-    currentPreviewIndex.value--
-    updatePreviewImage()
-  }
+  if (previewImageList.value.length === 0) return
+  if (currentPreviewIndex.value <= 0) return
+  
+  currentPreviewIndex.value--
+  updatePreviewImage()
 }
 
 // 切换到下一张图片
 const nextImage = () => {
-  if (currentPreviewIndex.value < previewImageList.value.length - 1) {
-    currentPreviewIndex.value++
-    updatePreviewImage()
-  }
+  if (previewImageList.value.length === 0) return
+  if (currentPreviewIndex.value >= previewImageList.value.length - 1) return
+  
+  currentPreviewIndex.value++
+  updatePreviewImage()
 }
 
 // 更新预览图片
@@ -3861,6 +3917,16 @@ const updatePreviewImage = () => {
       url: currentImage.materialUrl || currentImage.coverUrl || '',
       thumbnail: currentImage.coverUrl || currentImage.materialUrl || ''
     }
+    
+    // 查找当前图片所属的历史结果，更新元数据和提示词
+    const parentResult = historyResults.value.find(result => 
+      result.assets?.some(asset => asset.id === currentImage.id)
+    )
+    
+    if (parentResult) {
+      previewMetadata.value = parentResult
+      previewPrompt.value = parentResult.tags?.find(t => t.key === 'prompt')?.val || ''
+    }
   }
 }
 
@@ -3868,13 +3934,294 @@ const updatePreviewImage = () => {
 const handlePreviewKeydown = (event: KeyboardEvent) => {
   if (!previewVisible.value) return
   
-  if (event.key === 'ArrowLeft') {
+  if (event.key === 'ArrowUp') {
     prevImage()
-  } else if (event.key === 'ArrowRight') {
+  } else if (event.key === 'ArrowDown') {
     nextImage()
   } else if (event.key === 'Escape') {
     previewVisible.value = false
   }
+}
+
+// 切换到上一个视频
+const prevVideo = () => {
+  if (previewVideoList.value.length === 0) return
+  if (currentVideoPreviewIndex.value <= 0) return
+  
+  currentVideoPreviewIndex.value--
+  updatePreviewVideo()
+}
+
+// 切换到下一个视频
+const nextVideo = () => {
+  if (previewVideoList.value.length === 0) return
+  if (currentVideoPreviewIndex.value >= previewVideoList.value.length - 1) return
+  
+  currentVideoPreviewIndex.value++
+  updatePreviewVideo()
+}
+
+// 更新预览视频
+const updatePreviewVideo = () => {
+  const currentVideo = previewVideoList.value[currentVideoPreviewIndex.value]
+  if (currentVideo) {
+    previewVideoUrl.value = currentVideo.materialUrl || currentVideo.coverUrl || ''
+    // 转换为 VideoResult 格式
+    previewVideoData.value = {
+      id: currentVideo.id.toString(),
+      url: currentVideo.materialUrl || currentVideo.coverUrl || '',
+      thumbnail: currentVideo.coverUrl || currentVideo.materialUrl || ''
+    }
+    
+    // 查找当前视频所属的历史结果，更新元数据和提示词
+    const parentResult = historyResults.value.find(result => 
+      result.assets?.some(asset => asset.id === currentVideo.id)
+    )
+    
+    if (parentResult) {
+      previewMetadata.value = parentResult
+      previewPrompt.value = parentResult.tags?.find(t => t.key === 'prompt')?.val || ''
+    }
+  }
+}
+
+// 图生视频功能
+const handleImageToVideo = async () => {
+  console.log('=== handleImageToVideo 开始 ===')
+  
+  // 增加编辑操作计数
+  editingOperationCount.value++
+  console.log('editingOperationCount++:', editingOperationCount.value)
+  
+  // 设置标志，防止触发 applyStoreConfig
+  isEditingFromHistory.value = true
+  hasAppliedStoreConfig.value = false // 重置标志，防止延迟的清空操作
+  console.log('设置 isEditingFromHistory = true, hasAppliedStoreConfig = false')
+  
+  // 关闭预览弹窗
+  previewVisible.value = false
+  
+  // 获取当前预览的图片URL
+  const currentImageUrl = previewImageUrl.value
+  
+  if (!currentImageUrl) {
+    ElMessage.warning('未找到图片信息')
+    isEditingFromHistory.value = false
+    return
+  }
+  
+  // 从previewImageList获取当前图片的完整Asset对象
+  const currentAsset = previewImageList.value[currentPreviewIndex.value]
+  
+  // 获取正确的URI值（优先使用materialUri，其次coverUri）
+  const imageUri = currentAsset?.materialUri || currentAsset?.coverUri || ''
+  
+  if (!imageUri) {
+    ElMessage.warning('未找到图片URI信息')
+    isEditingFromHistory.value = false
+    return
+  }
+  
+  // 切换到视频生成模式
+  const videoMode = generateModes.value.find(m => m.value === 'video')
+  if (videoMode) {
+    console.log('切换到视频生成模式')
+    selectGenerateMode(videoMode)
+    await nextTick()
+  }
+  
+  // 将当前图片设置为首帧图
+  firstFrameImage.value = currentImageUrl
+  firstFrameImageVal.value = imageUri
+  
+  ElMessage.success('已切换到视频生成模式，当前图片已设为首帧图')
+  
+  // 滚动到输入区域
+  setTimeout(() => {
+    scrollToBottom()
+  }, 100)
+  
+  console.log('=== handleImageToVideo 完成 ===')
+  
+  // 延迟减少计数器
+  setTimeout(() => {
+    editingOperationCount.value--
+    console.log('editingOperationCount--:', editingOperationCount.value)
+    
+    if (editingOperationCount.value === 0) {
+      console.log('重置 isEditingFromHistory = false')
+      isEditingFromHistory.value = false
+    }
+  }, 1000)
+}
+
+// 作为参考图功能
+const handleUseAsReference = () => {
+  // 关闭预览弹窗
+  previewVisible.value = false
+  
+  // 获取当前预览的图片URL
+  const currentImageUrl = previewImageUrl.value
+  
+  if (!currentImageUrl) {
+    ElMessage.warning('未找到图片信息')
+    return
+  }
+  
+  // 从previewImageList获取当前图片的完整Asset对象
+  const currentAsset = previewImageList.value[currentPreviewIndex.value]
+  
+  // 获取正确的URI值（优先使用materialUri，其次coverUri）
+  const imageUri = currentAsset?.materialUri || currentAsset?.coverUri || ''
+  
+  if (!imageUri) {
+    ElMessage.warning('未找到图片URI信息')
+    return
+  }
+  
+  // 根据当前生成模式添加参考图
+  if (currentGenerateMode.value?.value === 'image') {
+    // 图片生成模式
+    const maxCount = getMaxImageCount()
+    if (referenceImages.value.length >= maxCount) {
+      ElMessage.warning(`最多只能上传${maxCount}张参考图片`)
+      return
+    }
+    
+    const img: UploadFile = {
+      uid: Date.now().toString(),
+      name: 'reference.jpg',
+      url: currentImageUrl,
+      raw: new File([], 'reference.jpg'),
+      val: imageUri
+    }
+    referenceImages.value.push(img)
+    ElMessage.success('已添加为参考图片')
+  } else if (currentGenerateMode.value?.value === 'video') {
+    // 视频生成模式
+    // 检查是否是多模态参考模式
+    if (selectedKeLingOption.value === '多模态参考' || selectedKeLingOption.value === '视频编辑') {
+      // 添加到视频参考图片列表
+      const emptyIndex = videoReferenceImages.value.findIndex(img => !img)
+      if (emptyIndex === -1) {
+        ElMessage.warning('最多只能上传4张参考图片')
+        return
+      }
+      
+      videoReferenceImages.value[emptyIndex] = currentImageUrl
+      videoReferenceImagesVal.value[emptyIndex] = imageUri
+      ElMessage.success('已添加为视频参考图片')
+    } else {
+      // 其他视频模式，添加到通用参考图片
+      if (referenceImages.value.length >= 4) {
+        ElMessage.warning('最多只能上传4张参考图片')
+        return
+      }
+      
+      const img: UploadFile = {
+        uid: Date.now().toString(),
+        name: 'reference.jpg',
+        url: currentImageUrl,
+        raw: new File([], 'reference.jpg'),
+        val: imageUri
+      }
+      referenceImages.value.push(img)
+      ElMessage.success('已添加为参考图片')
+    }
+  }
+  
+  // 滚动到输入区域
+  setTimeout(() => {
+    scrollToBottom()
+  }, 100)
+}
+
+// 视频重新编辑功能
+const handleVideoReEdit = async () => {
+  console.log('=== handleVideoReEdit 开始 ===')
+  
+  // 关闭预览弹窗
+  videoPreviewVisible.value = false
+  
+  // 如果有完整的结果数据，使用 editGeneration 函数
+  if (previewMetadata.value) {
+    console.log('使用 editGeneration 函数')
+    await editGeneration(previewMetadata.value)
+    return
+  }
+  
+  console.log('使用简化逻辑')
+  
+  // 增加编辑操作计数
+  editingOperationCount.value++
+  console.log('editingOperationCount++:', editingOperationCount.value)
+  
+  // 设置标志，防止触发 applyStoreConfig
+  isEditingFromHistory.value = true
+  hasAppliedStoreConfig.value = false // 重置标志，防止延迟的清空操作
+  console.log('设置 isEditingFromHistory = true, hasAppliedStoreConfig = false')
+  
+  // 否则使用原有的简化逻辑
+  const currentPrompt = previewPrompt.value
+  
+  if (!currentPrompt) {
+    ElMessage.warning('未找到生成提示词')
+    isEditingFromHistory.value = false
+    return
+  }
+  
+  // 确保在视频生成模式
+  const videoMode = generateModes.value.find(m => m.value === 'video')
+  if (videoMode && currentGenerateMode.value?.value !== 'video') {
+    console.log('切换到视频生成模式')
+    selectGenerateMode(videoMode)
+    await nextTick()
+  }
+  
+  // 将提示词填充到输入框
+  prompt.value = currentPrompt
+  
+  ElMessage.success('已恢复生成参数，可以重新编辑')
+  
+  // 滚动到输入区域
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, 100)
+  
+  console.log('=== handleVideoReEdit 完成 ===')
+  
+  // 延迟减少计数器
+  setTimeout(() => {
+    editingOperationCount.value--
+    console.log('editingOperationCount--:', editingOperationCount.value)
+    
+    if (editingOperationCount.value === 0) {
+      console.log('重置 isEditingFromHistory = false')
+      isEditingFromHistory.value = false
+    }
+  }, 1000)
+}
+
+// 视频再次生成功能
+const handleVideoRegenerate = async () => {
+  // 关闭预览弹窗
+  videoPreviewVisible.value = false
+  
+  // 如果有完整的结果数据，使用 regenerateFromHistory 函数
+  if (previewMetadata.value) {
+    await regenerateFromHistory(previewMetadata.value)
+    return
+  }
+  
+  // 否则使用原有的简化逻辑
+  const currentPrompt = previewPrompt.value
+  
+  if (!currentPrompt) {
+    ElMessage.warning('未找到生成提示词')
+    return
+  }
+  
+  ElMessage.warning('无法获取完整的生成参数，请从历史记录中重新生成')
 }
 
 const previewVideo = (videoUrl: string, videoData?: Asset, promptText?: string, resultData?: HistoryResult) => {
@@ -3892,6 +4239,35 @@ const previewVideo = (videoUrl: string, videoData?: Asset, promptText?: string, 
   previewPrompt.value = promptText || ''
   // 存储元数据
   previewMetadata.value = resultData || null
+  
+  // 构建全局所有视频列表（从所有历史结果中提取）
+  const allVideos: Asset[] = []
+  historyResults.value.forEach(result => {
+    if (result.assets) {
+      const videoAssets = result.assets.filter(asset => asset.type === 2)
+      allVideos.push(...videoAssets)
+    }
+  })
+  
+  if (allVideos.length > 0) {
+    previewVideoList.value = allVideos
+    // 找到当前视频在全局列表中的索引
+    const currentIndex = allVideos.findIndex(
+      asset => (asset.materialUrl || asset.coverUrl) === videoUrl
+    )
+    currentVideoPreviewIndex.value = currentIndex >= 0 ? currentIndex : 0
+  } else {
+    // 如果没有视频资源，创建单个视频的列表
+    previewVideoList.value = [videoData || {
+      id: Date.now(),
+      materialUrl: videoUrl,
+      coverUrl: '',
+      type: 2
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any]
+    currentVideoPreviewIndex.value = 0
+  }
+  
   videoPreviewVisible.value = true
 }
 
@@ -4034,16 +4410,38 @@ const selectHistoryItem = (historyItem: ImageHistoryItem) => {
 
 // 从历史记录重新编辑
 const editGeneration = async (result: HistoryResult) => {
+  console.log('=== editGeneration 开始 ===')
+  
+  // 增加编辑操作计数
+  editingOperationCount.value++
+  console.log('editingOperationCount++:', editingOperationCount.value)
+  
+  // 设置标志，表示正在从历史记录编辑
+  isEditingFromHistory.value = true
+  hasAppliedStoreConfig.value = false // 重置标志，防止延迟的清空操作
+  console.log('设置 isEditingFromHistory = true, hasAppliedStoreConfig = false')
+  
+  // 先清空 store 配置，避免触发 applyStoreConfig
+  generateStore.resetConfig()
+  console.log('已清空 store 配置')
+  
   // 1. 填充提示词
   prompt.value = result.prompt || result.tags?.find(t => t.key === 'prompt')?.val || ''
   
   // 2. 设置生成模式（图片或视频）
   const genMode = result.type === 2 ? generateModes.value[1] : generateModes.value[0]
-  currentGenerateMode.value = genMode
+  if (genMode) {
+    console.log('切换生成模式:', genMode.label)
+    // 使用 selectGenerateMode 来正确切换模式和加载模型列表
+    selectGenerateMode(genMode)
+    // 等待模型列表加载
+    await nextTick()
+  }
   
   // 3. 查找并设置模型
   const aiDriverTag = result.tags?.find(t => t.key === 'aiDriver')?.val
   if (aiDriverTag) {
+    console.log('加载模型配置:', aiDriverTag)
     // 先加载该模型的配置
     await fetchModelConfig(aiDriverTag)
     
@@ -4051,6 +4449,7 @@ const editGeneration = async (result: HistoryResult) => {
     const targetModel = models.value.find(m => m.aiDriver === aiDriverTag)
     if (targetModel) {
       currentModel.value = targetModel
+      console.log('设置当前模型:', targetModel.name)
     }
   }
   
@@ -4241,6 +4640,20 @@ const editGeneration = async (result: HistoryResult) => {
   }, 100)
   
   ElMessage.success('已加载历史记录，可以重新编辑')
+  
+  console.log('=== editGeneration 完成 ===')
+  
+  // 延迟减少计数器，确保所有异步操作都完成
+  setTimeout(() => {
+    editingOperationCount.value--
+    console.log('editingOperationCount--:', editingOperationCount.value)
+    
+    // 如果没有其他编辑操作在进行，重置标志
+    if (editingOperationCount.value === 0) {
+      console.log('重置 isEditingFromHistory = false')
+      isEditingFromHistory.value = false
+    }
+  }, 1000)
 }
 
 // 从历史记录再次生成
@@ -4580,7 +4993,16 @@ const fetchModelConfig = async (aiDriver?: string) => {
     ElMessage.error('获取生成模型配置失败');
   }
 }
-fetchModelConfig()
+
+// 初始化：先调用 fetchModelConfig，完成后应用 store 配置
+fetchModelConfig().then(() => {
+  console.log('初始 fetchModelConfig 完成，检查 store 配置')
+  // 延迟一下，确保所有数据都已设置
+  setTimeout(() => {
+    applyStoreConfig()
+  }, 100)
+})
+
 //获取列表
 const fetchGenerateResults = async (page: number = 1, append: boolean = false) => {
   if (loadingMore.value) return
@@ -5130,6 +5552,265 @@ onMounted(() => {
   // 不在这里设置 Observer，等初始加载完成后再设置
 })
 
+// 应用 store 配置的函数
+const applyingStoreConfig = ref(false) // 标志：是否正在应用 store 配置
+const hasAppliedStoreConfig = ref(false) // 标志：是否真正应用了 store 配置
+const isEditingFromHistory = ref(false) // 标志：是否正在从历史记录编辑
+const editingOperationCount = ref(0) // 计数器：正在进行的编辑操作数量
+
+const applyStoreConfig = () => {
+  const config = generateStore.config
+  if (!config || !config.mode) {
+    console.log('store 配置为空，跳过应用')
+    return
+  }
+
+  // 防止重复执行
+  if (applyingStoreConfig.value) {
+    console.log('正在应用配置中，跳过重复调用')
+    return
+  }
+
+  console.log('应用 store 配置:', config)
+  applyingStoreConfig.value = true
+  // 只有在没有正在进行的编辑操作时，才标记为已应用 store 配置
+  if (editingOperationCount.value === 0) {
+    hasAppliedStoreConfig.value = true // 标记已应用配置
+    console.log('标记 hasAppliedStoreConfig = true')
+  }
+
+  // 先保存参考素材（在切换模式前）
+  const savedReferenceImages = config.referenceImages || []
+  const savedReferenceVideo = config.referenceVideo || ''
+  const savedReferenceVideoVal = config.referenceVideoVal || ''
+
+  // 设置生成模式 - 使用 selectGenerateMode 函数来正确切换模型列表
+  const mode = generateModes.value.find(m => m.value === config.mode)
+  if (mode && currentGenerateMode.value?.value !== config.mode) {
+    console.log('切换生成模式:', mode)
+    selectGenerateMode(mode)
+  }
+
+  // 设置提示词
+  if (config.prompt) {
+    prompt.value = config.prompt
+  }
+
+  // 根据生成模式设置参考素材
+  if (config.mode === 'video') {
+    // 视频生成模式
+    console.log('视频模式 - savedReferenceVideo:', savedReferenceVideo)
+    console.log('视频模式 - savedReferenceImages:', savedReferenceImages)
+    
+    if (savedReferenceVideo) {
+      // 有参考视频 - 用于多模态参考或视频编辑
+      referenceVideo.value = savedReferenceVideo
+      referenceVideoVal.value = savedReferenceVideoVal
+      console.log('设置参考视频:', savedReferenceVideo)
+      ElMessage.success('参考视频已加载')
+    } else if (savedReferenceImages.length > 0) {
+      // 有参考图片 - 用于首尾帧模式
+      console.log('处理参考图片数组，长度:', savedReferenceImages.length)
+      
+      const firstImage = savedReferenceImages[0]
+      console.log('firstImage:', firstImage)
+      if (firstImage) {
+        firstFrameImage.value = firstImage.url
+        firstFrameImageVal.value = firstImage.val || ''
+        console.log('设置首帧图 - url:', firstImage.url, 'val:', firstImage.val)
+      }
+      
+      const lastImage = savedReferenceImages[1]
+      console.log('lastImage:', lastImage)
+      if (lastImage) {
+        lastFrameImage.value = lastImage.url
+        lastFrameImageVal.value = lastImage.val || ''
+        console.log('设置尾帧图 - url:', lastImage.url, 'val:', lastImage.val)
+      }
+      
+      ElMessage.success('参考图片已加载')
+    }
+  } else if (config.mode === 'image') {
+    // 图片生成模式
+    // 先清空现有的参考图片，避免重复添加
+    referenceImages.value = []
+    
+    if (savedReferenceImages.length > 0) {
+      savedReferenceImages.forEach((img, index) => {
+        if (img.val) {
+          referenceImages.value.push({
+            uid: Date.now().toString() + index,
+            name: img.url.split('/').pop() || `reference-${index}.jpg`,
+            url: img.url,
+            raw: new File([], ''),
+            val: img.val
+          })
+        }
+      })
+      
+      if (referenceImages.value.length > 0) {
+        console.log('设置参考图片:', referenceImages.value.length, '张')
+        ElMessage.success(`已加载 ${referenceImages.value.length} 张参考图片`)
+      }
+    }
+  }
+
+  // 等待 selectGenerateMode 中的 fetchModelConfig 完成
+  // 然后设置模型和其他配置
+  setTimeout(() => {
+    applyModelAndOtherConfigs(config)
+  }, 500)
+}
+
+// 应用模型和其他配置
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const applyModelAndOtherConfigs = (config: any) => {
+  console.log('应用模型和其他配置:', config)
+
+  // 设置 AI 模型
+  if (config.aiDriver && models.value.length > 0) {
+    const model = models.value.find(m => m.aiDriver === config.aiDriver)
+    if (model && currentModel.value?.aiDriver !== config.aiDriver) {
+      console.log('设置模型:', model)
+      currentModel.value = model
+      
+      // 调用 fetchModelConfig 加载该模型的配置
+      fetchModelConfig(model.aiDriver).then(() => {
+        // fetchModelConfig 完成后，再次应用其他配置
+        setTimeout(() => {
+          applyOtherConfigs(config)
+        }, 100)
+      })
+      return // 等待 fetchModelConfig 完成
+    }
+  }
+
+  // 如果不需要切换模型，直接应用其他配置
+  applyOtherConfigs(config)
+}
+
+// 应用其他配置（尺寸、分辨率等）
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const applyOtherConfigs = (config: any) => {
+  console.log('应用其他配置:', config)
+
+  if (config.aspectRatio && imageSizes.value && imageSizes.value.length > 0) {
+    const size = imageSizes.value.find(s => s.value === config.aspectRatio)
+    if (size && currentSize.value?.value !== config.aspectRatio) {
+      currentSize.value = size
+      console.log('设置尺寸:', size)
+    }
+  }
+
+  if (config.resolutionRatio && resolutions.value && resolutions.value.length > 0) {
+    const resolution = resolutions.value.find(r => r.value === config.resolutionRatio)
+    if (resolution && currentResolution.value?.value !== config.resolutionRatio) {
+      currentResolution.value = resolution
+      console.log('设置分辨率:', resolution)
+    }
+  }
+
+  if (config.duration && selectedDuration.value !== config.duration) {
+    selectedDuration.value = config.duration
+    console.log('设置时长:', config.duration)
+  }
+
+  if (config.genImageNum && imageCounts.value && imageCounts.value.length > 0) {
+    const count = imageCounts.value.find(c => c.value === config.genImageNum)
+    if (count && currentImageCount.value?.value !== config.genImageNum) {
+      currentImageCount.value = count
+      console.log('设置图片张数:', count)
+    }
+  }
+
+  applyingStoreConfig.value = false
+  
+  // 配置应用完成后，延迟清空 store 配置
+  // 只有在真正应用了 store 配置的情况下才清空
+  console.log('applyOtherConfigs 完成:', {
+    hasAppliedStoreConfig: hasAppliedStoreConfig.value,
+    isEditingFromHistory: isEditingFromHistory.value,
+    willClearStore: hasAppliedStoreConfig.value
+  })
+  
+  if (hasAppliedStoreConfig.value) {
+    setTimeout(() => {
+      console.log('准备清空 store 配置，当前状态:', {
+        hasAppliedStoreConfig: hasAppliedStoreConfig.value,
+        isEditingFromHistory: isEditingFromHistory.value
+      })
+      generateStore.resetConfig()
+      hasAppliedStoreConfig.value = false // 重置标志
+    }, 500)
+  } else {
+    console.log('不清空 store 配置，hasAppliedStoreConfig = false')
+  }
+}
+
+// 监听模型列表变化，当模型加载完成后应用配置
+watch(models, (newModels) => {
+  if (newModels && newModels.length > 0) {
+    const config = generateStore.config
+    // 只有在有配置且没有正在进行的编辑操作时才应用
+    if (config && config.mode && editingOperationCount.value === 0) {
+      console.log('模型列表已加载，应用配置')
+      applyStoreConfig()
+    }
+  }
+}, { immediate: true })
+
+// 监听 imageSizes 变化
+watch(imageSizes, (newSizes) => {
+  if (newSizes && newSizes.length > 0) {
+    const config = generateStore.config
+    // 只有在有配置且没有正在进行的编辑操作时才应用
+    if (config && config.mode && editingOperationCount.value === 0) {
+      console.log('图片尺寸列表已加载，应用配置')
+      applyStoreConfig()
+    }
+  }
+}, { immediate: true })
+
+// 监听 resolutions 变化
+watch(resolutions, (newResolutions) => {
+  if (newResolutions && newResolutions.length > 0) {
+    const config = generateStore.config
+    // 只有在有配置且没有正在进行的编辑操作时才应用
+    if (config && config.mode && editingOperationCount.value === 0) {
+      console.log('分辨率列表已加载，应用配置')
+      applyStoreConfig()
+    }
+  }
+}, { immediate: true })
+
+// 监听 imageCounts 变化
+watch(imageCounts, (newCounts) => {
+  if (newCounts && newCounts.length > 0) {
+    const config = generateStore.config
+    // 只有在有配置且没有正在进行的编辑操作时才应用
+    if (config && config.mode && editingOperationCount.value === 0) {
+      console.log('图片张数列表已加载，应用配置')
+      applyStoreConfig()
+    }
+  }
+}, { immediate: true })
+
+// 在所有配置应用完成后清空 store（已移至 applyOtherConfigs 中处理）
+// watch([models, imageSizes, resolutions, imageCounts], ([newModels, newSizes, newResolutions, newCounts]) => {
+//   const config = generateStore.config
+//   if (!config || !config.mode) return
+
+//   const allLoaded = newModels && newModels.length > 0 && 
+//                     (config.mode === 'video' || (newSizes && newSizes.length > 0))
+
+//   if (allLoaded) {
+//     setTimeout(() => {
+//       console.log('清空 store 配置')
+//       generateStore.resetConfig()
+//     }, 1000)
+//   }
+// })
+
 // 监听预览对话框状态，控制页面滚动
 watch([previewVisible, videoPreviewVisible, uploadPreviewVisible], ([newPreview, newVideoPreview, newUploadPreview]) => {
   if (newPreview || newVideoPreview || newUploadPreview) {
@@ -5173,9 +5854,18 @@ const setupIntersectionObserver = () => {
   loadMoreObserver.value = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
+        console.log('IntersectionObserver 触发:', {
+          isIntersecting: entry.isIntersecting,
+          intersectionRatio: entry.intersectionRatio,
+          hasMore: hasMore.value,
+          loadingMore: loadingMore.value,
+          currentPage: currentPage.value
+        })
+        
         // 只有当元素真正进入视口时才触发加载
         // 使用 intersectionRatio > 0 确保元素至少部分可见
         if (entry.isIntersecting && entry.intersectionRatio > 0 && hasMore.value && !loadingMore.value) {
+          console.log('✅ 触发上滚加载，当前页:', currentPage.value)
           currentPage.value++
           fetchGenerateResults(currentPage.value, true)
         }
@@ -9532,69 +10222,51 @@ body:has(.preview-dialog.el-overlay) {
   font-weight: 500;
 }
 
-/* 左右切换按钮 */
-.preview-nav-btn {
+/* 右侧上下切换按钮容器 */
+.preview-nav-buttons {
   position: absolute;
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 10;
+}
+
+/* 上下切换按钮 - 无背景样式 */
+.preview-nav-btn {
+  width: 40px;
+  height: 40px;
   border: none;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.preview-nav-btn.prev-btn {
-  left: 20px;
-}
-
-.preview-nav-btn.next-btn {
-  right: 20px;
-}
-
-.preview-nav-btn:hover {
-  background: rgba(0, 0, 0, 0.6);
+.preview-nav-btn:hover:not(.disabled) {
   color: #ffffff;
-  transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transform: scale(1.2);
 }
 
-.preview-nav-btn:active {
-  transform: translateY(-50%) scale(0.95);
+.preview-nav-btn:active:not(.disabled) {
+  transform: scale(0.9);
+}
+
+.preview-nav-btn.disabled {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .preview-nav-btn .el-icon {
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 600;
-}
-
-/* 图片计数器 */
-.preview-counter {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8px 20px;
-  border-radius: 20px;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-  border: none;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
-  z-index: 10;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-  letter-spacing: 0.5px;
-  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 /* 左右布局 - 全屏 */
@@ -9717,7 +10389,7 @@ body:has(.preview-dialog.el-overlay) {
 .info-content {
   position: relative;
   z-index: 1;
-  padding: 60px 20px 24px 20px; /* 减少顶部padding */
+  padding: 60px 20px 20px 20px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -9818,7 +10490,7 @@ body:has(.preview-dialog.el-overlay) {
   transition: all 0.3s ease;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
   min-height: 80px;
-  max-height: 486px; /* 减小最大高度，确保下载按钮可见 */
+  max-height: 380px; /* 减小最大高度，确保下载按钮可见 */
 }
 
 .prompt-text:hover {
@@ -9960,12 +10632,23 @@ body:has(.preview-dialog.el-overlay) {
 .preview-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   padding-top: 4px;
   flex-shrink: 0;
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  background: transparent;
+  padding-top: 20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  margin-bottom: -20px;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-bottom: 20px;
 }
 
-.preview-action-btn {
+.preview-action-btn.download-btn {
   width: 100%;
   height: 44px;
   border-radius: 22px;
@@ -9979,9 +10662,7 @@ body:has(.preview-dialog.el-overlay) {
   align-items: center;
   justify-content: center;
   gap: 8px;
-}
-
-.preview-action-btn.primary-btn {
+  margin-bottom: 16px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #ffffff;
   box-shadow: 
@@ -9989,7 +10670,69 @@ body:has(.preview-dialog.el-overlay) {
     0 0 0 1px rgba(255, 255, 255, 0.1) inset;
 }
 
-.preview-action-btn::before {
+/* 底部固定按钮组 */
+.preview-bottom-actions {
+  display: flex;
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
+}
+
+.preview-bottom-btn {
+  flex: 1;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.preview-bottom-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  transition: left 0.5s ease;
+}
+
+.preview-bottom-btn:hover::before {
+  left: 100%;
+}
+
+.preview-bottom-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.preview-bottom-btn:active {
+  transform: translateY(0);
+}
+
+.preview-bottom-btn .el-icon {
+  font-size: 18px;
+  opacity: 0.8;
+}
+
+.preview-action-btn.download-btn::before {
   content: '';
   position: absolute;
   top: 0;
@@ -10000,11 +10743,11 @@ body:has(.preview-dialog.el-overlay) {
   transition: left 0.6s ease;
 }
 
-.preview-action-btn:hover::before {
+.preview-action-btn.download-btn:hover::before {
   left: 100%;
 }
 
-.preview-action-btn.primary-btn:hover {
+.preview-action-btn.download-btn:hover {
   transform: translateY(-3px);
   box-shadow: 
     0 12px 36px rgba(102, 126, 234, 0.5),
@@ -10012,13 +10755,14 @@ body:has(.preview-dialog.el-overlay) {
   background: linear-gradient(135deg, #7b8ff0 0%, #8a5bb8 100%);
 }
 
-.preview-action-btn:active {
+.preview-action-btn.download-btn:active {
   transform: translateY(-1px);
 }
 
-.preview-action-btn .el-icon {
+.preview-action-btn.download-btn .el-icon {
   font-size: 20px;
 }
+
 
 /* 选择器样式 - 即梦风格 */
 :deep(.model-popover),

@@ -86,7 +86,7 @@
             <el-checkbox 
               :checked="dateGroup.allSelected"
               :indeterminate="dateGroup.indeterminate"
-              @change="(val: boolean) => toggleDateGroupSelection(dateGroup, val)"
+              @change="(val) => toggleDateGroupSelection(dateGroup, val)"
             >
               全选
             </el-checkbox>
@@ -201,25 +201,22 @@
                 muted
               />
               
-              <!-- 左右切换按钮 -->
-              <div 
-                v-if="previewAssetList.length > 1 && currentPreviewIndex > 0" 
-                class="preview-nav-btn prev-btn"
-                @click="prevAsset"
-              >
-                <el-icon><ArrowLeft /></el-icon>
-              </div>
-              <div 
-                v-if="previewAssetList.length > 1 && currentPreviewIndex < previewAssetList.length - 1" 
-                class="preview-nav-btn next-btn"
-                @click="nextAsset"
-              >
-                <el-icon><ArrowRight /></el-icon>
-              </div>
-              
-              <!-- 资产计数器 -->
-              <div v-if="previewAssetList.length > 1" class="preview-counter">
-                {{ currentPreviewIndex + 1 }} / {{ previewAssetList.length }}
+              <!-- 右侧上下切换按钮 -->
+              <div v-if="previewAssetList.length > 1" class="preview-nav-buttons">
+                <div 
+                  class="preview-nav-btn up-btn"
+                  :class="{ disabled: currentPreviewIndex === 0 }"
+                  @click="currentPreviewIndex > 0 && prevAsset()"
+                >
+                  <el-icon><ArrowUp /></el-icon>
+                </div>
+                <div 
+                  class="preview-nav-btn down-btn"
+                  :class="{ disabled: currentPreviewIndex === previewAssetList.length - 1 }"
+                  @click="currentPreviewIndex < previewAssetList.length - 1 && nextAsset()"
+                >
+                  <el-icon><ArrowDown /></el-icon>
+                </div>
               </div>
             </div>
           </div>
@@ -296,11 +293,49 @@
                 <el-button 
                   type="primary" 
                   @click="downloadCurrentAsset"
-                  class="preview-action-btn primary-btn"
+                  class="preview-action-btn primary-btn download-btn"
                 >
                   <el-icon><Download /></el-icon>
                   <span>保存素材</span>
                 </el-button>
+                
+                <!-- 底部固定按钮组 - 图片预览时显示 -->
+                <div v-if="currentAsset.type === 1" class="preview-bottom-actions">
+                  <el-button 
+                    @click="handleImageToVideo" 
+                    class="preview-bottom-btn"
+                  >
+                    <el-icon><VideoCamera /></el-icon>
+                    <span>图生视频</span>
+                  </el-button>
+                  
+                  <el-button 
+                    @click="handleUseAsReference" 
+                    class="preview-bottom-btn"
+                  >
+                    <el-icon><Picture /></el-icon>
+                    <span>作为参考图</span>
+                  </el-button>
+                </div>
+                
+                <!-- 底部固定按钮组 - 视频预览时显示 -->
+                <div v-if="currentAsset.type === 2" class="preview-bottom-actions">
+                  <el-button 
+                    @click="handleVideoReEdit" 
+                    class="preview-bottom-btn"
+                  >
+                    <el-icon><Edit /></el-icon>
+                    <span>重新编辑</span>
+                  </el-button>
+                  
+                  <el-button 
+                    @click="handleVideoRegenerate" 
+                    class="preview-bottom-btn"
+                  >
+                    <el-icon><Refresh /></el-icon>
+                    <span>再次生成</span>
+                  </el-button>
+                </div>
               </div>
             </div>
           </div>
@@ -313,9 +348,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted, type ComponentPublicInstance } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, VideoPlay, Download, Close, Select, Loading, Picture, VideoCamera, Edit, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { Check, VideoPlay, Download, Close, Select, Loading, Picture, VideoCamera, Edit, Refresh, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { downloadFile, downloadFiles } from '../utils'
 import { getAssetsResults, deleteGenerate, getAssetDetail } from '../api/assetsView'
+import { useRouter } from 'vue-router'
+import { useGenerateStore } from '../stores/generate'
+
+const router = useRouter()
+const generateStore = useGenerateStore()
 
 interface Asset {
   id: number
@@ -904,6 +944,84 @@ const handleKeydown = (event: KeyboardEvent) => {
 // 添加键盘事件监听
 document.addEventListener('keydown', handleKeydown)
 
+// 图生视频功能
+const handleImageToVideo = () => {
+  if (!currentAsset.value) return
+  
+  // 使用 store 设置配置
+  generateStore.setConfig({
+    mode: 'video',
+    referenceImages: [{
+      url: currentAsset.value.url || currentAsset.value.materialUrl,
+      val: currentAssetDetail.value?.materialUri || currentAsset.value.materialUrl
+    }]
+  })
+  
+  // 关闭预览弹窗
+  previewVisible.value = false
+  
+  // 跳转到生成页面
+  router.push('/mobgiAI/generate')
+  
+  ElMessage.success('已跳转到视频生成页面')
+}
+
+// 作为参考图功能
+const handleUseAsReference = () => {
+  if (!currentAsset.value) return
+  
+  // 使用 store 设置配置
+  generateStore.setConfig({
+    mode: 'image',
+    referenceImages: [{
+      url: currentAsset.value.url || currentAsset.value.materialUrl,
+      val: currentAssetDetail.value?.materialUri || currentAsset.value.materialUrl
+    }]
+  })
+  
+  // 关闭预览弹窗
+  previewVisible.value = false
+  
+  // 跳转到生成页面
+  router.push('/mobgiAI/generate')
+  
+  ElMessage.success('已跳转到图片生成页面')
+}
+
+// 视频重新编辑功能
+const handleVideoReEdit = () => {
+  if (!currentAsset.value || !currentAssetDetail.value) return
+  
+  // 使用 store 设置配置（从资产详情中提取所有参数）
+  generateStore.setConfigFromAsset(currentAssetDetail.value, 'video')
+  
+  // 关闭预览弹窗
+  previewVisible.value = false
+  
+  // 跳转到生成页面
+  router.push('/mobgiAI/generate')
+  
+  ElMessage.success('已跳转到视频生成页面')
+}
+
+// 视频再次生成功能
+const handleVideoRegenerate = () => {
+  if (!currentAsset.value || !currentAssetDetail.value) return
+  
+  // 使用 store 设置配置（从资产详情中提取所有参数，但不包含参考视频）
+  generateStore.setConfigFromAsset(currentAssetDetail.value, 'video')
+  // 清除参考视频，因为是再次生成
+  generateStore.clearReferenceVideo()
+  
+  // 关闭预览弹窗
+  previewVisible.value = false
+  
+  // 跳转到生成页面
+  router.push('/mobgiAI/generate')
+  
+  ElMessage.success('已跳转到视频生成页面，可以再次生成')
+}
+
 // 设置视频元素引用
 const setVideoRef = (el: Element | ComponentPublicInstance | null, assetId: number) => {
   if (el && el instanceof HTMLVideoElement) {
@@ -1424,69 +1542,51 @@ body:has(.preview-dialog.el-overlay) {
   display: block;
 }
 
-/* 左右切换按钮 */
-.preview-nav-btn {
+/* 右侧上下切换按钮容器 */
+.preview-nav-buttons {
   position: absolute;
+  right: 20px;
   top: 50%;
   transform: translateY(-50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 10;
+}
+
+/* 上下切换按钮 - 无背景样式 */
+.preview-nav-btn {
+  width: 40px;
+  height: 40px;
   border: none;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.preview-nav-btn.prev-btn {
-  left: 20px;
-}
-
-.preview-nav-btn.next-btn {
-  right: 20px;
-}
-
-.preview-nav-btn:hover {
-  background: rgba(0, 0, 0, 0.6);
+.preview-nav-btn:hover:not(.disabled) {
   color: #ffffff;
-  transform: translateY(-50%) scale(1.1);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transform: scale(1.2);
 }
 
-.preview-nav-btn:active {
-  transform: translateY(-50%) scale(0.95);
+.preview-nav-btn:active:not(.disabled) {
+  transform: scale(0.9);
+}
+
+.preview-nav-btn.disabled {
+  color: rgba(255, 255, 255, 0.4);
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .preview-nav-btn .el-icon {
-  font-size: 24px;
+  font-size: 32px;
   font-weight: 600;
-}
-
-/* 资产计数器 */
-.preview-counter {
-  position: absolute;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8px 20px;
-  border-radius: 20px;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-  border: none;
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 500;
-  z-index: 10;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
-  letter-spacing: 0.5px;
-  font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
 }
 
 /* 右侧信息区域 */
@@ -1758,9 +1858,20 @@ body:has(.preview-dialog.el-overlay) {
 .preview-actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   padding-top: 4px;
   flex-shrink: 0;
+  margin-top: auto;
+  position: sticky;
+  bottom: 0;
+  background: transparent;
+  padding-top: 20px;
+  margin-left: -20px;
+  margin-right: -20px;
+  margin-bottom: -20px;
+  padding-left: 20px;
+  padding-right: 20px;
+  padding-bottom: 20px;
 }
 
 .preview-action-btn {
@@ -1777,6 +1888,7 @@ body:has(.preview-dialog.el-overlay) {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  margin-bottom: 16px;
 }
 
 .preview-action-btn.primary-btn {
@@ -1832,6 +1944,67 @@ body:has(.preview-dialog.el-overlay) {
 
 .preview-action-btn .el-icon {
   font-size: 20px;
+}
+
+/* 底部固定按钮组 */
+.preview-bottom-actions {
+  display: flex;
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+  border: none;
+}
+
+.preview-bottom-btn {
+  flex: 1;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.preview-bottom-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  transition: left 0.5s ease;
+}
+
+.preview-bottom-btn:hover::before {
+  left: 100%;
+}
+
+.preview-bottom-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.preview-bottom-btn:active {
+  transform: translateY(0);
+}
+
+.preview-bottom-btn .el-icon {
+  font-size: 16px;
 }
 
 /* Element Plus 组件样式覆盖 */
