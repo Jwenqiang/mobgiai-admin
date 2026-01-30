@@ -801,9 +801,11 @@
         <div v-if="historyResults.length > 0 || generationTasks.length > 0" class="results-display" ref="resultsDisplayRef">
           <!-- 滚动哨兵元素 - 用于触发上拉加载，放在顶部 -->
           <!-- 始终渲染哨兵元素，但在加载时改变样式 -->
-          <div v-if="hasMore" class="scroll-sentinel" :class="{ 'loading': loadingMore }" style="height: 50px; background: rgba(255,0,0,0.1);">
+          <div v-if="hasMore" class="scroll-sentinel" :class="{ 'loading': loadingMore }">
             <div v-if="loadingMore" class="loading-more">
-              <el-icon class="is-loading"><Loading /></el-icon>
+              <div class="loading-spinner-small">
+                <div class="spinner-ring-small"></div>
+              </div>
               <span>加载中...</span>
             </div>
           </div>
@@ -5497,16 +5499,16 @@ const handleScroll = () => {
     scrollDirection.value = 'up'
   }
   
-  // 检测是否滚动到顶部附近（距离顶部小于200px）
+  // 检测是否滚动到顶部附近（距离顶部小于500px时触发）
   // 简化逻辑：只要满足条件就触发，用标记防止重复
-  if (currentScrollTop < 200 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value) {
+  if (currentScrollTop < 500 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value) {
     isLoadingTriggered.value = true
     currentPage.value++
     fetchGenerateResults(currentPage.value, true)
   }
   
   // 当滚动离开顶部区域时，重置触发标记
-  if (currentScrollTop > 300) {
+  if (currentScrollTop > 600) {
     isLoadingTriggered.value = false
   }
   
@@ -8536,19 +8538,52 @@ onUnmounted(() => {
   margin-bottom: 24px;
 }
 
+/* 滚动哨兵元素 */
+.scroll-sentinel {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
 /* 加载更多提示 */
 .loading-more {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 20px;
-  color: rgba(255, 255, 255, 0.6);
+  gap: 12px;
+  padding: 16px 24px;
+  color: rgba(255, 255, 255, 0.7);
   font-size: 14px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
 }
 
-.loading-more .el-icon {
-  font-size: 18px;
+/* 小型加载动画 */
+.loading-spinner-small {
+  position: relative;
+  width: 20px;
+  height: 20px;
+}
+
+.spinner-ring-small {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top-color: rgba(99, 102, 241, 0.8);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 /* 没有更多数据提示 */
@@ -8569,7 +8604,7 @@ onUnmounted(() => {
   gap: 6px;
   align-items: flex-start; /* 顶部对齐 */
   margin-bottom: 2px;
-  min-height: 80px; /* 确保最小高度与缩略图一致 */
+  min-height: 25px; /* 确保最小高度与缩略图一致 */
 }
 
 .generation-thumbnail-wrapper {

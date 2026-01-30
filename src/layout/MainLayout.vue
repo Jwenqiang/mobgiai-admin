@@ -38,10 +38,10 @@
           </el-menu-item>
         </el-menu>
       </div>
-      
-      <div class="sidebar-footer">
-        <!-- 用户信息已移动到面包屑右侧 -->
-      </div>
+      <!-- 用户信息已移动到面包屑右侧 -->
+      <!-- <div class="sidebar-footer">
+        
+      </div> -->
     </div>
 
     <!-- 主内容区 -->
@@ -182,8 +182,7 @@ onMounted(() => {
 <style scoped>
 .main-layout {
   display: flex;
-  height: calc(100vh-80px);
-  max-height: 100vh;
+  height: 100vh;
   background: #f5f7fa;
 }
 
