@@ -437,7 +437,7 @@
                 v-if="currentGenerateMode?.value === 'image'"
                 ref="imageParamsPopoverRef"
                 placement="top"
-                :width="280"
+                :width="'auto'"
                 trigger="click"
                 popper-class="image-params-popover"
                 :teleported="true"
@@ -5222,6 +5222,11 @@ const sendGenerateRequest = async (task: GenerationObj, taskId: string) => {
     const taskIndex = generationTasks.value.findIndex(t => t.id === taskId)
     if (taskIndex > -1) {
       generationTasks.value.splice(taskIndex, 1)
+    }
+    
+    // 如果是重复请求，静默处理，不显示错误提示
+    if (error?.isDuplicate) {
+      return
     }
     
     // 显示错误信息
@@ -10917,7 +10922,8 @@ body:has(.preview-dialog.el-overlay) {
 }
 
 .image-params-selector {
-  min-width: 260px;
+  min-width: max-content;
+  max-width: 90vw;
 }
 
 .selector-header {
@@ -11092,10 +11098,11 @@ body:has(.preview-dialog.el-overlay) {
 
 /* 比例选择网格 */
 .ratio-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  display: flex;
+  flex-wrap: nowrap;
   gap: 4px;
   margin-bottom: 10px;
+  min-width: max-content;
 }
 
 .ratio-item {
@@ -11111,6 +11118,8 @@ body:has(.preview-dialog.el-overlay) {
   border: 1px solid transparent;
   position: relative;
   overflow: hidden;
+  flex-shrink: 0;
+  min-width: 28px;
 }
 
 .ratio-item:hover {
@@ -11513,7 +11522,7 @@ body:has(.preview-dialog.el-overlay) {
     max-width: 757px;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 100px;
+    bottom: 24px;
   }
   
   .floating-input-panel.collapsed {
@@ -11719,6 +11728,12 @@ body.el-popup-parent--hidden {
 .el-popover.image-params-popover[data-popper-placement],
 .el-popover.model-popover[data-popper-placement] {
   background: rgba(26, 26, 46, 0.95) !important;
+}
+
+/* 图片参数弹窗自适应宽度 */
+.el-popover.image-params-popover[data-popper-placement] {
+  width: auto !important;
+  max-width: 90vw !important;
 }
 
 .el-popover.generate-mode-popover[data-popper-placement] .el-popover__content,

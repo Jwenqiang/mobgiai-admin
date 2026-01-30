@@ -86,7 +86,7 @@
             <el-checkbox 
               :checked="dateGroup.allSelected"
               :indeterminate="dateGroup.indeterminate"
-              @change="handleDateGroupChange(dateGroup)"
+              @change="(val: boolean) => handleDateGroupChange(dateGroup, val)"
             >
               全选
             </el-checkbox>
@@ -418,6 +418,12 @@ interface ApiResponse {
     list: Asset[]
   }
 }
+interface ApiError {
+  code?: number
+  msg?: string
+  message?: string
+}
+
 
 // 分页相关状态
 const currentPage = ref(1)
@@ -647,11 +653,13 @@ const toggleDateGroupSelection = (dateGroup: DateGroup, newState: boolean) => {
   dateGroup.assets.forEach(asset => {
     asset.selected = newState
   })
+  // 更新日期组的选择状态
+  updateDateGroupSelection(dateGroup)
 }
 
 // 包装函数用于模板中的事件处理
-const handleDateGroupChange = (dateGroup: DateGroup) => {
-  return (val: boolean) => toggleDateGroupSelection(dateGroup, val)
+const handleDateGroupChange = (dateGroup: DateGroup, val: boolean) => {
+  toggleDateGroupSelection(dateGroup, val)
 }
 
 // 更新日期组选择状态
@@ -744,7 +752,7 @@ const batchDelete = async () => {
     // 如果是用户取消删除，不显示错误信息
     if (error !== 'cancel') {
       console.error('批量删除失败:', error)
-      ElMessage.error('批量删除失败，请重试')
+      ElMessage.error((error as ApiError)?.msg || '批量删除失败，请重试')
     }
   }
 }
