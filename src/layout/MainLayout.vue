@@ -28,13 +28,13 @@
           router
         >
           <el-menu-item index="/mobgiAI/assets">
-            <el-icon><Wallet /></el-icon>
+            <img src="@/assets/imgs/icon-assets.svg" alt="资产" class="menu-icon" />
             <template #title>资产</template>
           </el-menu-item>
           
           <el-menu-item index="/mobgiAI/generate">
             <img src="@/assets/imgs/icon-create.svg" alt="创作" class="menu-icon" />
-            <template #title>MobgiAI创作</template>
+            <template #title>创作</template>
           </el-menu-item>
         </el-menu>
       </div>
@@ -96,7 +96,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Expand, Fold, User, 
-  More, SwitchButton
+  More, SwitchButton, Edit
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { logout } from '../api/index'
@@ -112,8 +112,7 @@ const activeMenu = computed(() => route.path)
 const currentPageTitle = computed(() => {
   const titleMap: Record<string, string> = {
     '/mobgiAI/assets': '资产管理',
-    '/mobgiAI/video-generate': '视频生成',
-    '/mobgiAI/generate': 'MobgiAI创作'
+    '/mobgiAI/generate': '创作'
   }
   return titleMap[route.path] || '首页'
 })
@@ -253,6 +252,9 @@ onMounted(() => {
   margin: 4px 12px;
   border-radius: 8px;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  padding-left: 16px !important;
 }
 
 .sidebar-menu .el-menu-item:hover {
@@ -269,6 +271,12 @@ onMounted(() => {
 .sidebar-menu .el-menu-item .el-icon {
   margin-right: 12px;
   font-size: 18px;
+  flex-shrink: 0;
+}
+
+.sidebar-menu .el-menu-item .el-menu-item__title {
+  flex: 1;
+  text-align: left;
 }
 
 .sidebar-menu .el-menu-item .menu-icon {
@@ -278,6 +286,9 @@ onMounted(() => {
   object-fit: contain;
   transition: all 0.3s ease;
   filter: brightness(0) saturate(100%) invert(40%) sepia(0%) saturate(0%) hue-rotate(0deg) brightness(95%) contrast(90%);
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .sidebar-menu .el-menu-item:hover .menu-icon {

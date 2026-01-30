@@ -482,8 +482,8 @@
                     </div>
                   </template>
                   
-                  <!-- 尺寸显示：只在非可灵模型时显示 -->
-                  <template v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">
+                  <!-- 尺寸显示：只在包含seedream模型下显示 -->
+                  <template v-if="currentModel?.aiDriver?.toLowerCase().includes('seedream')">
                     <div class="selector-header">尺寸</div>
                     <div class="size-display">
                       <div class="size-input-group">
@@ -1759,8 +1759,8 @@
                   </div>
                 </template>
                 
-                <!-- 尺寸显示：只在非可灵模型时显示 -->
-                <template v-if="!currentModel?.aiDriver?.toLowerCase().includes('klingai') && !currentModel?.aiDriver?.toLowerCase().includes('keling')">
+                <!-- 尺寸显示：只在包含seedream模型下显示 -->
+                <template v-if="currentModel?.aiDriver?.toLowerCase().includes('seedream')">
                   <div class="selector-header">尺寸</div>
                   <div class="size-display">
                     <div class="size-input-group">
@@ -2457,6 +2457,7 @@ const hasMore = ref(true)
 const initialLoading = ref(true) // 初始加载状态
 const isFirstLoad = ref(true) // 标记是否是首次加载（页面初始化）
 const isLoadingTriggered = ref(false) // 防止重复触发加载
+const loadingLockUntil = ref(0) // 加载锁定时间戳，在此之前禁止触发加载
 const isInitialScrollDone = ref(false) // 标记初始滚动是否完成
 const resultsDisplayRef = ref<HTMLElement | null>(null)
 const loadMoreObserver = ref<IntersectionObserver | null>(null)
@@ -3562,8 +3563,8 @@ const buildGenerateRequestTask = () => {
       })
     }
     
-    // 尺寸 - 如果有 width 和 height，传递实际尺寸值
-    if (currentSize.value?.width && currentSize.value?.height) {
+    // 尺寸 - 只在包含 seedream 模型时传递实际尺寸值
+    if (currentModel.value?.aiDriver?.toLowerCase().includes('seedream') && currentSize.value?.width && currentSize.value?.height) {
       let width = currentSize.value.width
       let height = currentSize.value.height
       
@@ -5104,7 +5105,22 @@ const fetchGenerateResults = async (page: number = 1, append: boolean = false) =
             const newScrollHeight = mainContent.scrollHeight
             const heightDiff = newScrollHeight - oldScrollHeight
             // 调整滚动位置，保持用户看到的内容不变
-            mainContent.scrollTop = oldScrollTop + heightDiff
+            const maintainedScrollTop = oldScrollTop + heightDiff
+            mainContent.scrollTop = maintainedScrollTop
+            
+            // 延迟后，在当前位置基础上再向下滚动，离开触发区域
+            setTimeout(() => {
+              // 在当前位置基础上向下滚动 600px，确保离开触发区域（< 800px）
+              // 同时确保至少滚动到 1000px
+              const targetScrollTop = Math.max(mainContent.scrollTop + 600, 1000)
+              mainContent.scrollTop = targetScrollTop
+              
+              // 手动重置触发标记
+              isLoadingTriggered.value = false
+              
+              // 设置时间锁：在接下来的 500ms 内禁止触发新的加载
+              loadingLockUntil.value = Date.now() + 500
+            }, 100)
           }
         })
       } else {
@@ -5463,7 +5479,6 @@ const scrollToBottom = () => {
     if (lastTask) {
 
       lastTask.scrollIntoView({ behavior: 'auto', block: 'end' })
-      console.log('✅ scrollToBottom completed (scrollIntoView)')
       return
     }
     
@@ -5499,16 +5514,20 @@ const handleScroll = () => {
     scrollDirection.value = 'up'
   }
   
-  // 检测是否滚动到顶部附近（距离顶部小于500px时触发）
+  // 检测是否滚动到顶部附近（距离顶部小于800px时触发）
   // 简化逻辑：只要满足条件就触发，用标记防止重复
-  if (currentScrollTop < 500 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value) {
+  // 同时检查时间锁，防止加载完成后立即再次触发
+  const now = Date.now()
+  const isLocked = now < loadingLockUntil.value
+  
+  if (currentScrollTop < 800 && hasMore.value && !loadingMore.value && isInitialScrollDone.value && !isLoadingTriggered.value && !isLocked) {
     isLoadingTriggered.value = true
     currentPage.value++
     fetchGenerateResults(currentPage.value, true)
   }
   
   // 当滚动离开顶部区域时，重置触发标记
-  if (currentScrollTop > 600) {
+  if (currentScrollTop > 900) {
     isLoadingTriggered.value = false
   }
   
@@ -5875,15 +5894,6 @@ const setupIntersectionObserver = () => {
   // 查找滚动容器
   const mainContent = document.querySelector('.main-content') as HTMLElement
   const scrollContainer = mainContent || null
-  
-  console.log('setupIntersectionObserver called:', {
-    sentinelEl,
-    scrollContainer,
-    hasMore: hasMore.value,
-    loadingMore: loadingMore.value,
-    sentinelRect: sentinelEl.getBoundingClientRect(),
-    containerRect: scrollContainer?.getBoundingClientRect()
-  })
   
   // 创建 Intersection Observer
   loadMoreObserver.value = new IntersectionObserver(

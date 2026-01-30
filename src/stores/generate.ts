@@ -171,15 +171,15 @@ export const useGenerateStore = defineStore('generate', () => {
       // 视频模式：检查是否有参考图片（首尾帧）或参考视频
       const imagesTag = tags.find((tag: AssetTag) => tag.key === 'images')
       const imageFirstTag = tags.find((tag: AssetTag) => tag.key === 'imageFirst')
-      const imageLastTag = tags.find((tag: AssetTag) => tag.key === 'imageLast')
+      const imageTailTag = tags.find((tag: AssetTag) => tag.key === 'imageTail')
       const referenceVideoTag = tags.find((tag: AssetTag) => tag.key === 'referenceVideo' || tag.key === 'video')
 
       if (referenceVideoTag && referenceVideoTag.val) {
         // 有参考视频
         newConfig.referenceVideo = referenceVideoTag.showVal || referenceVideoTag.val
         newConfig.referenceVideoVal = referenceVideoTag.val
-
-      } else if (imageFirstTag || imageLastTag || imagesTag) {
+        console.log('从资产提取参考视频:', newConfig.referenceVideo)
+      } else if (imageFirstTag || imageTailTag || imagesTag) {
         // 有参考图片（首尾帧模式）
         newConfig.referenceImages = []
         
@@ -189,29 +189,30 @@ export const useGenerateStore = defineStore('generate', () => {
             val: imageFirstTag.val
           }
           newConfig.referenceImages.push(imageData)
-
+          console.log('从资产提取首帧图片:', imageData)
         }
         
-        if (imageLastTag && imageLastTag.val) {
+        if (imageTailTag && imageTailTag.val) {
           const imageData = {
-            url: imageLastTag.showVal || imageLastTag.val,
-            val: imageLastTag.val
+            url: imageTailTag.showVal || imageTailTag.val,
+            val: imageTailTag.val
           }
           newConfig.referenceImages.push(imageData)
-
+          console.log('从资产提取尾帧图片:', imageData)
         }
         
-        // 如果没有 imageFirst/imageLast，尝试从 images 中提取
+        // 如果没有 imageFirst/imageTail，尝试从 images 中提取
         if (newConfig.referenceImages.length === 0 && imagesTag && imagesTag.val) {
           newConfig.referenceImages.push({
             url: imagesTag.showVal || imagesTag.val,
             val: imagesTag.val
           })
-
+          console.log('从资产提取参考图片:', imagesTag.val)
         }
-
+        
+        console.log('最终提取的参考图片数量:', newConfig.referenceImages.length)
       } else {
-
+        console.log('未找到任何参考素材标签')
       }
     } else if (mode === 'image') {
       // 图片模式：检查是否有参考图片
